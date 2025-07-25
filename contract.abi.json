@@ -1,0 +1,351 @@
+{
+  "0x4d4eb9bfa2b210d890833a712be244081fddadb07f031f361ea5cf7f1a130651": "TgUsernamesCollection",
+  "0xf1b5430dba31f0241843a4d5c8f2a6b937c29bae6e70a2971f2d23b9d54b8c50": "JettonMinter",
+  "0x72ca259761acbbaebf3e2d145cf74485a561327bbe7526f27eef552d4fd88709": "DnsCollection",
+  "0x35ab3228b307d9c2a3afa07c5b7d12eb9d7a686bb52217dbcf081666b2f4b398": "Domain",
+  "0xc86224b4d12fc3260208c572a8577b0731f50627bb77347c931b2deda2aed3f8": "MultipleOffer",
+  "0x7aa1b7be6804364eda0bfe39de5198d2dd91f4eeff5eb572ee04b3ea6aa881d9": "JettonWallet",
+  "0xadede1b3e5576a515112f69f67302ac18c615179701540526584730297945397": "MultipleOffer",
+  "0x9bde0fdb6b78afdd134d6bd977c8662b3e9cb58121dc35ec255e4edb88163598": "MultipleOffer",
+  "0xfcf119e30510b482b2d46d5d1c8e686fb0862a558316f62071e619d9b6d344c7": "MultipleOffer",
+  "0x5b555ea4089bba8a9b76930a0716ec7bc0ffb6ea507cfe5d04457b568798e5c2": "MultipleOffer",
+  "TgUsernamesCollection": {
+    "receivers": [
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "0x4637289a"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "0x299a3e15"
+        }
+      }
+    ],
+    "types": [
+      {
+        "name": "0x4637289a",
+        "header": 1178019994
+      },
+      {
+        "name": "0x299a3e15",
+        "header": 697974293
+      }
+    ],
+    "name": "TgUsernamesCollection"
+  },
+  "JettonMinter": {
+    "receivers": [
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "0x1674b0a0"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "0x178d4519"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "jettonTransferNotification"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "excesses"
+        }
+      }
+    ],
+    "types": [
+      {
+        "name": "0x1674b0a0",
+        "header": 376746144
+      },
+      {
+        "name": "0x178d4519",
+        "header": 395134233
+      },
+      {
+        "name": "jettonTransferNotification",
+        "header": 1935855772
+      },
+      {
+        "name": "excesses",
+        "header": 3576854235
+      }
+    ],
+    "name": "JettonMinter"
+  },
+  "DnsCollection": {
+    "receivers": [
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "0x370fec51"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "0x8002fb6a"
+        }
+      }
+    ],
+    "types": [
+      {
+        "name": "0x370fec51",
+        "header": 923790417
+      },
+      {
+        "name": "0x8002fb6a",
+        "header": 2147679082
+      }
+    ],
+    "name": "DnsCollection"
+  },
+  "Domain": {
+    "receivers": [
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "transferNft"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "excesses"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "nftOwnershipAssigned"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "transferJetton"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "0x178d4519"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "jettonTransferNotification"
+        }
+      }
+    ],
+    "types": [
+      {
+        "name": "transferNft",
+        "header": 1607220500
+      },
+      {
+        "name": "excesses",
+        "header": 3576854235
+      },
+      {
+        "name": "nftOwnershipAssigned",
+        "header": 85167505
+      },
+      {
+        "name": "transferJetton",
+        "header": 260734629
+      },
+      {
+        "name": "0x178d4519",
+        "header": 395134233
+      },
+      {
+        "name": "jettonTransferNotification",
+        "header": 1935855772
+      }
+    ],
+    "name": "Domain"
+  },
+  "MultipleOffer": {
+    "receivers": [
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "fillUpJettonBalance"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "notSupported"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "transferJetton"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "0x178d4519"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "jettonTransferNotification"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "excesses"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "setNewData"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "withdrawTon"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "withdrawJetton"
+        }
+      }
+    ],
+    "types": [
+      {
+        "name": "fillUpJettonBalance",
+        "header": 101311611
+      },
+      {
+        "name": "notSupported",
+        "header": 4294967295
+      },
+      {
+        "name": "transferJetton",
+        "header": 260734629
+      },
+      {
+        "name": "0x178d4519",
+        "header": 395134233
+      },
+      {
+        "name": "jettonTransferNotification",
+        "header": 1935855772
+      },
+      {
+        "name": "excesses",
+        "header": 3576854235
+      },
+      {
+        "name": "setNewData",
+        "header": 2985654324
+      },
+      {
+        "name": "withdrawTon",
+        "header": 930245595
+      },
+      {
+        "name": "withdrawJetton",
+        "header": 297834114
+      }
+    ],
+    "name": "MultipleOffer"
+  },
+  "JettonWallet": {
+    "receivers": [
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "transferJetton"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "0x178d4519"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "jettonTransferNotification"
+        }
+      },
+      {
+        "receiver": "internal",
+        "message": {
+          "kind": "typed",
+          "type": "excesses"
+        }
+      }
+    ],
+    "types": [
+      {
+        "name": "transferJetton",
+        "header": 260734629
+      },
+      {
+        "name": "0x178d4519",
+        "header": 395134233
+      },
+      {
+        "name": "jettonTransferNotification",
+        "header": 1935855772
+      },
+      {
+        "name": "excesses",
+        "header": 3576854235
+      }
+    ],
+    "name": "JettonWallet"
+  }
+}
