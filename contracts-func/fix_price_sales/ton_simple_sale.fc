@@ -1,0 +1,259 @@
+#include "../global_imports/all_imports.fc";
+#include "constants.fc";
+
+
+global slice storage::domain_address;
+global slice storage::seller_address;
+global int   storage::price;
+global int   storage::state;
+global int   storage::commission;
+global int   storage::created_at;
+global int   storage::last_renewal_time;
+global int   storage::valid_until;
+global cell  storage::buyer_address_cell;
+global cell  storage::payout_notification;
+global int   storage::hot_until;
+global int   storage::colored_until;
+
+
+() load_data() impure {
+    slice ds = get_data().begin_parse();  ;; Bits = 267 + 267 + 124 + 2 + 124 + 32 + 32 + 1 + 32 + 32 = 913; Refs = 2
+    storage::domain_address      = ds~load_msg_addr();
+    storage::seller_address      = ds~load_msg_addr();
+    storage::price               = ds~load_coins();
+    storage::state               = ds~load_uint(2);
+    storage::commission          = ds~load_coins();
+    storage::created_at          = ds~load_uint(32);
+    storage::last_renewal_time   = ds~load_uint(32);
+    storage::valid_until         = ds~load_uint(32);
+    storage::buyer_address_cell  = ds~load_maybe_ref();
+    storage::payout_notification = ds~load_ref();
+    storage::hot_until           = ds~load_uint(32);
+    storage::colored_until       = ds~load_uint(32);
+    ds.end_parse();
+}
+
+#include "../global_imports/admin_functions.fc";  
+#include "../global_imports/handle_promotion.fc";
+
+() save_data() impure inline {
+    set_data(
+        begin_cell()
+            .store_slice(storage::domain_address)
+            .store_slice(storage::seller_address)
+            .store_coins(storage::price)
+            .store_uint(storage::state, 2)
+            .store_coins(storage::commission)
+            .store_uint(storage::created_at, 32)
+            .store_uint(storage::last_renewal_time, 32)
+            .store_uint(storage::valid_until, 32)
+            .store_maybe_ref(storage::buyer_address_cell)
+            .store_ref(storage::payout_notification)
+            .store_uint(storage::hot_until, 32)
+            .store_uint(storage::colored_until, 32)
+        .end_cell()
+    );
+}
+
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {    
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice sender_address = cs~load_msg_addr();
+    force_same_workchain(sender_address);
+
+    load_data();
+    
+    if (flags & 1) {  ;; bounced messages
+        return ();
+    }
+
+    int op = 0;
+    int query_id = 0;
+    if (in_msg_body.slice_bits()) {
+        op = in_msg_body~load_uint(32);
+    }
+    if (op != 0) {
+        query_id = in_msg_body~load_uint(64);
+    }
+    elseif (equal_slices(in_msg_body, msg::CANCEL_MESSAGE)) {
+        op = op::CANCEL_DEAL;
+    }
+    elseif (equal_slices(in_msg_body, msg::RENEW_DOMAIN_MESSAGE)) {
+        op = op::RENEW_DOMAIN;
+    }
+    elseif (equal_slices(in_msg_body, msg::FILL_UP_BALANCE_MESSAGE)) {
+        op = op::FILL_UP_BALANCE;
+    }
+
+    handle_admin_message(op, sender_address, in_msg_body, msg_value, storage::state != state::ACTIVE, storage::state != state::COMPLETED);
+    int now_time = now();
+    ;; Fill up balance or deploy
+    if (op == op::FILL_UP_BALANCE) {
+        if (storage::state == state::UNINIT) {
+            throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, MARKETPLACE_ADDRESS));
+            storage::state = state::ACTIVE;
+            save_data();
+            return ();
+        }
+        return ();
+    }
+
+    ;; Domain expiration notification
+    if (op == op::DNS_BALANCE_RELEASE) {
+        throw_unless(exc::INCORRECT_DOMAIN, equal_slices(sender_address, storage::domain_address));
+        
+        send_message_with_comment(storage::seller_address, 0, "Your domain has expired", mode::CARRY_REMAINING_BALANCE);
+        
+        storage::state = state::CANCELLED;
+        if (storage::valid_until > now_time) {
+            storage::valid_until = now_time;
+        }
+        save_data();
+        return ();
+    }
+
+    if (op == op::DEDUST_PAYOUT) {
+        op = 0;
+        sender_address = in_msg_body~load_maybe_ref().begin_parse();
+    }
+    
+    return_tons_if_condition(sender_address, exc::DEAL_NOT_ACTIVE, storage::state != state::ACTIVE);   ;; check that the sale is active
+
+    ;; Purchase
+    if ((op == 0) & (msg_value >= storage::price + tons::TON_SIMPLE_PURCHASE)) {
+        return_tons_if_condition(sender_address, exc::DOMAIN_EXPIRED, storage::valid_until < now_time);
+
+        send_message_with_comment(MARKETPLACE_ADDRESS, storage::commission, msg::MARKETPLACE_COMMISSION_MESSAGE, mode::SIMPLE);  ;; marketplace commission 
+        send_cell_message(storage::seller_address, storage::price - storage::commission + my_balance - msg_value, storage::payout_notification, mode::PAY_FEES_SEPARATELY);  ;; seller payout
+        transfer_nft(query_id, storage::domain_address, sender_address, sender_address, 0, mode::CARRY_REMAINING_BALANCE, tons::PURCHASE_NOTIFICATION, BUYER_NOTIFICATION());  ;; domain transfer
+
+        storage::state = state::COMPLETED;
+        storage::valid_until = now_time;
+        storage::buyer_address_cell = begin_cell().store_slice(sender_address).end_cell();
+        save_data();
+       
+        return ();
+    }
+
+    ;; Cancel sale (available even if valid_until < now_time, because it is possible to renew the domain after the expiration date)
+    if (op == op::CANCEL_DEAL) {
+        throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::seller_address) | equal_slices(sender_address, ADMIN_ADDRESS));
+        transfer_nft(query_id, storage::domain_address, storage::seller_address, storage::seller_address, 
+                    0, mode::CARRY_REMAINING_BALANCE, 1, SALE_CANCEL_NOTIFICATION());
+
+        storage::state = state::CANCELLED;
+        if (storage::valid_until > now_time) {
+            storage::valid_until = now_time;
+        }
+        save_data();
+
+        return ();
+    }
+
+    ;; Change price
+    if (op == op::CHANGE_PRICE) { 
+        throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::seller_address));
+
+        int new_price = in_msg_body~load_coins();
+        int new_commission = muldiv(new_price, storage::commission, storage::price);
+        int new_valid_until = in_msg_body~load_uint(32);
+        throw_unless(exc::INCORRECT_VALID_UNTIL, (new_valid_until >= max(now_time + 600, storage::valid_until)) & 
+                                                 (new_valid_until <= storage::last_renewal_time + ONE_YEAR - ONE_DAY));
+
+        storage::price = new_price;
+        storage::commission = new_commission;
+        storage::valid_until = new_valid_until;
+        save_data();
+
+        raw_reserve(storage_fees(), 4);
+        cell payload = payload_with_comment("Price changed to ").store_str_jettons(new_price, ONE_TON, "TON").end_cell();
+        send_cell_message(sender_address, 0, payload, mode::CARRY_REMAINING_BALANCE);
+
+        return ();
+    }
+
+    ;; Renew the domain
+    if (op == op::RENEW_DOMAIN) {
+        throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::seller_address));
+        throw_unless(exc::OUT_OF_GAS, msg_value >= tons::RENEW_REQUEST + tons::RENEW_DOMAIN);
+        throw_unless(exc::DOMAIN_EXPIRED, storage::last_renewal_time + ONE_YEAR - ONE_DAY >= now_time);  ;; check that domain expires later than in one day
+
+        raw_reserve(storage_fees(), 4);
+        send_cell_message(storage::domain_address, tons::RENEW_DOMAIN, null(), mode::PAY_FEES_SEPARATELY);
+        send_builder_message(MARKETPLACE_ADDRESS, 0, begin_cell().store_uint(op::RENEWAL_FEE, 32).store_uint(query_id, 64), mode::CARRY_REMAINING_BALANCE);
+        
+        int new_valid_until = in_msg_body.slice_bits() ? min(now_time + ONE_YEAR - ONE_DAY, in_msg_body~load_uint(32)) : now_time + ONE_YEAR - ONE_DAY;
+        throw_unless(exc::INCORRECT_VALID_UNTIL, new_valid_until >= max(now_time + ONE_HOUR, storage::valid_until));
+        storage::valid_until = new_valid_until;
+        storage::last_renewal_time = now_time;
+        save_data();
+        
+        return ();
+    }
+
+    if ((op == op::MAKE_COLORED) | (op == op::MAKE_HOT)) {
+        int promotion_until = in_msg_body~load_uint(32);
+        handle_promotion(promotion_until, op, query_id, sender_address);
+        save_data();
+        return ();
+    }
+
+    raw_reserve(storage_fees(), 4);
+    send_message_with_comment(sender_address, 0, "Unsupported op", mode::CARRY_REMAINING_BALANCE);
+    commit();
+    throw(exc::UNSUPPORTED_OP);
+}
+
+
+() recv_external(slice in_msg_body) impure {
+    load_data();
+
+    throw_if(exc::DEAL_NOT_ACTIVE, storage::state != state::ACTIVE);
+
+    if (now() >= storage::valid_until) {
+        throw_if(exc::UNSUPPORTED_OP, in_msg_body~load_uint(32) != op::CANCEL_DEAL);
+        accept_message();
+
+        transfer_nft(in_msg_body~load_uint(64), storage::domain_address, storage::seller_address,
+                     storage::seller_address, 0, mode::CARRY_REMAINING_BALANCE, 1, SALE_CANCEL_NOTIFICATION());
+        
+        storage::state = state::CANCELLED;
+        save_data();
+
+        return ();
+    }
+
+    throw(0xfffe);
+}
+
+
+;; Get methods
+
+(slice, cell, int, int, int, int, int, int, int, int, slice, cell, int, int, slice, int) get_storage_data() method_id {
+    load_data();
+    
+    cell domains_dict = new_dict();
+    domains_dict~dict_set(267, storage::domain_address, BIT_TRUE_SLICE());
+    
+    slice buyer_address = cell_null?(storage::buyer_address_cell) ? TWO_ZEROS_SLICE() : storage::buyer_address_cell.begin_parse();
+    return (
+        storage::seller_address, 
+        domains_dict, 
+        1,
+        1,
+        storage::state, 
+        storage::price, 
+        muldiv(storage::commission, COMMISSION_DIVIDER, storage::price),
+        storage::created_at,
+        storage::last_renewal_time, 
+        storage::valid_until, 
+        buyer_address, 
+        storage::payout_notification, 
+        storage::hot_until,
+        storage::colored_until,
+        BURN_ADDRESS, 
+        cell_hash(my_code()));
+}
+
+#include "legacy_get_methods.fc";

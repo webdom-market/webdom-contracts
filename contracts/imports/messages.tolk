@@ -15,10 +15,29 @@ struct (0x5fcc3d14) NftTransferMessage<T> {
     forwardPayload: T?;
 }
 
+struct (0x5fcc3d14) NftTransferMessageBuilder<T> {
+    queryId: uint64;
+    toAddress: builder;
+    responseAddress: address;
+    customPayload: cell? = null;
+    forwardTonAmount: coins;
+    forwardPayload: T?;
+}
+
 struct (0x0f8a7ea5) SendJettonsMessage<T> {
     queryId: uint64;
     jettonAmount: coins;
     toAddress: address;
+    responseAddress: address;
+    customPayload: cell? = null;
+    forwardTonAmount: coins;
+    forwardPayload: T?;
+}
+
+struct (0x0f8a7ea5) SendJettonsMessageBuilder<T> {
+    queryId: uint64;
+    jettonAmount: coins;
+    toAddress: builder;
     responseAddress: address;
     customPayload: cell? = null;
     forwardTonAmount: coins;
@@ -90,3 +109,24 @@ struct (0x8ea53895) ExternalCancelDealMessage {
     offerAddress: address;
     msgToSend: cell;
 }
+
+struct (0x474f86cf) DedustTonPayoutMessage {
+    queryId: uint64;
+    senderAddress: Cell<address>;
+} 
+
+struct (0x504b6dd7) MakeHotMessage {
+    queryId: uint64;
+    promotionUntil: uint32;
+}
+
+struct (0x96dc2804) MakeColoredMessage {
+    queryId: uint64;
+    promotionUntil: uint32;
+}
+
+struct (0x975f5690) RenewalFeeMessage {
+    queryId: uint64;
+}
+
+type DedustJettonPayoutMessage = JettonsTransferNotificationMessage<address> | DedustTonPayoutMessage;

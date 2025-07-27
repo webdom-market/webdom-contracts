@@ -1,0 +1,115 @@
+slice null_addr() asm "b{00} PUSHSLICE";
+cell  preload_ref_index(slice s, int n) asm "PLDREFVAR";
+cell  my_code() asm "MYCODE";
+
+
+cell pack_state_init(cell code, cell data) inline {
+    return begin_cell()
+                .store_uint(0, 2)
+                .store_maybe_ref(code)
+                .store_maybe_ref(data)
+                .store_uint(0, 1)
+            .end_cell();
+}
+
+
+slice get_address_by_state_init(cell state_init) inline { 
+    return begin_cell()
+                .store_uint(1024, 11)
+                .store_uint(cell_hash(state_init), 256)
+            .end_cell().begin_parse();
+}
+
+
+() force_same_workchain(slice addr) impure inline {
+    (int wc, _) = parse_std_addr(addr);
+    throw_unless(exc::WRONG_CHAIN, wc == WORKCHAIN);
+}
+
+
+(slice, int) ~retrieve_fwd_fee(slice in_msg_full_slice) inline {
+    in_msg_full_slice~load_msg_addr(); ;; skip dst
+    in_msg_full_slice~load_coins(); ;; skip value
+    in_msg_full_slice~load_int(1); ;; skip extracurrency collection
+    in_msg_full_slice~load_coins(); ;; skip ihr_fee
+    int fwd_fee = in_msg_full_slice~load_coins();
+    return (in_msg_full_slice, fwd_fee);
+}
+
+
+;; taken from Openlib (https://github.com/continuation-team/openlib.func/blob/main/openlib.func)
+builder store_number10(builder b, int x) asm """
+  ZERO                                                        // b x i=0
+  SWAP                                                        // b i=0 x
+  UNTIL:<{                                                    // b i x
+    10 PUSHINT DIVMOD                                         // b i x r
+    48 ADDCONST                                               // b i x r
+    s3 s1 s3 XCHG3                                            // r b x i
+    INC                                                       // r b x i
+    s1 s0 XCPU                                                // r b i x x
+    ISZERO
+  }>
+  DROP
+  REPEAT:<{ 8 STU }>                                          // ..rrr.. b i
+""";
+
+
+builder store_str_float(builder b, int number, int ten_pow_decimals) {
+    (int int_part, int dec_part) = divmod(number, ten_pow_decimals);
+    b = b.store_number10(int_part);
+    if (dec_part == 0) {
+        return b;
+    }
+
+    ;; displayed decimals = max(min(jetton_decimals, 4 - log10(int_part)), 0)
+    int max_dec_part = (int_part) ? (10000 / int_part) : 10000;
+    int zeros = 0;
+    int tmp = ten_pow_decimals / (dec_part + 1);
+    while (tmp >= 10) {
+        tmp /= 10;
+        max_dec_part /= 10;
+        zeros += 1;
+    }
+    if (max_dec_part == 0) {
+        return b;
+    }
+    while (dec_part > max_dec_part) {
+        dec_part /= 10;
+    }
+    if (dec_part) {
+        while (dec_part % 10 == 0) {
+            dec_part /= 10;
+        } 
+        b = b.store_uint(46, 8);  ;; store "." (dot)
+        repeat(zeros) { b = b.store_uint(48, 8); };
+        return b.store_number10(dec_part);
+    }
+    return b;
+}
+
+
+builder store_str_jettons(builder b, int jetton_amount, int one_jetton, slice symbol) {
+    return b.store_str_float(jetton_amount, one_jetton)
+                .store_uint(32, 8)  ;; store " " (space)
+                .store_slice(symbol);
+}
+
+slice calculate_web3_wallet_address(slice owner_address) inline {
+    cell data = begin_cell()
+                .store_coins(0)
+                .store_slice(owner_address)
+                .store_slice(WEB3_ADDRESS)
+                .store_ref(WEB3_WALLET_CODE())
+           .end_cell();
+    return get_address_by_state_init(pack_state_init(WEB3_WALLET_CODE(), data));
+}
+
+slice calculate_usdt_wallet_address(slice owner_address) inline {
+    cell data = begin_cell()
+                    .store_uint(0, 4)
+                    .store_coins(0)
+                    .store_slice(owner_address)
+                    .store_slice(USDT_ADDRESS)
+                .end_cell();
+    return get_address_by_state_init(pack_state_init(USDT_WALLET_CODE(), data));
+}

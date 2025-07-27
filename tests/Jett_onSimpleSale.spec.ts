@@ -1,6 +1,6 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, toNano } from '@ton/core';
-import { domainToNotification, JettonSimpleSale, JettonSimpleSaleConfig } from '../wrappers/JettonSimpleSale';
+import { JettonSimpleSale, JettonSimpleSaleConfig } from '../wrappers/JettonSimpleSale';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
 import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
@@ -10,6 +10,12 @@ import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes } from '..
 import { jettonsToString } from '../wrappers/helpers/functions';
 import { JettonMinter } from '../wrappers/JettonMinter';
 import { JettonWallet } from '../wrappers/JettonWallet';
+
+
+function domainToNotification(domainName: string): Cell {
+    return beginCell().storeUint(0, 32).storeStringTail(`Your domain was sold on webdom.market: `).storeRef(beginCell().storeStringTail(domainName).endCell()).endCell();
+}
+
 
 describe('JettonSimpleSale', () => {
     let jettonMinterCode: Cell;
@@ -62,6 +68,7 @@ describe('JettonSimpleSale', () => {
         usdtMinter = blockchain.openContract(JettonMinter.createFromConfig({admin: admin.address, content: beginCell().storeStringTail("usdt").endCell(), wallet_code: jettonWalletCode}, jettonMinterCode));
         await usdtMinter.sendDeploy(admin.getSender(), toNano("0.05"));
         await usdtMinter.sendMint(admin.getSender(), buyer.address, toNano(100), toNano("0.2"), toNano("0.5"));
+        await usdtMinter.sendMint(admin.getSender(), admin.address, toNano(100), toNano("0.2"), toNano("0.5"));
         usdtMarketplaceWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(admin.address)));
         usdtSellerWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(seller.address)));
         usdtBuyerWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(buyer.address)));
@@ -106,7 +113,9 @@ describe('JettonSimpleSale', () => {
             domainName: DOMAIN_NAME
         }
         jettonSimpleSale = blockchain.openContract(JettonSimpleSale.createFromConfig(jettonSimpleSaleConfig, fixPriceSaleCode));
-        transactionRes = await jettonSimpleSale.sendDeploy(admin.getSender(), toNano('0.05'));
+        usdtSaleWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonSimpleSale.address)));
+
+        transactionRes = await jettonSimpleSale.sendDeploy(admin.getSender(), toNano('0.05'), beginCell().storeAddress(usdtSaleWallet.address).endCell());
         expect(transactionRes.transactions).toHaveTransaction({
             from: admin.address,
             to: jettonSimpleSale.address,
@@ -118,7 +127,6 @@ describe('JettonSimpleSale', () => {
         let domainConfig = await domain.getStorageData();
         expect(domainConfig.ownerAddress?.toString()).toEqual(jettonSimpleSale.address.toString());
 
-        usdtSaleWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonSimpleSale.address)));
         jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
         expect(jettonSimpleSaleConfig.state).toEqual(JettonSimpleSale.STATE_ACTIVE);
         expect(usdtSaleWallet.address.toString()).toEqual(jettonSimpleSaleConfig.jettonWalletAddress!!.toString());
@@ -132,14 +140,13 @@ describe('JettonSimpleSale', () => {
             from: usdtBuyerWallet.address,
             to: buyer.address,
             body: JettonWallet.transferNotificationMessage(jettonSimpleSaleConfig.price, jettonSimpleSale.address,
-                 beginCell().storeUint(0, 32).storeStringTail(`Error. Code ${Exceptions.DOMAIN_EXPIRED}`).endCell()),
+                 beginCell().storeUint(0, 32).storeStringTail(`Error. Code ${Exceptions.DEAL_NOT_ACTIVE}`).endCell()),
         })
 
         await jettonSimpleSale.sendChangePrice(seller.getSender(), jettonSimpleSaleConfig.price, blockchain.now!! + 600);
 
         // reject if not enough jettons
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price - 100n, jettonSimpleSale.address, buyer.address, toNano("0.225"));
-        printTransactionFees(transactionRes.transactions);
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price - 100n, jettonSimpleSale.address, buyer.address, toNano("0.235"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
             to: buyer.address,
@@ -157,22 +164,7 @@ describe('JettonSimpleSale', () => {
         })
 
         // accept 
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price + 100n, jettonSimpleSale.address, buyer.address, toNano("0.225"));
-        // let msg = transactionRes.transactions[18].inMessage!!.body.beginParse();
-        // let msg2 = JettonWallet.transferNotificationMessage(jettonSimpleSaleConfig.price - jettonSimpleSaleConfig.commission, jettonSimpleSale.address, 
-        //     domainToNotification(DOMAIN_NAME)
-        // ).beginParse();
-        // console.log(msg.asCell().hash().toString('hex') == msg2.asCell().hash().toString('hex'));
-        // console.log(transactionRes.transactions[18].inMessage!!.info.src!!.toString() == usdtSellerWallet.address.toString());
-        // console.log(transactionRes.transactions[18].inMessage!!.info.dest!!.toString() == seller.address.toString());
-        // console.log(msg.loadUint(32) == msg2.loadUint(32));
-        // console.log(msg.loadUint(64) == msg2.loadUint(64));
-        // console.log(msg.loadCoins(), msg2.loadCoins());
-        // console.log(msg.loadAddress(), msg2.loadAddress());
-        // msg = msg.loadMaybeRef()!!.beginParse();
-        // msg2 = msg2.loadMaybeRef()!!.beginParse();
-        // console.log(msg.loadUint(32) == msg2.loadUint(32));
-        // console.log(msg.loadStringTail(), msg2.loadStringTail());
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price + 100n, jettonSimpleSale.address, buyer.address, toNano("0.235"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtSellerWallet.address,
             to: seller.address,
@@ -198,9 +190,8 @@ describe('JettonSimpleSale', () => {
         domainConfig = await domain.getStorageData();
         expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
 
-
         // reject if already sold
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price, jettonSimpleSale.address, buyer.address, toNano("0.225"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price, jettonSimpleSale.address, buyer.address, toNano("0.235"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
             to: buyer.address,
@@ -208,6 +199,15 @@ describe('JettonSimpleSale', () => {
                  beginCell().storeUint(0, 32).storeStringTail(`Error. Code ${Exceptions.DEAL_NOT_ACTIVE}`).endCell()),
         })
     });
+
+    it("should handle dedust swap", async () => {
+        transactionRes = await usdtMarketplaceWallet.sendTransfer(
+            admin.getSender(), jettonSimpleSaleConfig.price, jettonSimpleSale.address, buyer.address, 
+            toNano("0.235"), beginCell().storeAddress(buyer.address).endCell()
+        );
+        jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
+        expect(jettonSimpleSaleConfig.buyerAddress!.toString()).toEqual(buyer.address.toString());
+    })
 
 
     it('should change price', async () => {

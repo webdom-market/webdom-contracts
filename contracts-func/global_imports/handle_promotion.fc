@@ -1,0 +1,22 @@
+() handle_promotion(int promotion_until, int op, int query_id, slice sender_address) impure inline {
+    throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, MARKETPLACE_ADDRESS));
+    if (op == op::MAKE_COLORED) {
+        if (storage::colored_until > now()) {
+            storage::colored_until += (promotion_until - now());
+        }
+        else {
+            storage::colored_until += promotion_until;
+        }
+    }
+    else {
+        if (storage::hot_until > now()) {
+            storage::hot_until += (promotion_until - now());
+        }
+        else {
+            storage::hot_until += promotion_until;
+        }
+    }
+
+    send_excess(storage::seller_address, query_id, 0, mode::CARRY_REMAINING_GAS);
+    return ();
+}

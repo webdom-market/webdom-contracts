@@ -59,14 +59,14 @@ export function tonSimpleSaleConfigToCell(config: TonSimpleSaleConfig): Cell {
         .storeUint(config.lastRenewalTime, 32)
         .storeUint(config.validUntil, 32)
         .storeMaybeRef(config.buyerAddress ? beginCell().storeAddress(config.buyerAddress).endCell() : null)
-        .storeRef(domainToNotification(config.domainName))
+        .storeRef(beginCell().storeStringTail(config.domainName).endCell())
         .storeUint(config.hotUntil ?? 0, 32)
         .storeUint(config.coloredUntil ?? 0, 32)
     .endCell();
 }
 
 export class TonSimpleSale extends DefaultContract {
-    static PURCHASE = 65000000n; 
+    static PURCHASE = 70000000n; 
     static STATE_UNINIT = 0;
     static STATE_ACTIVE = 1;
     static STATE_COMPLETED = 2;
@@ -146,8 +146,15 @@ export class TonSimpleSale extends DefaultContract {
         await provider.external(beginCell().storeUint(OpCodes.CANCEL_DEAL, 32).storeUint(queryId, 64).endCell());
     }
     
-    static renewDomainMessage(queryId: number = 0) {
-        return beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).endCell();
+    static renewDomainMessage(queryId: number = 0, newValidUntil: number = 0) {
+        let tmp = beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64);
+        if (newValidUntil > 0) {
+            tmp.storeBit(1).storeUint(newValidUntil, 32);
+        }
+        else {
+            tmp.storeBit(0);
+        }
+        return tmp.endCell();
     }
 
     async sendRenewDomain(provider: ContractProvider, via: Sender, queryId: number = 0) {
@@ -175,7 +182,7 @@ export class TonSimpleSale extends DefaultContract {
             lastRenewalTime: stack.readNumber(),
             validUntil: stack.readNumber(),
             buyerAddress: stack.readAddressOpt(),
-            domainName: notificationToDomain(stack.readCell()),
+            domainName: stack.readCell().beginParse().loadStringTail(),
             hotUntil: stack.readNumber(),
             coloredUntil: stack.readNumber(),
         }

@@ -1,5 +1,11 @@
 import "../imports/types"
 
+const EXC_PRICE_TOO_LOW            = 70;
+const EXC_EMPTY_DICT               = 71;
+const EXC_INCORRECT_TIME_RANGE     = 72;
+const EXC_INCORRECT_BID_INCREMENT  = 73;
+const EXC_INCORRECT_TIME_INCREMENT = 74;
+
 struct DeployInfo<T> {
     dealCode: cell;
     deployFee: coins;
@@ -19,11 +25,12 @@ struct SimpleDeployArgs {
 struct DeployWithNftTransferArgs {
     commonArgs: SimpleDeployArgs;
     domainAddress: address;
-    domainName: SerializableSlice;
+    domainNameCell: Cell<SerializableSlice>;
 }
 
 struct DeployWithJettonTransferArgs {
     commonArgs: SimpleDeployArgs;
+    jettonWalletAddress: address;
     isWeb3: bool;
 }
 

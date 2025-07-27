@@ -21,4 +21,4 @@ Session.vim
 .nvim/
 .emacs/
 .helix/
-contracts-func
+# contracts-func

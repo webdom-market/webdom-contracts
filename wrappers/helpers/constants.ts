@@ -53,6 +53,7 @@ export const OpCodes = {
 
     BUY_SUBSCRIPTION: 0xd5518b6b,
     MOVE_UP_SALE: 0xa49fac67,
+    DEDUST_PAYOUT: 0x474f86cf,
 }
 
 export const Tons = {

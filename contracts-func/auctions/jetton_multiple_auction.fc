@@ -1,0 +1,464 @@
+#include "../global_imports/all_imports.fc";
+#include "constants.fc";
+
+
+const int tons::MIN_TON_FOR_STORAGE = 44000000;  ;; 0.044 TON
+
+
+global int   storage::state;  ;; 0 -> uninit, 1 -> active, 2 -> completed, 3 -> cancelled
+global int   storage::is_deferred;
+
+global int   storage::start_time;
+global int   storage::end_time;
+global int   storage::last_domain_renewal_time;
+
+global int   storage::last_bid_value;
+global int   storage::last_bid_time;
+global slice storage::last_bidder_address;
+
+global cell  storage::domains_dict;
+global int   storage::domains_total;
+global int   storage::domains_received;
+
+global int   storage::initial_balance;
+
+global int   storage::hot_until;        
+global int   storage::colored_until;
+
+global slice storage::jetton_wallet_address;
+
+global cell  storage::const_cell;
+
+global slice storage::seller_address;
+global slice storage::jetton_minter_address;
+
+global int   storage::min_bid_value;
+global int   storage::max_bid_value;
+global int   storage::min_bid_increment;
+global int   storage::time_increment;
+
+global int   storage::commission_factor;
+global int   storage::max_commission;
+global int   storage::tons_to_end_auction;
+
+
+() load_data() impure inline_ref {
+    slice ds = get_data().begin_parse();  ;; 2 + 32 + 32 + 32 + 124 + 32 + 267 + 1 + 16 + 124 + 32 + 32 + 267 = 993
+    storage::state                     = ds~load_uint(2);
+    storage::is_deferred               = ds~load_int(1);
+
+    storage::start_time                = ds~load_uint(32);
+    storage::end_time                  = ds~load_uint(32);
+    storage::last_domain_renewal_time  = ds~load_uint(32);
+
+    storage::last_bid_value            = ds~load_coins();
+    storage::last_bid_time             = ds~load_uint(32);
+    storage::last_bidder_address       = ds~load_msg_addr();
+
+    storage::domains_dict              = ds~load_dict();
+    storage::domains_total             = ds~load_uint(8);
+    storage::domains_received          = ds~load_uint(8);
+
+    storage::initial_balance           = ds~load_coins();
+
+    storage::hot_until                 = ds~load_uint(32);
+    storage::colored_until             = ds~load_uint(32);
+
+    storage::jetton_wallet_address     = ds~load_msg_addr();
+    storage::const_cell                = ds~load_ref();
+    ds.end_parse();
+
+    slice ccs = storage::const_cell.begin_parse();  ;; 267 + 267 + 124 + 124 + 12 + 32 + 16 + 128
+    storage::seller_address            = ccs~load_msg_addr();
+    storage::jetton_minter_address     = ccs~load_msg_addr();
+    
+    storage::min_bid_value             = ccs~load_coins();
+    storage::max_bid_value             = ccs~load_coins();
+    storage::min_bid_increment         = ccs~load_uint(12);
+    storage::time_increment            = ccs~load_uint(32);
+
+    storage::commission_factor         = ccs~load_uint(16);
+    storage::max_commission            = ccs~load_coins();  ;; less than 64 bits
+    storage::tons_to_end_auction       = ccs~load_coins();  ;; less than 64 bits
+    ccs.end_parse();
+}
+
+
+#include "../global_imports/admin_functions.fc";  
+#include "../global_imports/handle_promotion.fc";
+
+
+() save_data() impure inline_ref {
+    set_data(
+        begin_cell()
+            .store_uint(storage::state, 2)
+            .store_int(storage::is_deferred, 1)
+
+            .store_uint(storage::start_time, 32)
+            .store_uint(storage::end_time, 32)
+            .store_uint(storage::last_domain_renewal_time, 32)
+
+            .store_coins(storage::last_bid_value)
+            .store_uint(storage::last_bid_time, 32)
+            .store_slice(storage::last_bidder_address)
+
+            .store_dict(storage::domains_dict)
+            .store_uint(storage::domains_total, 8)
+            .store_uint(storage::domains_received, 8)
+
+            .store_coins(storage::initial_balance)
+
+            .store_uint(storage::hot_until, 32)
+            .store_uint(storage::colored_until, 32)
+
+            .store_slice(storage::jetton_wallet_address)
+            .store_ref(storage::const_cell)
+        .end_cell()
+    );
+}
+
+() cancel_auction(int query_id) impure inline {
+    (slice domain_address, slice domain_info, int found?) = storage::domains_dict.dict_get_min?(267);
+    while (found?) {
+        if (domain_info~load_int(1)) {
+            transfer_nft(query_id, domain_address, storage::seller_address, storage::seller_address, 
+                            tons::NFT_TRANSFER, mode::SIMPLE, 1, null());
+        }
+        (domain_address, domain_info, found?) = storage::domains_dict.dict_get_next?(267, domain_address);
+    }
+
+    storage::state = state::CANCELLED;
+    storage::end_time = now();
+    save_data();
+}
+
+
+() end_auction(int query_id) impure inline {
+    int commission = 0;
+    if (storage::commission_factor) {  ;; send marketplace commission
+        commission = min(muldiv(storage::last_bid_value, storage::commission_factor, COMMISSION_DIVIDER), storage::max_commission);
+        send_jettons(query_id, commission, MARKETPLACE_ADDRESS, storage::last_bidder_address, storage::jetton_wallet_address, tons::JETTON_TRANSFER + tons::NOTIFY_MARKETPLACE,
+                        mode::SIMPLE, tons::NOTIFY_MARKETPLACE, MARKETPLACE_COMMISSION_NOTIFICATION());
+    }
+
+    ;; send seller payout
+    send_jettons(query_id, storage::last_bid_value - commission, storage::seller_address, storage::seller_address, storage::jetton_wallet_address,
+                 tons::JETTON_TRANSFER, mode::SIMPLE, 1, MULTIPLE_AUCTION_NOTIFICATION());
+    
+    ;; transfer domains
+    (slice domain_address, slice domain_info, int found?) = storage::domains_dict.dict_get_min?(267);
+    repeat (storage::domains_total - 1) {
+        transfer_nft(query_id, domain_address, storage::last_bidder_address, storage::last_bidder_address, 
+                     tons::PURCHASE_NOTIFICATION + tons::NFT_TRANSFER, mode::SIMPLE, tons::PURCHASE_NOTIFICATION, BUYER_NOTIFICATION());
+        (domain_address, domain_info, found?) = storage::domains_dict.dict_get_next?(267, domain_address);
+    }
+    transfer_nft(query_id, domain_address, storage::last_bidder_address, storage::last_bidder_address, 
+                 0, mode::CARRY_REMAINING_BALANCE, tons::PURCHASE_NOTIFICATION, BUYER_NOTIFICATION());
+
+    storage::state = state::COMPLETED;
+}
+
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice sender_address = cs~load_msg_addr();
+    if (flags & 1) {  ;; bounced messages
+        return ();
+    }
+    force_same_workchain(sender_address);
+
+    load_data();
+
+    int op = 0;
+    int query_id = 0;
+    if (in_msg_body.slice_bits()) {
+        op = in_msg_body~load_uint(32);
+    }
+    if (op != 0) {
+        query_id = in_msg_body~load_uint(64);
+    }
+    elseif (equal_slices(in_msg_body, msg::CANCEL_MESSAGE) | equal_slices(in_msg_body, msg::STOP_AUCTION_MESSAGE)) {
+        op = op::STOP_AUCTION;
+    }
+
+    handle_admin_message(op, sender_address, in_msg_body, msg_value, storage::state != state::ACTIVE, storage::state != state::ACTIVE);
+    int now_time = now();
+
+    ;; Fill up balance
+    if (op == op::FILL_UP_BALANCE) {
+        if (storage::state == state::UNINIT) {
+            throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, MARKETPLACE_ADDRESS));
+            get_jetton_wallet_address(storage::jetton_minter_address, mode::CARRY_REMAINING_GAS);
+            return ();
+        }
+        return ();
+    }
+
+    if (op == op::TAKE_WALLET_ADDRESS) {
+        throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::jetton_minter_address));
+        throw_unless(exc::ALREADY_DEPLOYED, storage::state == state::UNINIT);
+        storage::jetton_wallet_address = in_msg_body~load_msg_addr();
+        storage::state = state::ACTIVE;
+        save_data();
+        return ();
+    }
+
+    ;; Initial domains transfer
+    if (op == op::OWNERSHIP_ASSIGNED) {
+        slice from_address = in_msg_body~load_msg_addr();
+        try {
+            (_, int found?) = storage::domains_dict.dict_get?(267, sender_address);
+            throw_unless(exc::INCORRECT_DOMAIN, found?);
+            
+            storage::domains_dict~dict_set(267, sender_address, BIT_TRUE_SLICE());
+            storage::domains_received += 1;
+
+            if (storage::domains_received == storage::domains_total) {
+                storage::initial_balance = (tons::NFT_TRANSFER + 7500000) * storage::domains_total + tons::MIN_TON_FOR_STORAGE;
+                if (my_balance - 15000000 < storage::initial_balance) { 
+                    storage::initial_balance = tons::MIN_TON_FOR_STORAGE;  ;; disable cancellation by external message if balance is not enough
+                }
+                raw_reserve(storage::initial_balance, 0);
+                send_message_with_comment(storage::seller_address, 0, "Multiple auction on webdom.market is active", mode::CARRY_REMAINING_BALANCE);
+            }
+
+            save_data();
+            return ();
+        } 
+        catch (_, n) {
+            ;; Try to return the domain back to the sender in case of error
+            transfer_nft(query_id, sender_address, from_address, from_address, 0, mode::CARRY_REMAINING_GAS, 1,
+                         payload_with_comment("Error, code ").store_number10(n).end_cell());
+                         
+            commit();
+            throw(n);
+            
+            return ();
+        }
+    }
+
+    ;; Place a bid
+    if (op == op::TRANSFER_NOTIFICATION) {
+        int   transferred_jettons = in_msg_body~load_coins();
+        slice from_address        = in_msg_body~load_msg_addr();
+
+        ;; if jettons were received by dedust swap
+        slice payload = in_msg_body~load_int(1) ? in_msg_body~load_ref().begin_parse() : in_msg_body;
+        if (slice_bits(payload) == 267) {
+            from_address = payload~load_msg_addr();
+        }
+        
+        try {
+            throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::jetton_wallet_address));
+            if (storage::is_deferred & (now_time < storage::start_time)) {
+                storage::end_time = now_time + storage::end_time - storage::start_time;
+                storage::start_time = now_time;
+                storage::is_deferred = false;
+            }
+            throw_unless(exc::DEAL_NOT_ACTIVE, (now_time >= storage::start_time) & (now_time < storage::end_time) & (storage::domains_received == storage::domains_total));
+            
+            int required_gas = storage::tons_to_end_auction;
+            if (transferred_jettons > storage::max_bid_value) {
+                required_gas += tons::JETTON_TRANSFER;
+            }
+            throw_unless(exc::OUT_OF_GAS, msg_value >= required_gas);
+
+            int next_min_bid_value = max(max(storage::last_bid_value + 1000, storage::min_bid_value),
+                                        muldiv(storage::last_bid_value, storage::min_bid_increment, BID_INCREMENT_DIVIDER));
+            throw_unless(exc::BID_TOO_LOW, transferred_jettons >= next_min_bid_value);
+            
+            if (storage::end_time <= now_time + storage::time_increment) {
+                storage::end_time = min(now_time + storage::time_increment, storage::last_domain_renewal_time + ONE_YEAR);
+            }
+
+            if (storage::last_bid_value != 0) {
+                send_jettons(query_id, storage::last_bid_value, storage::last_bidder_address, storage::last_bidder_address,
+                             storage::jetton_wallet_address, my_balance - msg_value - storage::initial_balance, mode::SIMPLE,
+                             1, OUTBID_NOTIFICATION());  ;; return the previous bid
+            }
+
+            storage::last_bid_time = now_time;
+            storage::last_bidder_address = from_address;
+            
+            if (transferred_jettons >= storage::max_bid_value) {
+                if (transferred_jettons > storage::max_bid_value) {
+                    send_jettons(query_id, transferred_jettons - storage::max_bid_value, from_address, from_address,
+                               storage::jetton_wallet_address, tons::JETTON_TRANSFER, mode::SIMPLE,
+                               1, EXCESSES_NOTIFICATION());
+                }
+                storage::last_bid_value = storage::max_bid_value;
+                storage::end_time = now_time;
+                
+                end_auction(query_id);
+                save_data();
+                return ();
+            }
+            else {
+                send_message_with_comment(from_address, tons::JETTON_TRANSFER, "Bid placed successfully", mode::SIMPLE);
+            }
+            storage::last_bid_value = transferred_jettons;
+            save_data();
+            return ();
+        } 
+        catch (_, n) {
+            send_jettons(query_id, transferred_jettons, from_address, from_address, sender_address, 0, mode::CARRY_REMAINING_GAS,
+                           1, payload_with_comment("Error. Code ").store_number10(n).end_cell());  
+            
+            commit();
+            throw(n);
+            
+            return ();
+        }
+    }
+
+    ;; Handle auction ending
+    if (op == op::STOP_AUCTION) {
+        if (storage::last_bid_value == 0) {  ;; Cancel auction if it hasn't started yet
+            throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::seller_address));
+            cancel_auction(query_id);
+            send_message_with_comment(storage::seller_address, 0, "Multiple auction on webdom.market was cancelled", mode::CARRY_REMAINING_BALANCE);
+            return ();
+        }
+        elseif (storage::end_time <= now_time) {  ;; End auction if it is over
+            throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::seller_address) | equal_slices(sender_address, storage::last_bidder_address));
+            end_auction(query_id);
+            save_data();
+            return ();
+        }
+        throw(exc::AUCTION_NOT_ENDED);
+    }
+
+    ;; Renew domains
+    if (op == op::RENEW_DOMAIN) {
+        throw_unless(exc::OUT_OF_GAS, msg_value >= tons::RENEW_REQUEST + tons::RENEW_DOMAIN * storage::domains_total);
+        throw_unless(exc::DOMAIN_EXPIRED, storage::last_domain_renewal_time + ONE_YEAR - ONE_DAY >= now_time);
+        
+        raw_reserve(storage_fees(), 4);
+        (slice domain_address, _, int found?) = storage::domains_dict.dict_get_min?(267);
+        while (found?) {
+            send_cell_message(domain_address, tons::RENEW_DOMAIN, null(), mode::PAY_FEES_SEPARATELY);
+            (domain_address, _, found?) = storage::domains_dict.dict_get_next?(267, domain_address);
+        }
+        send_builder_message(MARKETPLACE_ADDRESS, 0, begin_cell().store_uint(op::RENEWAL_FEE, 32).store_uint(query_id, 64), mode::CARRY_REMAINING_BALANCE);
+
+        storage::last_domain_renewal_time = now_time;
+        save_data();
+        return ();
+    }
+    
+    if ((op == op::MAKE_COLORED) | (op == op::MAKE_HOT)) {
+        int promotion_until = in_msg_body~load_uint(32);
+        handle_promotion(promotion_until, op, query_id, sender_address);
+        save_data();
+        return ();
+    }
+
+    raw_reserve(storage_fees(), 4);
+    send_message_with_comment(sender_address, 0, "Unsupported op", mode::CARRY_REMAINING_BALANCE);
+    commit();
+    throw(exc::UNSUPPORTED_OP);
+}
+
+
+() recv_external(slice in_msg_body) impure {
+    load_data();
+
+    throw_if(exc::DEAL_NOT_ACTIVE, storage::state != state::ACTIVE);
+
+    if (now() >= storage::end_time) {
+        throw_if(exc::UNSUPPORTED_OP, in_msg_body~load_uint(32) != op::CANCEL_DEAL);
+        accept_message();
+        
+        if (storage::last_bid_value == 0) {  ;; No one participated in the auction
+            throw_unless(exc::OUT_OF_GAS, pair_first(get_balance()) >= (tons::NFT_TRANSFER + 7500000) * storage::domains_total);
+            cancel_auction(in_msg_body~load_uint(64));
+            send_message_with_comment(storage::seller_address, 0, "Multiple auction on webdom.market was cancelled", mode::CARRY_REMAINING_BALANCE);
+        }
+        else {  ;; Auction finished successfully
+            end_auction(in_msg_body~load_uint(64));
+        }
+
+        save_data();
+        return ();
+    }
+
+    throw(0xfffe);
+}
+
+
+;; Get methods
+
+(slice, cell, int, int, int, int, int, int, int, int, slice, int, int, int, int, int, int, slice, int, int, int, slice, int) get_storage_data() method_id {
+    load_data();
+
+    return (
+        storage::seller_address, 
+        storage::domains_dict, 
+        storage::domains_total,
+        storage::domains_received,
+        storage::state, 
+        storage::max_bid_value,
+        storage::commission_factor,
+        storage::start_time, 
+        storage::last_domain_renewal_time,
+        storage::end_time, 
+        storage::last_bidder_address,
+
+        storage::min_bid_value, 
+        storage::min_bid_increment, 
+        storage::time_increment, 
+
+        storage::last_bid_value, 
+        storage::last_bid_time, 
+
+        storage::max_commission,
+
+        storage::jetton_wallet_address,
+
+        storage::is_deferred & (now() < storage::start_time),
+
+        storage::hot_until,
+        storage::colored_until,
+
+        storage::jetton_minter_address,
+        cell_hash(my_code())
+    );
+}
+
+
+(int, int, int, slice, slice, slice, int, slice, int, slice, int, int, slice, int, int, int, int, int, int, int, int, int, slice, slice, int, int) get_auction_data_v4() method_id {
+    load_data();
+    (slice domain_address, _, _) = storage::domains_dict.dict_get_min?(267); 
+    if (storage::is_deferred & (now() < storage::start_time)) {
+        storage::end_time = now() + storage::end_time - storage::start_time;
+        storage::start_time = now();
+    }
+
+    return (
+        storage::state != state::UNINIT,                 ;; Int1
+        storage::state > state::ACTIVE,                  ;; Int1
+        storage::end_time,                               ;; Uint32
+        MARKETPLACE_ADDRESS,                             ;; MsgAddressStd
+        domain_address,                                  ;; MsgAddressStd
+        storage::seller_address,                         ;; MsgAddressStd
+        storage::last_bid_value,                         ;; Coins
+        storage::last_bidder_address,                    ;; MsgAddressStd
+        (storage::min_bid_increment - 1000) / 10,        ;; Uint7
+        MARKETPLACE_ADDRESS,                             ;; MsgAddressStd
+        storage::commission_factor, COMMISSION_DIVIDER,  ;; Uint32, Uint32
+        BURN_ADDRESS,                                    ;; MsgAddressStd
+        0, 1,                                            ;; Uint32, Uint32
+        storage::max_bid_value,                          ;; Coins
+        storage::min_bid_value,                          ;; Coins
+        storage::start_time,                             ;; Uint32
+        storage::last_bid_time,                          ;; Uint32
+        storage::state == state::CANCELLED,              ;; Int1
+        storage::time_increment,                         ;; Uint17
+        0,                                               ;; Uint64
+        storage::jetton_wallet_address,                  ;; MsgAddressStd
+        storage::jetton_minter_address,                  ;; MsgAddressStd
+        0,                                               ;; Uint1
+        0                                                ;; Uint256
+    );
+}

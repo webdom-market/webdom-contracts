@@ -57,7 +57,5 @@ type AllowedMessage = (
     | SetNewDataMessage
     | WithdrawSomeTonMessage
     | WithdrawJettonMessage
-    | CancelDealMessage
     | ExcessesMessage
-    | CommentMessage
 );

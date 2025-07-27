@@ -6,6 +6,7 @@ import "storage";
 import "messages";
 import "../constants";
 import "@stdlib/gas-payments";
+import "../../imports/admin_message"
 
 
 @inline
@@ -47,6 +48,15 @@ fun cancelDeal(queryId: uint64) {
 
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
+    
+    handleAdminMessage(in.senderAddress, in.body, Permissions {
+        allowChangeCode: true,
+        allowChangeData: true,
+        allowSendAnyMessage: true,
+        allowWithdrawTon: true,
+        allowWithdrawJetton: true,
+        allowSendNft: true,
+    });
 
     val msg = lazy AllowedMessage.fromSlice(in.body);
     val contractBalance: coins = contract.getOriginalBalance();
@@ -289,25 +299,18 @@ fun onInternalMessage(in: InMessage) {
             storage.save();
         }
 
-        CancelDealMessage => {
-            cancelDeal(msg.queryId);
-        }
-
-        CommentMessage => {
-            if (msg.comment.bitsEqual("cancel")) {
-                cancelDeal(blockchain.currentBlockLogicalTime());
-            }
-            else if (!msg.comment.bitsEqual("fillup")) {
-                throw EXC_UNSUPPORTED_OP;
-            }
-        }
-
         ExcessesMessage => {
             // accept coins
         }
 
         else => {
-            assert (in.body.isEmpty()) throw 0xFFFF
+            val op: uint32 = in.body.loadUint(32);
+            if (op == 0 && in.body.bitsEqual("cancel")) {
+                cancelDeal(blockchain.currentBlockLogicalTime());
+            }
+            else if (!in.body.bitsEqual("fillup")) {
+                throw EXC_UNSUPPORTED_OP;
+            }
         }
     }
 }

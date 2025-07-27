@@ -1,0 +1,184 @@
+#include "constants.fc";
+#include "../global_imports/all_imports.fc";
+
+
+(int) deploy_ton_simple_offer(slice buyer_address, slice payload, slice deploy_info, 
+                             cell ton_purchase_offer_code, int commission_discount,  int query_id) impure inline {
+    int min_price         = deploy_info~load_coins();
+    int commission_factor = deploy_info~load_uint(16);
+    int max_commission    = deploy_info~load_coins();
+    int min_duration      = deploy_info~load_uint(32);
+    
+    int   is_tg_username = payload~load_int(1);
+    int   price          = payload~load_coins();
+    int   valid_until    = payload~load_uint(32);
+    slice seller_address = payload~load_msg_addr();
+    int   notify_seller  = payload~load_int(1);
+
+    slice domain_name    = payload~load_ref().begin_parse();
+    slice domain_address = null();
+    slice domain_zone    = ".ton";
+    if (is_tg_username) {
+        domain_address = tg_username_to_address(domain_name);
+        domain_zone    = ".t.me";
+    } else {
+        domain_address = domain_name_to_address(domain_name);
+    }
+    cell domain_name_cell = begin_cell().store_slice(domain_name).store_slice(domain_zone).end_cell();
+
+    int commission = muldiv(min(muldiv(price, commission_factor, COMMISSION_DIVIDER), max_commission), COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+    throw_unless(exc::PRICE_TOO_LOW, price >= min_price);
+
+    throw_unless(exc::INCORRECT_VALID_UNTIL, valid_until >= now() + min_duration);
+
+    int required_gas = 0;
+    cell seller_address_cell = seller_address.preload_uint(2) ? begin_cell().store_slice(seller_address).end_cell() : null();
+    if (notify_seller) {
+        throw_if(exc::INCORRECT_SELLER_ADDRESS, null?(seller_address_cell));
+        cell notification_payload = payload_with_comment("New offer on webdom.market! ").store_str_float(price, ONE_TON).store_slice(" TON for ").store_ref(domain_name_cell).end_cell();
+        required_gas += tons::OFFER_NOTIFICATION;
+        required_gas += send_cell_message(seller_address, tons::OFFER_NOTIFICATION, notification_payload, mode::PAY_FEES_SEPARATELY);
+    }
+
+    cell data = begin_cell()
+                .store_uint(state::UNINIT, 2)
+                .store_coins(price)
+                .store_coins(commission)
+                .store_uint(valid_until, 32)
+                .store_maybe_ref(seller_address_cell)
+                .store_int(0, 1)
+                .store_coins(0)
+                .store_uint(now(), 32)  ;; created_at
+                .store_slice(domain_address)
+                .store_slice(buyer_address)
+                .store_ref(domain_name_cell)
+                .store_maybe_ref(
+                    begin_cell().store_uint(storage::public_key, 256).end_cell()
+                )
+            .end_cell();
+    cell state_init = pack_state_init(ton_purchase_offer_code, data);
+    slice offer_address = get_address_by_state_init(state_init);
+    
+    cell msg_body = begin_cell().store_uint(op::FILL_UP_BALANCE, 32).store_uint(query_id, 64).end_cell();
+    required_gas += commission + price + tons::DEPLOY_TON_OFFER;
+    required_gas += send_deploy_message(offer_address, price + commission + tons::DEPLOY_TON_OFFER, state_init, msg_body, mode::PAY_FEES_SEPARATELY);
+    
+    return required_gas;
+}
+
+
+(int) deploy_jetton_simple_offer(slice buyer_address, slice payload, slice deploy_info, cell jetton_purchase_offer_code, 
+                                 int commission_discount, int query_id, int transferred_jettons, int is_web3) impure inline {
+    slice jetton_minter_address = USDT_ADDRESS;
+    slice jetton_wallet_address = storage::usdt_wallet_address;
+    slice jetton_name           = " USDT";
+    int   one_jetton            = 1000000;
+
+    if (is_web3) {
+        jetton_minter_address = WEB3_ADDRESS;
+        jetton_wallet_address = storage::web3_wallet_address;  
+        jetton_name           = " WEB3";
+        one_jetton            = 1000;
+        deploy_info = deploy_info~load_ref().begin_parse();
+        if (commission_discount) {
+            commission_discount = COMMISSION_DIVIDER;
+        }
+    }
+    int min_price         = deploy_info~load_coins();
+    int commission_factor = deploy_info~load_uint(16);
+    int max_commission    = deploy_info~load_coins();
+    int min_duration      = deploy_info~load_uint(32);
+    
+    int   is_tg_username = payload~load_int(1);
+    int   valid_until    = payload~load_uint(32);
+    slice seller_address = payload~load_msg_addr();
+    int   notify_seller  = payload~load_int(1);
+
+    slice domain_name    = payload~load_ref().begin_parse();
+    slice domain_address = null();
+    slice domain_zone    = ".ton";
+    if (is_tg_username) {
+        domain_address = tg_username_to_address(domain_name);
+        domain_zone    = ".t.me";
+    } else {
+        domain_address = domain_name_to_address(domain_name);
+    }
+    cell domain_name_cell = begin_cell().store_slice(domain_name).store_slice(domain_zone).end_cell();
+
+    int commission = muldiv(min(muldiv(transferred_jettons, commission_factor, COMMISSION_DIVIDER + commission_factor), max_commission), COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+    int price = transferred_jettons - commission;
+    throw_unless(exc::PRICE_TOO_LOW, price >= min_price);
+
+    throw_unless(exc::INCORRECT_VALID_UNTIL, valid_until >= now() + min_duration);
+    int required_gas = 0;
+    if (notify_seller) {
+        throw_unless(exc::INCORRECT_SELLER_ADDRESS, seller_address.preload_uint(2));
+        cell notification_payload = payload_with_comment("New offer on webdom.market! ").store_str_float(price, one_jetton).store_slice(jetton_name).store_slice(" for ").store_ref(domain_name_cell).end_cell();
+        required_gas += tons::OFFER_NOTIFICATION;
+        required_gas += send_cell_message(seller_address, tons::OFFER_NOTIFICATION, notification_payload, mode::PAY_FEES_SEPARATELY);
+    }
+
+    cell data = begin_cell()
+                    .store_uint(state::UNINIT, 2)
+                    .store_coins(price)
+                    .store_coins(commission)
+                    .store_uint(valid_until, 32)
+                    .store_slice(seller_address)   ;; todo учесть то что jetton wallet адрес можно считать при деплое а не запрашивать
+                    .store_uint(0, 7)              ;; jetton_wallet_address, cancelled_by_seller, seller_price
+                    .store_uint(now(), 32)         ;; created_at
+                    .store_ref(
+                        begin_cell()
+                            .store_slice(domain_address)
+                            .store_slice(buyer_address)
+                            .store_slice(jetton_minter_address)
+                            .store_ref(domain_name_cell)
+                            .store_maybe_ref(
+                                begin_cell().store_uint(storage::public_key, 256).end_cell()
+                            )
+                        .end_cell()
+                    )
+                .end_cell();
+    cell state_init = pack_state_init(jetton_purchase_offer_code, data);
+    slice offer_address = get_address_by_state_init(state_init);
+    
+    cell msg_body = begin_cell().store_uint(op::FILL_UP_BALANCE, 32).store_uint(query_id, 64).end_cell();
+    required_gas += tons::DEPLOY_JETTON_OFFER + tons::JETTON_TRANSFER;
+    required_gas += send_deploy_message(offer_address, tons::DEPLOY_JETTON_OFFER, state_init, msg_body, mode::PAY_FEES_SEPARATELY);
+    send_jettons(query_id, transferred_jettons, offer_address, buyer_address, jetton_wallet_address, tons::JETTON_TRANSFER, mode::SIMPLE, 0, null());
+    
+    return required_gas;
+}
+
+(int) deploy_multiple_offer(slice buyer_address, slice payload, slice deploy_info, cell multiple_offer_code, int commission_discount, int query_id) impure inline {
+    int commission_factor = deploy_info~load_uint(16);
+    int web3_commission_factor = deploy_info~load_uint(16);
+    if (commission_discount) {
+        web3_commission_factor = 0;
+        commission_factor = muldiv(commission_factor, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+    }
+
+    int merkle_root = payload~load_uint(256);
+    
+    cell data = begin_cell()
+                    .store_slice(buyer_address)
+                    .store_uint(0, 256)
+                    .store_ref(begin_cell().store_uint(storage::public_key, 256).end_cell())
+                    .store_uint(0, 36)  ;; sold_nfts_dict, jetton_balances_dict, commission_factor, web3_wallet_address, web3_commission_factor
+                .end_cell();
+    cell state_init = pack_state_init(multiple_offer_code, data);
+    slice offer_address = get_address_by_state_init(state_init);
+
+    slice web3_wallet_address = calculate_web3_wallet_address(offer_address);
+    cell msg_body = begin_cell()
+                        .store_uint(op::FILL_UP_BALANCE, 32)
+                        .store_uint(query_id, 64)
+                        .store_uint(merkle_root, 256)
+                        .store_uint(commission_factor, 16)
+                        .store_uint(web3_commission_factor, 16)
+                        .store_slice(web3_wallet_address)
+                    .end_cell();
+    int required_gas = tons::DEPLOY_MULTIPLE_OFFER;
+    required_gas += send_deploy_message(offer_address, tons::DEPLOY_MULTIPLE_OFFER, state_init, msg_body, mode::PAY_FEES_SEPARATELY);
+    
+    return required_gas;
+}

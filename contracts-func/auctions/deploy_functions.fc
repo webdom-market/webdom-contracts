@@ -1,0 +1,312 @@
+#include "constants.fc";
+
+
+int deploy_ton_simple_auction(slice seller_address, slice payload, slice deploy_info, 
+                              slice domain_address,  slice domain_name, cell ton_auction_code, 
+                              int commission_discount, int query_id, slice domain_zone) impure inline {
+    int min_price          = deploy_info~load_coins();
+    int commission_factor  = deploy_info~load_uint(16);
+    int max_commission     = deploy_info~load_coins();
+    int min_time_increment = deploy_info~load_uint(32);
+
+    int is_deferred = payload~load_int(1);
+    int start_time  = max(now() + 30, payload~load_uint(32));
+    int end_time    = payload~load_uint(32);
+    throw_unless(exc::INCORRECT_TIME_RANGE, (end_time >= start_time + min_time_increment) & (end_time <= now() + ONE_YEAR - ONE_DAY));
+
+    int min_bid_value = payload~load_coins();
+    int max_bid_value = payload~load_coins();
+    throw_unless(exc::PRICE_TOO_LOW, (min_bid_value >= min_price) & (max_bid_value > min_bid_value));
+
+    int min_bid_increment = payload~load_uint(12);
+    throw_unless(exc::INCORRECT_BID_INCREMENT, min_bid_increment > 1000);
+
+    int time_increment = payload~load_uint(32);
+    throw_unless(exc::INCORRECT_TIME_INCREMENT, time_increment >= min_time_increment);
+    
+    commission_factor = muldiv(commission_factor, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+    max_commission = muldiv(max_commission, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+
+    cell data = begin_cell()
+                    .store_uint(state::UNINIT, 2)
+                    .store_int(is_deferred, 1)
+
+                    .store_uint(start_time, 32)
+                    .store_uint(end_time, 32)
+                    
+                    .store_uint(now(), 32)              ;; last_domain_renewal_time
+                    .store_uint(0, 38)                  ;; last_bid_value + last_bid_time + last_bidder_address
+                    
+                    .store_ref(                         ;; outbid_notification
+                        payload_with_comment("Your bid for ").store_slice(domain_name).store_slice(domain_zone).store_slice(" was outbid by another user").end_cell()
+                    )
+                    .store_ref(                         ;; payout_notification
+                        payload_with_comment("Your domain ").store_slice(domain_name).store_slice(domain_zone).store_slice(" was sold on webdom.market").end_cell()
+                    )
+                    .store_uint(0, 64)                  ;; hot_until, colored_until
+                    .store_ref(                         ;; const_cell
+                        begin_cell()
+                            .store_slice(domain_address)
+                            .store_slice(seller_address)
+                            .store_coins(min_bid_value)
+                            .store_coins(max_bid_value)
+                            .store_uint(min_bid_increment, 12)
+                            .store_uint(time_increment, 32)
+                            .store_uint(commission_factor, 16)
+                            .store_coins(max_commission)
+                        .end_cell()
+                    )
+                .end_cell();
+    cell state_init = pack_state_init(ton_auction_code, data);
+    slice auction_address = get_address_by_state_init(state_init);
+    
+    int required_gas = tons::NFT_TRANSFER;
+    transfer_nft(0, domain_address, auction_address, TWO_ZEROS_SLICE(), required_gas, mode::SIMPLE, 0, null());
+
+    cell msg_body = begin_cell().store_uint(op::FILL_UP_BALANCE, 32).store_uint(query_id, 64).end_cell();
+    required_gas += send_deploy_message(auction_address, tons::DEPLOY_TON_AUCTION, state_init, msg_body, mode::PAY_FEES_SEPARATELY);
+    return required_gas + tons::DEPLOY_TON_AUCTION;
+}
+
+
+int deploy_jetton_simple_auction(slice seller_address, slice payload, slice deploy_info, 
+                                 slice domain_address, slice domain_name, cell jetton_auction_code, 
+                                 int commission_discount, int query_id, slice domain_zone) impure inline {
+    int is_web3 = payload~load_int(1);
+    if (is_web3) {
+        deploy_info = deploy_info~load_ref().begin_parse();
+        if (commission_discount) {
+            commission_discount = COMMISSION_DIVIDER;
+        }
+    }
+    int min_price          = deploy_info~load_coins();
+    int commission_factor  = deploy_info~load_uint(16);
+    int max_commission     = deploy_info~load_coins();
+    int min_time_increment = deploy_info~load_uint(32);
+
+    int is_deferred = payload~load_int(1);
+    int start_time  = max(now() + 30, payload~load_uint(32));
+    int end_time    = payload~load_uint(32);
+    throw_unless(exc::INCORRECT_TIME_RANGE, (end_time >= start_time + min_time_increment) & (end_time <= now() + ONE_YEAR - ONE_DAY));
+
+    int min_bid_value = payload~load_coins();
+    int max_bid_value = payload~load_coins();
+    throw_unless(exc::PRICE_TOO_LOW, (min_bid_value >= min_price) & (max_bid_value > min_bid_value));
+
+    int min_bid_increment = payload~load_uint(12);
+    throw_unless(exc::INCORRECT_BID_INCREMENT, min_bid_increment > 1000);
+
+    int time_increment = payload~load_uint(32);
+    throw_unless(exc::INCORRECT_TIME_INCREMENT, time_increment >= min_time_increment);
+    
+    commission_factor = muldiv(commission_factor, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+    max_commission = muldiv(max_commission, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+
+    cell data = begin_cell()
+                    .store_uint(state::UNINIT, 2)
+                    .store_int(is_deferred, 1)
+
+                    .store_uint(start_time, 32)
+                    .store_uint(end_time, 32)
+                    
+                    .store_uint(now(), 32)              ;; last_domain_renewal_time
+                    .store_uint(0, 38)                  ;; last_bid_value + last_bid_time + last_bidder_address
+                    
+                    .store_ref(                         ;; outbid_notification
+                        payload_with_comment("Your bid for ").store_slice(domain_name).store_slice(domain_zone).store_slice(" was outbid by another user").end_cell()
+                    )
+                    .store_ref(                         ;; payout_notification
+                        payload_with_comment("Your domain ").store_slice(domain_name).store_slice(domain_zone).store_slice(" was sold on webdom.market").end_cell()
+                    )
+                    .store_uint(0, 66)                  ;; hot_until, colored_until, jetton_wallet_address
+                    .store_ref(                         ;; const_cell
+                        begin_cell()
+                            .store_slice(domain_address)
+                            .store_slice(seller_address)
+                            .store_slice(is_web3 ? WEB3_ADDRESS : USDT_ADDRESS)
+                            .store_ref(
+                                begin_cell()
+                                    .store_coins(min_bid_value)
+                                    .store_coins(max_bid_value)
+                                    .store_uint(min_bid_increment, 12)
+                                    .store_uint(time_increment, 32)
+                                    .store_uint(commission_factor, 16)
+                                    .store_coins(max_commission)
+                                .end_cell()
+                            )
+                        .end_cell()
+                    )
+                .end_cell();
+    cell state_init = pack_state_init(jetton_auction_code, data);
+    slice auction_address = get_address_by_state_init(state_init);
+    
+    int required_gas = tons::NFT_TRANSFER;
+    transfer_nft(0, domain_address, auction_address, TWO_ZEROS_SLICE(), required_gas, mode::SIMPLE, 0, null());
+
+    cell msg_body = begin_cell().store_uint(op::FILL_UP_BALANCE, 32).store_uint(query_id, 64).end_cell();
+    required_gas += send_deploy_message(auction_address, tons::DEPLOY_TON_AUCTION, state_init, msg_body, mode::PAY_FEES_SEPARATELY);
+    return required_gas + tons::DEPLOY_JETTON_AUCTION;
+}
+
+
+int deploy_ton_multiple_auction(slice seller_address, slice payload, slice deploy_info, 
+                                cell ton_multiple_auction_code, int commission_discount, int query_id) impure inline {
+    int min_price          = deploy_info~load_coins();
+    int commission_factor  = deploy_info~load_uint(16);
+    int max_commission     = deploy_info~load_coins();
+    int min_time_increment = deploy_info~load_uint(32);
+
+    cell domains_list = payload~load_dict();  ;; HashmapE; Index(uint8) -> DomainName(string)
+
+    int is_deferred = payload~load_int(1);
+    int start_time = max(now() + 30, payload~load_uint(32));
+    int end_time = payload~load_uint(32);
+    throw_unless(exc::INCORRECT_TIME_RANGE, (end_time >= start_time + min_time_increment) & (end_time <= now() + ONE_YEAR - ONE_DAY));
+
+    int min_bid_value = payload~load_coins();
+    int max_bid_value = payload~load_coins();
+    throw_unless(exc::PRICE_TOO_LOW, (min_bid_value >= min_price) & (max_bid_value > min_bid_value));
+
+    int min_bid_increment = payload~load_uint(12);
+    throw_unless(exc::INCORRECT_BID_INCREMENT, min_bid_increment > 1000);
+
+    int time_increment = payload~load_uint(32);
+    throw_unless(exc::INCORRECT_TIME_INCREMENT, time_increment >= min_time_increment);
+    
+    commission_factor = muldiv(commission_factor, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+    max_commission = muldiv(max_commission, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+
+    int domains_total = 0;
+    cell domains_dict = new_dict();
+    (int ind, slice domain_name, int found?) = domains_list.udict_get_min?(8);
+    while (found?) {
+        int is_tg_username = domain_name~load_int(1);
+        domains_total += 1;
+        domains_dict~dict_set(267, is_tg_username ? tg_username_to_address(domain_name) : domain_name_to_address(domain_name), TWO_ZEROS_SLICE());
+        (ind, domain_name, found?) = domains_list.udict_get_next?(8, ind);
+    }
+    throw_unless(exc::EMPTY_DICT, domains_total > 0);
+
+    cell data = begin_cell()
+                    .store_uint(state::UNINIT, 2)
+                    .store_int(is_deferred, 1)
+
+                    .store_uint(start_time, 32)
+                    .store_uint(end_time, 32)
+                    
+                    .store_uint(now(), 32)              ;; last_domain_renewal_time
+                    .store_uint(0, 38)                  ;; last_bid_value (4) + last_bid_time (32) + last_bidder_address (2)
+                    
+                    .store_dict(domains_dict)
+                    .store_uint(domains_total, 8)
+                    .store_uint(0, 76)                  ;; domains_received, initial_balance, hot_until, colored_until
+
+                    .store_ref(                         ;; const_cell
+                        begin_cell()
+                            .store_slice(seller_address)
+
+                            .store_coins(min_bid_value)
+                            .store_coins(max_bid_value)
+                            .store_uint(min_bid_increment, 12)
+                            .store_uint(time_increment, 32)
+
+                            .store_uint(commission_factor, 16)
+                            .store_coins(max_commission)
+                            .store_coins((tons::NFT_TRANSFER + tons::PURCHASE_NOTIFICATION + 7500000) * domains_total + 15000000)
+                        .end_cell()
+                    )
+                .end_cell();
+    cell state_init = pack_state_init(ton_multiple_auction_code, data);
+    slice auction_address = get_address_by_state_init(state_init);
+    
+    cell msg_body = begin_cell().store_uint(op::FILL_UP_BALANCE, 32).store_uint(query_id, 64).end_cell();
+    int required_gas = send_deploy_message(auction_address, tons::DEPLOY_TON_AUCTION, state_init, msg_body, mode::PAY_FEES_SEPARATELY);
+    
+    return required_gas + tons::DEPLOY_TON_AUCTION;
+}
+
+
+int deploy_jetton_multiple_auction(slice seller_address, slice payload, slice deploy_info, 
+                                   cell jetton_multiple_auction_code, int commission_discount, int query_id) impure inline {
+    int is_web3 = payload~load_int(1);
+    if (is_web3) {
+        deploy_info = deploy_info~load_ref().begin_parse();
+        if (commission_discount) {
+            commission_discount = COMMISSION_DIVIDER;
+        }
+    }
+    int min_price          = deploy_info~load_coins();
+    int commission_factor  = deploy_info~load_uint(16);
+    int max_commission     = deploy_info~load_coins();
+    int min_time_increment = deploy_info~load_uint(32);
+
+    cell domains_list = payload~load_dict();  ;; HashmapE; Index(uint8) -> DomainName(string)
+
+    int is_deferred = payload~load_int(1);
+    int start_time = max(now() + 30, payload~load_uint(32));
+    int end_time = payload~load_uint(32);
+    throw_unless(exc::INCORRECT_TIME_RANGE, (end_time >= start_time + min_time_increment) & (end_time <= now() + ONE_YEAR - ONE_DAY));
+
+    int min_bid_value = payload~load_coins();
+    int max_bid_value = payload~load_coins();
+    throw_unless(exc::PRICE_TOO_LOW, (min_bid_value >= min_price) & (max_bid_value > min_bid_value));
+
+    int min_bid_increment = payload~load_uint(12);
+    throw_unless(exc::INCORRECT_BID_INCREMENT, min_bid_increment > 1000);
+
+    int time_increment = payload~load_uint(32);
+    throw_unless(exc::INCORRECT_TIME_INCREMENT, time_increment >= min_time_increment);
+    
+    commission_factor = muldiv(commission_factor, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+    max_commission = muldiv(max_commission, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+
+    int domains_total = 0;
+    cell domains_dict = new_dict();
+    (int ind, slice domain_name, int found?) = domains_list.udict_get_min?(8);
+    while (found?) {
+        int is_tg_username = domain_name~load_int(1);
+        domains_total += 1;
+        domains_dict~dict_set(267, is_tg_username ? tg_username_to_address(domain_name) : domain_name_to_address(domain_name), TWO_ZEROS_SLICE());
+        (ind, domain_name, found?) = domains_list.udict_get_next?(8, ind);
+    }
+    throw_unless(exc::EMPTY_DICT, domains_total > 0);
+
+    cell data = begin_cell()
+                    .store_uint(state::UNINIT, 2)
+                    .store_int(is_deferred, 1)
+
+                    .store_uint(start_time, 32)
+                    .store_uint(end_time, 32)
+                    
+                    .store_uint(now(), 32)              ;; last_domain_renewal_time
+                    .store_uint(0, 38)                  ;; last_bid_value + last_bid_time + last_bidder_address
+                    
+                    .store_dict(domains_dict)
+                    .store_uint(domains_total, 8)
+                    .store_uint(0, 78)                  ;; domains_received, initial_balance, hot_until, colored_until, jetton_wallet_address
+                    
+                    .store_ref(                         ;; const_cell
+                        begin_cell()
+                            .store_slice(seller_address)
+                            .store_slice(is_web3 ? WEB3_ADDRESS : USDT_ADDRESS)
+
+                            .store_coins(min_bid_value)
+                            .store_coins(max_bid_value)
+                            .store_uint(min_bid_increment, 12)
+                            .store_uint(time_increment, 32)
+                            
+                            .store_uint(commission_factor, 16)
+                            .store_coins(max_commission)
+                            .store_coins((tons::NFT_TRANSFER + tons::PURCHASE_NOTIFICATION + 7500000) * domains_total + tons::JETTON_TRANSFER * 3 + tons::NOTIFY_MARKETPLACE + 1000000)
+                        .end_cell()
+                    )
+                .end_cell();
+    cell state_init = pack_state_init(jetton_multiple_auction_code, data);
+    slice auction_address = get_address_by_state_init(state_init);
+    
+    cell msg_body = begin_cell().store_uint(op::FILL_UP_BALANCE, 32).store_uint(query_id, 64).end_cell();
+    int required_gas = send_deploy_message(auction_address, tons::DEPLOY_JETTON_AUCTION, state_init, msg_body, mode::PAY_FEES_SEPARATELY);
+    
+    return required_gas + tons::DEPLOY_JETTON_AUCTION;
+}
+

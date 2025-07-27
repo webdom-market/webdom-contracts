@@ -1,0 +1,79 @@
+#include "constants.fc";
+
+
+(int) deploy_multiple_domains_swap(slice seller_address, slice payload, slice deploy_info, 
+                                   cell multiple_domains_swap_code, int commission_discount, int query_id) impure inline {
+    int completion_commission = deploy_info~load_coins();
+    int min_duration          = deploy_info~load_uint(32);
+    deploy_info.end_parse();
+
+    cell  left_domains_list   = payload~load_dict();  ;; HashmapE; Index(uint8) -> DomainName(string)
+    int   left_payment_total  = payload~load_coins();
+    slice right_owner_address = payload~load_msg_addr(); 
+    cell  right_domains_list  = payload~load_dict();  ;; HashmapE; Index(uint8) -> DomainName(string)
+    int   right_payment_total = payload~load_coins();
+    int   valid_until         = payload~load_uint(32);
+    int   needs_alert         = payload~load_int(1);
+    payload.end_parse();
+    throw_unless(exc::INCORRECT_VALID_UNTIL, (valid_until >= now() + min_duration) & (valid_until <= now() + ONE_YEAR - ONE_DAY));  ;; min 10 minutes, max 1 year
+    
+    int left_domains_total = 0;
+    cell left_domains_dict = new_dict();
+    (int ind, slice domain_name, int found?) = left_domains_list.udict_get_min?(8);
+    while (found?) {
+        int is_tg_username = domain_name~load_int(1);
+        left_domains_total += 1;
+        left_domains_dict~dict_set(267, is_tg_username ? tg_username_to_address(domain_name) : domain_name_to_address(domain_name), BIT_FALSE_SLICE());
+        (ind, domain_name, found?) = left_domains_list.udict_get_next?(8, ind);
+    }
+
+    int   right_domains_total = 0;
+    cell right_domains_dict = new_dict();
+    (ind, domain_name, found?) = right_domains_list.udict_get_min?(8);
+    while (found?) {
+        int is_tg_username = domain_name~load_int(1);
+        right_domains_total += 1;
+        right_domains_dict~dict_set(267, is_tg_username ? tg_username_to_address(domain_name) : domain_name_to_address(domain_name), BIT_FALSE_SLICE());
+        (ind, domain_name, found?) = right_domains_list.udict_get_next?(8, ind);
+    }
+    
+    completion_commission = muldiv(completion_commission, COMMISSION_DIVIDER - commission_discount, COMMISSION_DIVIDER);
+
+    cell data = begin_cell()
+                    .store_ref(
+                        begin_cell()
+                            .store_slice(seller_address)         ;; left_owner_address
+                            .store_uint(left_domains_total, 8)
+                            .store_uint(0, 8)                    ;; left_domains_received
+                            .store_dict(left_domains_dict)
+                            .store_coins(left_payment_total)
+                            .store_coins(0)
+                        .end_cell()
+                    )
+                    .store_ref(
+                        begin_cell()
+                            .store_slice(right_owner_address)
+                            .store_uint(right_domains_total, 8)
+                            .store_uint(0, 8)                    ;; right_domains_received
+                            .store_dict(right_domains_dict)
+                            .store_coins(right_payment_total)
+                            .store_coins(0)
+                        .end_cell()
+                    )
+                    .store_uint(state::CANCELLED, 2)             ;; state
+                    .store_uint(now(), 32)                       ;; created_at
+                    .store_uint(valid_until, 32)
+                    .store_uint(0, 32)                           ;; last_action_time
+                    .store_coins(completion_commission)
+                    .store_int(needs_alert, 1)                   ;; needs_alert
+                    .store_int(0, 1)                             ;; cancelled_by_left
+                .end_cell();
+    cell state_init = pack_state_init(multiple_domains_swap_code, data);
+    slice multiple_swap_address = get_address_by_state_init(state_init);
+
+    cell msg_body = begin_cell().store_uint(op::FILL_UP_BALANCE, 32).store_uint(query_id, 64).end_cell();
+    int required_gas = tons::DEPLOY_MULTIPLE_SWAP + completion_commission + (needs_alert & tons::OFFER_NOTIFICATION);
+    required_gas += send_deploy_message(multiple_swap_address, required_gas, state_init, msg_body, mode::PAY_FEES_SEPARATELY);
+    
+    return required_gas;
+}

@@ -49,15 +49,6 @@ export class JettonSimpleSaleDeployData extends DeployData {
     }
 }
 
-export function domainToNotification(domainName: string): Cell {
-    return beginCell().storeUint(0, 32).storeStringTail("Domain " + domainName + " was sold on webdom.market").endCell();
-}
-
-export function notificationToDomain(notification: Cell): string {
-    const ns = notification.beginParse();
-    return ns.skip(32).loadStringTail().slice(7, -22);
-}
-
 
 export type JettonSimpleSaleConfig = {
     domainAddress: Address;
@@ -79,22 +70,22 @@ export type JettonSimpleSaleConfig = {
 
 export function jettonSimpleSaleConfigToCell(config: JettonSimpleSaleConfig): Cell {
     return beginCell()
-        .storeAddress(config.domainAddress)
-        .storeAddress(config.sellerAddress)
         .storeAddress(config.jettonWalletAddress)
+        .storeAddress(config.sellerAddress)
         .storeCoins(config.price)
         .storeUint(config.state, 2)
+        .storeCoins(config.commission)
+        .storeUint(config.createdAt, 32)
+        .storeUint(config.lastRenewalTime, 32)
+        .storeUint(config.validUntil, 32)
+        .storeRef(beginCell().storeStringTail(config.domainName).endCell())
+        .storeUint(config.hotUntil ?? 0, 32)
+        .storeUint(config.coloredUntil ?? 0, 32)
         .storeRef(
             beginCell()
+                .storeAddress(config.domainAddress)
                 .storeAddress(config.jettonMinterAddress)
-                .storeCoins(config.commission)
-                .storeUint(config.createdAt, 32)
-                .storeUint(config.lastRenewalTime, 32)
-                .storeUint(config.validUntil, 32)
-                .storeMaybeRef(config.buyerAddress ? beginCell().storeAddress(config.buyerAddress).endCell() : null)
-                .storeRef(domainToNotification(config.domainName))
-                .storeUint(config.hotUntil ?? 0, 32)
-                .storeUint(config.coloredUntil ?? 0, 32)
+                .storeAddress(config.buyerAddress)
             .endCell()
         )
         .endCell();
@@ -165,11 +156,11 @@ export class JettonSimpleSale extends DefaultContract {
         await provider.external(beginCell().storeUint(OpCodes.CANCEL_DEAL, 32).storeUint(queryId, 64).endCell());
     }
 
-    async sendRenewDomain(provider: ContractProvider, via: Sender, queryId: number = 0) {
+    async sendRenewDomain(provider: ContractProvider, via: Sender, queryId: number = 0, newValidUntil?: number) {
         await provider.internal(via, {
             value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).endCell()
+            body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).storeUint(newValidUntil ?? 0, newValidUntil ? 32 : 1).endCell()
         });
     }
 
@@ -190,7 +181,7 @@ export class JettonSimpleSale extends DefaultContract {
             lastRenewalTime: stack.readNumber(),
             validUntil: stack.readNumber(),
             buyerAddress: stack.readAddressOpt(),
-            domainName: notificationToDomain(stack.readCell()),
+            domainName: stack.readCell().beginParse().loadStringTail(),
             jettonWalletAddress: stack.readAddressOpt(),
             hotUntil: stack.readNumber(),
             coloredUntil: stack.readNumber(),

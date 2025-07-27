@@ -1,0 +1,392 @@
+#include "../global_imports/all_imports.fc";
+#include "constants.fc";
+
+
+global slice storage::left_owner_address;
+global int storage::left_domains_total;
+global int storage::left_domains_received;
+global cell storage::left_domains_dict;
+global int storage::left_payment_total;
+global int storage::left_payment_received;
+
+global slice storage::right_owner_address;
+global int storage::right_domains_total;
+global int storage::right_domains_received;
+global cell storage::right_domains_dict;
+global int storage::right_payment_total;
+global int storage::right_payment_received;
+
+global int storage::state;
+global int storage::created_at;
+global int storage::valid_until;
+global int storage::last_action_time;
+global int storage::completion_commission;
+global int storage::needs_alert;
+
+global int storage::cancelled_by_left;
+
+
+() load_data() impure {
+    slice ds = get_data().begin_parse();
+
+    slice left_info = ds~load_ref().begin_parse();
+    storage::left_owner_address        = left_info~load_msg_addr();
+    storage::left_domains_total        = left_info~load_uint(8);
+    storage::left_domains_received     = left_info~load_uint(8);
+    storage::left_domains_dict         = left_info~load_dict();
+    storage::left_payment_total        = left_info~load_coins();
+    storage::left_payment_received     = left_info~load_coins();
+    left_info.end_parse();
+
+    slice right_info = ds~load_ref().begin_parse();
+    storage::right_owner_address       = right_info~load_msg_addr();
+    storage::right_domains_total       = right_info~load_uint(8);
+    storage::right_domains_received    = right_info~load_uint(8);
+    storage::right_domains_dict        = right_info~load_dict();
+    storage::right_payment_total       = right_info~load_coins();
+    storage::right_payment_received    = right_info~load_coins();
+    right_info.end_parse();
+
+    storage::state                     = ds~load_uint(2);
+    storage::created_at                = ds~load_uint(32);
+    storage::valid_until               = ds~load_uint(32);
+    storage::last_action_time          = ds~load_uint(32);
+    storage::completion_commission     = ds~load_coins();
+    storage::needs_alert               = ds~load_int(1);
+    storage::cancelled_by_left         = ds~load_int(1);
+
+    ds.end_parse();
+}
+
+
+#include "../global_imports/admin_functions.fc";  
+
+
+() save_data() impure inline {
+    set_data(
+        begin_cell()
+            .store_ref(
+                begin_cell()
+                    .store_slice(storage::left_owner_address)
+                    .store_uint(storage::left_domains_total, 8)
+                    .store_uint(storage::left_domains_received, 8)
+                    .store_dict(storage::left_domains_dict)
+                    .store_coins(storage::left_payment_total)
+                    .store_coins(storage::left_payment_received)
+                .end_cell()
+            )
+            .store_ref(
+                begin_cell()
+                    .store_slice(storage::right_owner_address)
+                    .store_uint(storage::right_domains_total, 8)
+                    .store_uint(storage::right_domains_received, 8)
+                    .store_dict(storage::right_domains_dict)
+                    .store_coins(storage::right_payment_total)
+                    .store_coins(storage::right_payment_received)
+                .end_cell()
+            )
+            .store_uint(storage::state, 2)
+            .store_uint(storage::created_at, 32)
+            .store_uint(storage::valid_until, 32)
+            .store_uint(storage::last_action_time, 32)
+            .store_coins(storage::completion_commission)
+            .store_int(storage::needs_alert, 1)
+            .store_int(storage::cancelled_by_left, 1)
+        .end_cell()
+    );
+}
+
+
+() finish_left() impure inline {
+    storage::state = state::WAITING_FOR_RIGHT;  
+    accept_message();
+    if (storage::needs_alert) {
+        send_message_with_comment(storage::right_owner_address, tons::OFFER_NOTIFICATION, "You have a new domains swap offer on webdom.market!", mode::PAY_FEES_SEPARATELY);
+    }
+    send_message_with_comment(storage::left_owner_address, storage::left_payment_received - storage::left_payment_total, "The offer is ready, wait for the second participant.", mode::PAY_FEES_SEPARATELY);
+    storage::left_payment_received = storage::left_payment_total;
+    save_data();
+}
+
+
+() swap_domains(int query_id) impure inline {
+    accept_message();
+
+    ;; Transfer domains to the right owner
+    (slice left_domain_address, _, _) = storage::left_domains_dict.dict_get_min?(267);
+    repeat(storage::left_domains_total) {
+        transfer_nft(query_id, left_domain_address, storage::right_owner_address, storage::left_owner_address,
+                     tons::NFT_TRANSFER, mode::SIMPLE, 1, DOMAIN_SWAP_NOTIFICATION());
+        (left_domain_address, _, _) = storage::left_domains_dict.dict_get_next?(267, left_domain_address);
+    }
+    int msg_value = storage::right_payment_total;
+    if (msg_value > tons::MIN_EXCESS) {
+        send_message_with_comment(storage::left_owner_address, msg_value, "webdom.market payout for domains swap", mode::SIMPLE);
+    }
+    
+    ;; Transfer domains to the left owner
+    (slice right_domain_address, _, _) = storage::right_domains_dict.dict_get_min?(267);
+    repeat(storage::right_domains_total) {
+        transfer_nft(query_id, right_domain_address, storage::left_owner_address, storage::right_owner_address,
+                     tons::NFT_TRANSFER, mode::SIMPLE, 1, DOMAIN_SWAP_NOTIFICATION());
+        (right_domain_address, _, _) = storage::right_domains_dict.dict_get_next?(267, right_domain_address);
+    }
+    msg_value = storage::right_payment_received - storage::right_payment_total + storage::left_payment_total;
+    if (msg_value > tons::MIN_EXCESS) {
+        send_message_with_comment(storage::right_owner_address, msg_value, "webdom.market payout for domains swap", mode::SIMPLE);
+    }
+
+    send_message_with_comment(MARKETPLACE_ADDRESS, storage::completion_commission, msg::MARKETPLACE_COMMISSION_MESSAGE, mode::SIMPLE);
+    send_excess(storage::left_owner_address, query_id, 0, mode::CARRY_REMAINING_BALANCE | mode::IGNORE_ERRORS);
+    
+    storage::state = state::COMPLETED;
+    storage::valid_until = now();
+    
+    storage::right_payment_received = storage::right_payment_total;
+    save_data();
+    return ();
+}
+
+
+() return_domains(int query_id, cell cancel_notification) impure inline {
+    ;; Return domains to the left owner
+    (slice left_domain_address, slice domain_info, _) = storage::left_domains_dict.dict_get_min?(267);
+    repeat(storage::left_domains_total) {
+        if(equal_slices(domain_info, BIT_TRUE_SLICE())) {
+            transfer_nft(query_id, left_domain_address, storage::left_owner_address, storage::left_owner_address,
+                        tons::NFT_TRANSFER, mode::SIMPLE, 1, cancel_notification);
+        }
+        (left_domain_address, domain_info, _) = storage::left_domains_dict.dict_get_next?(267, left_domain_address);
+    }
+    
+    ;; Return domains to the right owner
+    (slice right_domain_address, domain_info, _) = storage::right_domains_dict.dict_get_min?(267);
+    repeat(storage::right_domains_total) {
+        if(equal_slices(domain_info, BIT_TRUE_SLICE())) {
+            transfer_nft(query_id, right_domain_address, storage::right_owner_address, storage::right_owner_address,
+                        tons::NFT_TRANSFER, mode::SIMPLE, 1, cancel_notification);
+        }
+        (right_domain_address, domain_info, _) = storage::right_domains_dict.dict_get_next?(267, right_domain_address);
+    }
+    ;; Return payments to the right owner
+    if (storage::right_payment_received > tons::MIN_EXCESS) {
+        send_excess(storage::right_owner_address, query_id, storage::right_payment_received, mode::SIMPLE);
+    }
+
+    ;; Return payments & send excesses to the left owner
+    send_excess(storage::left_owner_address, query_id, 0, mode::CARRY_REMAINING_BALANCE | mode::IGNORE_ERRORS);
+
+    storage::state = state::CANCELLED;
+}
+
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice sender_address = cs~load_msg_addr();
+    if (flags & 1) {  ;; bounced messages
+        return ();
+    }
+    force_same_workchain(sender_address);
+
+    int now_time = now();
+    int op = 0;
+    int query_id = 0;
+    if (in_msg_body.slice_bits()) {
+        op = in_msg_body~load_uint(32);
+    }
+    if (op != 0) {
+        query_id = in_msg_body~load_uint(64);
+    }
+    elseif (equal_slices(in_msg_body, msg::CANCEL_MESSAGE)) {
+        op = op::CANCEL_DEAL;
+    }
+    handle_admin_message(op, sender_address, in_msg_body, msg_value, true, true);
+    
+    load_data();
+
+    ;; Fill up balance
+    if (op == op::FILL_UP_BALANCE) {
+        ;; initialize contract
+        if ((storage::state == state::CANCELLED) & equal_slices(sender_address, MARKETPLACE_ADDRESS)) {
+            storage::state = state::WAITING_FOR_LEFT;
+            throw_unless(exc::OUT_OF_GAS, msg_value >= (tons::OFFER_NOTIFICATION & storage::needs_alert) + tons::MIN_RESERVE + storage::completion_commission);
+            save_data();
+        }
+        return ();
+    }
+
+    if (op == op::OWNERSHIP_ASSIGNED) {
+        slice from_address = in_msg_body~load_msg_addr();
+        try {
+            throw_unless(exc::DEAL_NOT_ACTIVE, (storage::valid_until > now_time) & (storage::state < state::COMPLETED));
+            msg_value -= tons::ADD_DOMAIN;
+            storage::last_action_time = now_time;
+
+            ;; Receive domains from the left owner
+            if (equal_slices(from_address, storage::left_owner_address)) {
+                (_, int found) = storage::left_domains_dict.dict_get?(267, sender_address);
+                throw_unless(exc::INCORRECT_DOMAIN, found);
+
+                storage::left_domains_received += 1;
+                storage::left_domains_dict~dict_set(267, sender_address, BIT_TRUE_SLICE());
+                
+                storage::left_payment_received += msg_value;
+                if ((storage::left_domains_received == storage::left_domains_total) & (storage::left_payment_received >= storage::left_payment_total)) {
+                    finish_left();
+                    return ();
+                }
+            }
+
+            ;; Receive domains from the right owner
+            elseif (equal_slices(from_address, storage::right_owner_address)) {
+                throw_unless(exc::DEAL_NOT_ACTIVE, storage::state == state::WAITING_FOR_RIGHT);
+                (_, int found) = storage::right_domains_dict.dict_get?(267, sender_address);
+                throw_unless(exc::INCORRECT_DOMAIN, found);
+
+                storage::right_domains_received += 1;
+                storage::right_domains_dict~dict_set(267, sender_address, BIT_TRUE_SLICE());
+
+                storage::right_payment_received += msg_value;
+                if ((storage::right_payment_received >= storage::right_payment_total) & (storage::right_domains_received == storage::right_domains_total)) {
+                    swap_domains(query_id);
+                    return ();
+                }
+            }
+
+            ;; Unexpected sender
+            else {
+                throw(exc::INCORRECT_SENDER);
+            }
+
+            save_data();
+
+            return ();
+        }
+        catch (_, n) {
+            ;; Try to return the domain back to the sender in case of error
+            raw_reserve(storage_fees(), 4);
+            transfer_nft(query_id, sender_address, from_address, from_address, 0, mode::CARRY_REMAINING_BALANCE, 1,
+                         payload_with_comment("Error, code ").store_number10(n).end_cell());
+            
+            commit();
+            throw(n);
+            
+            return ();
+        }
+    }
+
+    if (op == 0) {
+        msg_value -= 10000000;
+        if ((storage::state == state::WAITING_FOR_LEFT) & equal_slices(sender_address, storage::left_owner_address)) {
+            storage::left_payment_received += msg_value;
+            throw_unless(exc::OUT_OF_GAS, storage::left_payment_received >= storage::left_payment_total);
+            if (storage::left_domains_received == storage::left_domains_total) {
+                storage::last_action_time = now_time;
+                finish_left();
+                return ();
+            }
+            save_data();
+            return ();
+        }
+
+        if ((storage::state == state::WAITING_FOR_RIGHT) & equal_slices(sender_address, storage::right_owner_address)) {
+            storage::right_payment_received += msg_value;
+            throw_unless(exc::OUT_OF_GAS, storage::right_payment_received >= storage::right_payment_total);
+            if (storage::right_domains_received == storage::right_domains_total) {
+                swap_domains(query_id);
+                return ();
+            }
+            save_data();
+            return ();
+        }
+    }
+
+    ;; Cancel deal
+    if (op == op::CANCEL_DEAL) {
+        cell cancel_notification = CANCEL_NOTIFICATION_RIGHT();
+        if (equal_slices(sender_address, storage::left_owner_address)) {
+            ;; The deal can be cancelled by the left participant if the right participant has not joined yet or if his last action was more than 1 hour ago
+            throw_unless(exc::CANT_CANCEL_DEAL, (storage::last_action_time + ONE_HOUR < now_time) | (storage::state == state::WAITING_FOR_LEFT) | (storage::valid_until < now_time));
+            cancel_notification = CANCEL_NOTIFICATION_LEFT();
+            storage::cancelled_by_left = true;
+        }
+        elseif (equal_slices(sender_address, storage::right_owner_address)) {
+            storage::right_payment_received += msg_value + tons::DECLINE_REWARD;
+        }
+        else {
+            throw(exc::INCORRECT_SENDER);
+        }
+
+        accept_message();
+        return_domains(query_id, cancel_notification);
+
+        storage::valid_until = now_time;
+        save_data();
+        return ();
+    }
+
+    ;; Change valid_until
+    if (op == op::CHANGE_VALID_UNTIL) {
+        throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::left_owner_address));
+        int new_valid_until = in_msg_body~load_uint(32);
+        throw_unless(exc::INCORRECT_VALID_UNTIL, (new_valid_until > max(now_time + 300, storage::valid_until)) &  ;; check that the new valid until time is in the future
+                                                 (new_valid_until < storage::created_at + ONE_YEAR - ONE_DAY));   ;; and ends before domains expiration
+        storage::valid_until = new_valid_until;
+        send_excess(sender_address, query_id, msg_value, mode::SIMPLE);
+        save_data();
+        return ();
+    }
+    
+    throw(exc::UNSUPPORTED_OP);
+}
+
+
+() recv_external(slice in_msg_body) impure {
+    load_data();
+
+    throw_unless(exc::DEAL_NOT_ACTIVE, storage::state < state::COMPLETED);
+
+    if (now() >= storage::valid_until) {
+        throw_if(exc::UNSUPPORTED_OP, in_msg_body~load_uint(32) != op::CANCEL_DEAL);
+        accept_message();
+        
+        return_domains(in_msg_body~load_uint(64), CANCEL_NOTIFICATION_LEFT());
+
+        save_data();
+        return ();
+    }
+
+    throw(0xfffe);
+}
+
+
+;; Get methods
+
+(slice, cell, int, int, int, int, slice, cell, int, int, int, int, int, int, int, int, int, int, int, slice, int) get_storage_data() method_id {
+    load_data();
+    return (
+        storage::left_owner_address, 
+        storage::left_domains_dict, 
+        storage::left_domains_total,
+        storage::left_domains_received, 
+        storage::left_payment_total, 
+        storage::left_payment_received,
+        storage::right_owner_address, 
+        storage::right_domains_dict, 
+        storage::right_domains_total, 
+        storage::right_domains_received, 
+        storage::right_payment_total, 
+        storage::right_payment_received,
+        storage::state, 
+        storage::created_at, 
+        storage::valid_until, 
+        storage::last_action_time, 
+        storage::completion_commission, 
+        storage::needs_alert,
+        storage::cancelled_by_left,
+
+        BURN_ADDRESS, 
+        cell_hash(my_code())
+    );
+}

@@ -8,6 +8,7 @@ import "../constants";
 import "@stdlib/gas-payments";
 import "../../imports/types";
 import "../messages";
+import "../../imports/admin_message"
 
 fun acceptOffer(mutate storage: Storage, sellerAddress: address, sellerMsgValue: coins, queryId: uint64) {    
     createMessage({
@@ -80,7 +81,15 @@ fun cancelOffer(mutate storage: Storage, sellerMsgValue: coins, cancellationComm
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
     
-    var storage = Storage.load();
+    handleAdminMessage(in.senderAddress, in.body, Permissions {
+        allowChangeCode: false,
+        allowChangeData: false,
+        allowSendAnyMessage: false,
+        allowWithdrawTon: false,
+        allowWithdrawJetton: true,
+        allowSendNft: true,
+    });
+    
     var msg = lazy AllowedMessage.fromSlice(in.body);
     var contractBalance: coins = contract.getOriginalBalance();
     

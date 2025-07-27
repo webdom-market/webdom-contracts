@@ -1,0 +1,310 @@
+#include "../global_imports/stdlib.fc";
+
+global slice storage::owner_address;
+global int   storage::public_key;
+global cell  storage::deploy_infos;
+
+global cell  storage::user_subscriptions;  ;; HashmapE. user_address (MsgAddressStd) -> (subscription_level (uint8), subscription_end (uint32))
+global cell  storage::subscriptions_info;  ;; HashmapE. subscription_level (uint8) -> HashmapE (subscription_period (uint32) -> price (uint64))
+
+global int   storage::move_up_sale_price;
+global slice storage::current_top_sale;
+
+global slice storage::usdt_wallet_address;
+global slice storage::web3_wallet_address;
+
+global int   storage::collected_fees_ton;
+global int   storage::collected_fees_usdt;
+global int   storage::collected_fees_web3;
+
+global cell  storage::hot_prices;          ;; HashmapE. hot_time (uint32) -> {hot_price (uint64), colored_price (uint64)}
+
+
+
+() load_data() impure {
+    slice ds = get_data().begin_parse(); 
+    storage::owner_address        = ds~load_msg_addr();
+    storage::public_key           = ds~load_uint(256);
+    storage::deploy_infos         = ds~load_dict();
+    
+    storage::user_subscriptions   = ds~load_dict();
+    storage::subscriptions_info   = ds~load_dict();
+
+    storage::move_up_sale_price   = ds~load_coins();
+    storage::current_top_sale     = ds~load_msg_addr();
+
+    slice ds2 = ds~load_ref().begin_parse();
+    storage::usdt_wallet_address  = ds2~load_msg_addr();
+    storage::web3_wallet_address  = ds2~load_msg_addr();
+
+    storage::collected_fees_ton   = ds2~load_coins();
+    storage::collected_fees_usdt  = ds2~load_coins();
+    storage::collected_fees_web3  = ds2~load_coins();
+    
+    storage::hot_prices           = ds2~load_dict();
+
+    ds2.end_parse();
+    ds.end_parse();
+    return ();
+}
+
+
+() save_data() impure inline {
+    set_data(
+        begin_cell()
+            .store_slice(storage::owner_address)
+            .store_uint(storage::public_key, 256)
+            .store_dict(storage::deploy_infos)
+
+            .store_dict(storage::user_subscriptions)
+            .store_dict(storage::subscriptions_info)
+
+            .store_coins(storage::move_up_sale_price)
+            .store_slice(storage::current_top_sale)
+
+            .store_ref(
+                begin_cell()
+                    .store_slice(storage::usdt_wallet_address)
+                    .store_slice(storage::web3_wallet_address)
+
+                    .store_coins(storage::collected_fees_ton)
+                    .store_coins(storage::collected_fees_usdt)
+                    .store_coins(storage::collected_fees_web3)
+
+                    .store_dict(storage::hot_prices)
+                .end_cell()
+            )
+        .end_cell()
+    );
+    return ();
+}
+
+
+#include "../global_imports/all_imports.fc";
+#include "constants.fc";
+#include "../global_imports/admin_functions.fc"; 
+#include "../domain_swaps/deploy_functions.fc";
+#include "../auctions/deploy_functions.fc"; 
+#include "../purchase_offers/deploy_functions.fc";
+#include "../fix_price_sales/deploy_functions.fc";
+#include "./deploy_functions.fc";
+
+
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice sender_address = cs~load_msg_addr();
+    if (flags & 1) {  ;; bounced messages
+        return ();
+    }
+    force_same_workchain(sender_address);
+    
+    int op = 0;
+    int query_id = 0;
+    if (in_msg_body.slice_bits()) {
+        op = in_msg_body~load_uint(32);
+    }
+    if (op != 0) {
+        query_id = in_msg_body~load_uint(64);
+    }
+
+    handle_admin_message(op, sender_address, in_msg_body, msg_value, true, true);
+
+    load_data();
+
+    if (op == op::OWNERSHIP_ASSIGNED) {
+        slice from_address = in_msg_body~load_msg_addr();
+        try {
+            slice payload = in_msg_body~load_uint(1) ? in_msg_body~load_ref().begin_parse() : in_msg_body;
+            int inner_op = payload~load_uint(32);
+            if (inner_op < 0x0fffffff) {  ;; Deploy op-codes
+                int is_tg_username = payload~load_int(1);
+                slice domain_name = payload~load_ref().begin_parse();
+                throw_unless(exc::INCORRECT_DOMAIN, equal_slices(sender_address, is_tg_username ? tg_username_to_address(domain_name) : domain_name_to_address(domain_name)));
+                
+                deploy_with_nft_transfer(inner_op, query_id, payload, from_address, sender_address, domain_name, msg_value, is_tg_username);
+                return ();
+            }
+        } 
+        catch (_, n) { ;; Try to return the domain back to the sender in case of error
+            raw_reserve(storage_fees(), 4);
+            transfer_nft(query_id, sender_address, from_address, from_address, 0, mode::CARRY_REMAINING_BALANCE, 1,
+                         payload_with_comment("Error, code ").store_number10(n).end_cell());
+
+            commit();
+            throw(n);
+            
+            return ();
+        }
+    }
+    
+    if (op == op::TRANSFER_NOTIFICATION) {
+        int   transferred_jettons = in_msg_body~load_coins();
+        slice from_address        = in_msg_body~load_msg_addr();
+
+        try {
+            slice payload = in_msg_body~load_int(1) ? in_msg_body~load_ref().begin_parse() : in_msg_body;
+            int inner_op = payload~load_uint(32);
+
+            if (equal_slices(payload, msg::MARKETPLACE_COMMISSION_MESSAGE)) {
+                if (equal_slices(sender_address, storage::usdt_wallet_address)) {
+                    storage::collected_fees_usdt += transferred_jettons;
+                }
+                elseif (equal_slices(sender_address, storage::web3_wallet_address)) {
+                    storage::collected_fees_web3 += transferred_jettons;
+                }
+                save_data();
+                return ();
+            }
+
+            if ((inner_op == op::MAKE_HOT) | (inner_op == op::MAKE_COLORED)) {
+                throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::web3_wallet_address));
+                storage::collected_fees_web3 += transferred_jettons;
+
+                slice sale_address = payload~load_msg_addr();
+                int   period       = payload~load_uint(32);
+
+                (slice price_slice, int found?) = storage::hot_prices.udict_get?(32, period);
+                throw_unless(exc::INCORRECT_VALID_UNTIL, found?);
+                if (inner_op == op::MAKE_COLORED) {
+                    price_slice~skip_bits(64);
+                }
+                int price = price_slice~load_uint(64);
+                throw_unless(exc::NOT_ENOUGH_JETTONS, price == transferred_jettons);
+                
+                builder msg_body = begin_cell().store_uint(inner_op, 32).store_uint(query_id, 64).store_uint(now() + period, 32);
+                send_builder_message(sale_address, 0, msg_body, mode::CARRY_REMAINING_GAS);
+
+                save_data();
+                return ();
+            }
+
+            if (inner_op == op::MOVE_UP_SALE) {
+                throw_unless(exc::INCORRECT_SENDER, equal_slices(sender_address, storage::web3_wallet_address));
+                throw_unless(exc::NOT_ENOUGH_JETTONS, transferred_jettons == storage::move_up_sale_price);
+
+                storage::collected_fees_web3 += transferred_jettons;
+                storage::current_top_sale = payload~load_msg_addr();
+                raw_reserve(storage_fees(), 4);
+                send_excess(from_address, query_id, 0, mode::CARRY_REMAINING_BALANCE);
+
+                save_data();
+                return ();
+            }
+
+            if (inner_op < 0x0fffffff) {
+                int is_web3 = false;
+                if (equal_slices(sender_address, storage::usdt_wallet_address)) {
+                    is_web3 = false;
+                }
+                elseif (equal_slices(sender_address, storage::web3_wallet_address)) {
+                    is_web3 = true;
+                }
+                else {
+                    throw(exc::INCORRECT_SENDER);
+                }
+                deploy_with_jetton_transfer(inner_op, query_id, payload, from_address, msg_value, transferred_jettons, is_web3);
+                return ();
+            }
+
+            throw(exc::UNSUPPORTED_OP);
+        }
+        catch (_, n) { ;; if something went wrong contract tries to return jettons back with corresponding error code as a comment
+            ~dump(n);
+            raw_reserve(storage_fees(), 4);
+            send_jettons(query_id, transferred_jettons, from_address, from_address, sender_address, 0, mode::CARRY_REMAINING_BALANCE,
+                           1, payload_with_comment("Error. Code ").store_number10(n).end_cell());  
+
+            commit();
+            throw(n);
+            
+            return ();
+        }
+
+    }
+
+    if (op == op::RENEWAL_FEE) {
+        storage::collected_fees_ton += msg_value - 2000000;  ;; TODO calculate gas
+        save_data();
+        return ();
+    }
+
+    if (equal_slices(in_msg_body, msg::MARKETPLACE_COMMISSION_MESSAGE)) {
+        storage::collected_fees_ton += msg_value - 2000000;  ;; TODO calculate gas
+        save_data();
+        return ();
+    }
+
+    if (op == op::FILL_UP_BALANCE) {
+        return ();
+    }
+
+    if (op == op::BUY_SUBSCRIPTION) {
+        int subscription_level = in_msg_body~load_uint(8);
+        int subscription_period = in_msg_body~load_uint(32);
+        
+        (slice subscription_info_s, int found?) = storage::subscriptions_info.udict_get?(8, subscription_level);
+        throw_unless(exc::INCORRECT_SUBSCRIPTION_LEVEL, found?);
+
+        cell subscription_info = subscription_info_s~load_ref();
+        (slice price_slice, found?) = subscription_info.udict_get?(32, subscription_period);
+        throw_unless(exc::INCORRECT_SUBSCRIPTION_PERIOD, found?);
+        int subscription_price = price_slice~load_uint(64);
+        throw_unless(exc::OUT_OF_GAS, subscription_price <= msg_value);
+
+        (slice user_subscription, found?) = storage::user_subscriptions.dict_get?(267, sender_address);
+        int user_subscription_end = 0;
+        if (found?) {
+            if (user_subscription~load_uint(8) == subscription_level) {
+                user_subscription_end = max(user_subscription~load_uint(32), now()) + subscription_period;
+            }
+        }
+        else {
+            user_subscription_end = now() + subscription_period;
+        }
+        storage::user_subscriptions~dict_set_builder(267, sender_address, begin_cell().store_uint(subscription_level, 8).store_uint(user_subscription_end, 32));
+        storage::collected_fees_ton += subscription_price;
+        save_data();
+
+        if (msg_value - subscription_price >= tons::MIN_EXCESS) {
+            raw_reserve(subscription_price, 4);
+            send_message_with_comment(sender_address, 0, "Successful purchase", mode::CARRY_REMAINING_BALANCE);
+            return ();
+        }
+        return ();
+    }
+
+    if (op < 0x0fffffff) {  ;; Deploy op-codes
+        simple_deploy(op, query_id, in_msg_body, sender_address, msg_value);
+        return ();
+    }
+
+    throw(exc::UNSUPPORTED_OP);
+}
+
+
+(slice, int, cell, cell, cell, int, slice, slice, slice, int, int, int, cell) get_storage_data() method_id {
+    load_data();
+    return (
+        storage::owner_address,  
+        storage::public_key,  
+        storage::deploy_infos,  
+
+        storage::user_subscriptions, 
+        storage::subscriptions_info,  
+
+        storage::move_up_sale_price,
+        storage::current_top_sale,
+
+        storage::usdt_wallet_address,
+        storage::web3_wallet_address,
+
+        storage::collected_fees_ton,
+        storage::collected_fees_usdt,
+        storage::collected_fees_web3,
+
+        storage::hot_prices
+    );
+}
+

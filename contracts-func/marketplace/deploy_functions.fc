@@ -1,0 +1,117 @@
+int get_commission_discount(cell subscription_info_cell, from_address) inline {
+    if (cell_null?(subscription_info_cell)) {
+        return 0;
+    }
+    slice subscription_info = subscription_info_cell.begin_parse();
+    slice signature = subscription_info~load_ref().begin_parse();
+
+    throw_unless(exc::INVALID_SIGNATURE, check_signature(slice_hash(subscription_info), signature, storage::public_key));
+    throw_unless(exc::INVALID_SIGNATURE, subscription_info~load_uint(32) + 600 >= now());
+    throw_unless(exc::INVALID_SIGNATURE, equal_slices(subscription_info~load_msg_addr(), from_address));
+
+    return subscription_info~load_uint(16);
+}
+
+
+(slice, cell, int) parse_deploy_info(int op) impure inline {
+    (slice deploy_info, int found?) = storage::deploy_infos.udict_get?(32, op);
+    throw_unless(exc::UNSUPPORTED_OP, found?);
+    cell deal_code  = deploy_info~load_ref();
+    int  deploy_fee = deploy_info~load_coins();
+
+    raw_reserve(deploy_fee, 4);
+    storage::collected_fees_ton += deploy_fee;
+    save_data();
+
+    return (deploy_info, deal_code, deploy_fee);
+}
+
+() check_enough_gas(int msg_value, int required_gas, slice from_address, int query_id) impure inline {
+    required_gas += get_compute_fee(WORKCHAIN, gas_consumed());
+    if (msg_value - required_gas >= tons::MIN_EXCESS) {
+        send_excess(from_address, query_id, 0, mode::CARRY_REMAINING_BALANCE);
+        return ();
+    } 
+    throw_unless(exc::OUT_OF_GAS, msg_value > required_gas);
+}
+
+
+() simple_deploy(int op, int query_id, slice payload, slice from_address, int msg_value) impure inline {
+    int commission_discount = get_commission_discount(payload~load_maybe_ref(), from_address);
+    (slice deploy_info, cell code, int required_gas) = parse_deploy_info(op);
+
+    if (op == op::DEPLOY_TON_MULTIPLE_SALE) {
+        required_gas += deploy_ton_multiple_sale(from_address, payload, deploy_info, code, commission_discount, query_id);
+    }
+    elseif (op == op::DEPLOY_JETTON_MULTIPLE_SALE) {
+        required_gas += deploy_jetton_multiple_sale(from_address, payload, deploy_info, code, commission_discount, query_id);
+    }
+    elseif (op == op::DEPLOY_TON_MULTIPLE_AUCTION) {
+        required_gas += deploy_ton_multiple_auction(from_address, payload, deploy_info, code, commission_discount, query_id);
+    }
+    elseif (op == op::DEPLOY_JETTON_MULTIPLE_AUCTION) {
+        required_gas += deploy_jetton_multiple_auction(from_address, payload, deploy_info, code, commission_discount, query_id);
+    }
+    elseif (op == op::DEPLOY_TON_SIMPLE_OFFER) {
+        required_gas += deploy_ton_simple_offer(from_address, payload, deploy_info, code, commission_discount, query_id);
+    }
+    elseif (op == op::DEPLOY_MULTIPLE_OFFER) {
+        required_gas += deploy_multiple_offer(from_address, payload, deploy_info, code, commission_discount, query_id);
+    }
+    elseif (op == op::DEPLOY_MULTIPLE_DOMAINS_SWAP) {
+        required_gas += deploy_multiple_domains_swap(from_address, payload, deploy_info, code, commission_discount, query_id);
+    }
+    else {
+        throw(exc::UNSUPPORTED_OP);
+    }
+    
+    check_enough_gas(msg_value, required_gas, from_address, query_id);
+}
+
+
+() deploy_with_nft_transfer(int op, int query_id, slice payload, slice from_address, 
+                           slice domain_address, slice domain_name, int msg_value, int is_tg_username) impure inline {
+    int commission_discount = get_commission_discount(payload~load_maybe_ref(), from_address);
+    (slice deploy_info, cell code, int required_gas) = parse_deploy_info(op);
+    slice domain_zone = is_tg_username ? ".t.me" : ".ton";
+    if (op == op::DEPLOY_TON_SIMPLE_SALE) {
+        required_gas += deploy_ton_simple_sale(from_address, payload, deploy_info, domain_address,
+                                               domain_name, code, commission_discount, query_id, domain_zone);
+    }
+    elseif (op == op::DEPLOY_JETTON_SIMPLE_SALE) {
+        required_gas += deploy_jetton_simple_sale(from_address, payload, deploy_info, domain_address, 
+                                                  domain_name, code, commission_discount, query_id, domain_zone);
+    }
+
+    elseif (op == op::DEPLOY_TON_SIMPLE_AUCTION) {
+        required_gas += deploy_ton_simple_auction(from_address, payload, deploy_info, domain_address,
+                                                  domain_name, code, commission_discount, query_id, domain_zone);
+    }
+    elseif (op == op::DEPLOY_JETTON_SIMPLE_AUCTION) {
+        required_gas += deploy_jetton_simple_auction(from_address, payload, deploy_info, domain_address, 
+                                                     domain_name, code, commission_discount, query_id, domain_zone);
+    }
+
+    else {
+        throw(exc::UNSUPPORTED_OP);
+    }
+    
+    check_enough_gas(msg_value, required_gas, from_address, query_id);
+}
+
+
+() deploy_with_jetton_transfer(int op, int query_id, slice payload, slice from_address, 
+                               int msg_value, int transferred_jettons, int is_web3) impure inline {
+    int commission_discount = get_commission_discount(payload~load_maybe_ref(), from_address);
+    (slice deploy_info, cell code, int required_gas) = parse_deploy_info(op);
+
+    if (op == op::DEPLOY_JETTON_SIMPLE_OFFER) {
+        required_gas += deploy_jetton_simple_offer(from_address, payload, deploy_info, code, 
+                                                  commission_discount, query_id, transferred_jettons, is_web3);
+    }
+    else {
+        throw(exc::UNSUPPORTED_OP);
+    }
+
+    check_enough_gas(msg_value, required_gas, from_address, query_id);
+}

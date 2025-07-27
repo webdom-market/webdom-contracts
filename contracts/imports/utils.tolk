@@ -67,8 +67,8 @@ fun builder.storeStrFloat(mutate self, number: int, tenPowDecimals: int): builde
 }
 
 @inline
-fun builder.storeStrJettons(mutate self, jetton_amount: int, one_jetton: int, symbol: slice): builder {
-    return self.storeStrFloat(jetton_amount, one_jetton)
+fun builder.storeStrJettons(mutate self, jettonAmount: int, oneJetton: int, symbol: slice): builder {
+    return self.storeStrFloat(jettonAmount, oneJetton)
                 .storeUint(32, 8)  // store " " (space)
                 .storeSlice(symbol);
 }
@@ -110,4 +110,14 @@ fun calculateUsdtWalletAddress(ownerAddress: address): builder {
 fun forceSameWorkchain(addr: address) {
     var wc = addr.getWorkchain();
     assert (wc == WORKCHAIN) throw EXC_WRONG_CHAIN;
+}
+
+
+@inline
+fun getPayoutNotificationBody(domainNameCell: cell): cell {
+    return beginCell()
+            .storeUint(0, 32)
+            .storeSlice("Your domain was sold on webdom.market: ")
+            .storeRef(domainNameCell)
+        .endCell()
 }
