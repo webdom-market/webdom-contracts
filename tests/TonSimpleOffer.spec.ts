@@ -105,7 +105,7 @@ describe('TonSimpleOffer', () => {
         domainConfig = await domain.getStorageData();
         expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
         offerConfig = await offer.getStorageData();
-        expect(offerConfig.state).toEqual(TonSimpleOffer.STATE_ACCEPTED);
+        expect(offerConfig.state).toEqual(TonSimpleOffer.STATE_COMPLETED);
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         
         // should return domain if the offer is already accepted

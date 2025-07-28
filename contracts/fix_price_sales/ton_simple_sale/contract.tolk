@@ -9,7 +9,7 @@ import "@stdlib/gas-payments";
 import "../../imports/handle_promotion";
 import "../../imports/admin_message";
 import "../constants";
-
+import "../messages";
 
 @inline
 fun cancelDeal(mutate storage: Storage, queryId: uint64) {
@@ -112,7 +112,7 @@ fun onInternalMessage(in: InMessage) {
             assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN) throw EXC_OUT_OF_GAS;
             assert(storage.lastRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;  // check that domain expires later than in one day
                         
-            reserveToncoinsOnBalance(TONS_MIN_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+            reserveToncoinsOnBalance(TONS_MIN_RESERVE_FOR_AUTOCANCEL, RESERVE_MODE_EXACT_AMOUNT);
 
             createMessage({
                 bounce: false,

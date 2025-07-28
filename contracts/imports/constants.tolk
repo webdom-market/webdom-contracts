@@ -149,3 +149,8 @@ const ONE_DAY: uint32 = 24 * ONE_HOUR;
 const ONE_YEAR: uint32 = 366 * ONE_DAY;  // taken from TON DNS constants
 
 const COMMISSION_DIVIDER: uint16 = 10000;
+
+const STATE_UNINIT: int = 0;
+const STATE_ACTIVE: int = 1;
+const STATE_COMPLETED: int = 2;
+const STATE_CANCELLED: int = 3;

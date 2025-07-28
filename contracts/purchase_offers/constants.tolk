@@ -1,8 +1,3 @@
-const STATE_UNINIT: int = 0;
-const STATE_ACTIVE: int = 1;
-const STATE_ACCEPTED: int = 2;
-const STATE_CANCELLED: int = 3;
-
 const EXC_INCORRECT_SELLER_ADDRESS: int = 55;
 const EXC_INCORRECT_PRICE: int          = 56;
 const EXC_NFT_ALREADY_SOLD: int         = 57;

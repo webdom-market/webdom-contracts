@@ -156,6 +156,7 @@ describe('TonSimpleAuction', () => {
         blockchain.now!! += 60 * 5;
         bid += Tons.MIN_BID_INCREMENT;
         transactionRes = await tonSimpleAuction.sendPlaceBid(buyer.getSender(), bid);
+        printTransactionFees(transactionRes.transactions);
         expect(transactionRes.transactions).toHaveTransaction({
             from: buyer.address,
             to: tonSimpleAuction.address,
@@ -171,7 +172,10 @@ describe('TonSimpleAuction', () => {
         bid = toNano('5');
         transactionRes = await tonSimpleAuction.sendPlaceBid(admin.getSender(), bid);
         notificationMsg = beginCell().storeUint(0, 32).storeStringTail(`${jettonsToString(Number(bid), 9)} TON bid placed successfully`).endCell();
-        const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on ${tonSimpleAuctionConfig.domainName} was outbid by another user on webdom.market`).endCell();
+        const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on webdom.market was outbid by another user. Domain: `).storeRef(beginCell().storeStringTail(tonSimpleAuctionConfig.domainName).endCell()).endCell();
+        console.log(transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail());
+        console.log(transactionRes.transactions[2].inMessage?.info.dest?.toString(), buyer.address.toString());
+        printTransactionFees(transactionRes.transactions);
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonSimpleAuction.address,
             to: admin.address,
@@ -257,7 +261,8 @@ describe('TonSimpleAuction', () => {
 
         bid = tonSimpleAuctionConfig.maxBidValue;
         transactionRes = await tonSimpleAuction.sendPlaceBid(buyer.getSender(), bid);
-        const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on ${tonSimpleAuctionConfig.domainName} was outbid by another user on webdom.market`).endCell();
+        const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on webdom.market was outbid by another user. Domain: `).storeRef(beginCell().storeStringTail(tonSimpleAuctionConfig.domainName).endCell()).endCell();
+        printTransactionFees(transactionRes.transactions);
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonSimpleAuction.address,
             to: admin.address,

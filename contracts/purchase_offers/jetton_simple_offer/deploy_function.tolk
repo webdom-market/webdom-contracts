@@ -46,6 +46,9 @@ fun deployTonMultipleOffer(args: DeployWithJettonTransferArgs): int {
         jettonPostfix = " WEB3 for ";
         oneJetton = 1000;
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice, { assertEndAfterReading: false });
+        if (args.commonArgs.commissionDiscount != 0) {
+            args.commonArgs.commissionDiscount = COMMISSION_DIVIDER;
+        }
     } else {
         jettonMinterAddress = USDT_ADDRESS;
         jettonPostfix = " USDT for ";

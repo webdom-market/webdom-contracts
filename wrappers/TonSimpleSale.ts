@@ -24,7 +24,7 @@ export class TonSimpleSaleDeployData extends DeployData {
 }
 
 export function domainToNotification(domainName: string): Cell {
-    return beginCell().storeUint(0, 32).storeStringTail("Domain " + domainName + " was sold on webdom.market").endCell();
+    return beginCell().storeUint(0, 32).storeStringTail("Your domain was sold on webdom.market: ").storeRef(beginCell().storeStringTail(domainName).endCell()).endCell();
 }
 
 export function notificationToDomain(notification: Cell): string {

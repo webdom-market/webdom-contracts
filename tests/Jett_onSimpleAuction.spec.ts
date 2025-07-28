@@ -55,8 +55,11 @@ describe('JettonSimpleAuction', () => {
     async function deployJettonSimpleAuction() {
         jettonSimpleAuctionConfig.jettonWalletAddress = undefined;
         jettonSimpleAuctionConfig.state = JettonSimpleAuction.STATE_UNINIT;
+
         jettonSimpleAuction = blockchain.openContract(JettonSimpleAuction.createFromConfig(jettonSimpleAuctionConfig, jettonSimpleAuctionCode));
-        transactionRes = await jettonSimpleAuction.sendDeploy(marketplace.getSender(), toNano('0.04'));
+        usdtAuctionWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonSimpleAuction.address)));
+        
+        transactionRes = await jettonSimpleAuction.sendDeploy(marketplace.getSender(), toNano('0.04'), beginCell().storeAddress(usdtAuctionWallet.address).endCell());
         expect(transactionRes.transactions).toHaveTransaction({
             from: marketplace.address,
             to: jettonSimpleAuction.address,
@@ -64,10 +67,9 @@ describe('JettonSimpleAuction', () => {
             success: true
         });
 
-        usdtAuctionWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonSimpleAuction.address)));
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.state).toEqual(JettonSimpleAuction.STATE_ACTIVE);
-        expect(usdtAuctionWallet.address.toString()).toEqual(jettonSimpleAuctionConfig.jettonWalletAddress!!.toString());
+        expect(usdtAuctionWallet.address.toString()).toEqual(jettonSimpleAuctionConfig.jettonWalletAddress!.toString());
 
         await domain.sendTransfer(seller.getSender(), jettonSimpleAuction.address, seller.address);
     }
@@ -204,7 +206,7 @@ describe('JettonSimpleAuction', () => {
         let prevBid = bid;
         bid = toNano('5');
         transactionRes = await usdtAdminWallet.sendTransfer(admin.getSender(), bid, jettonSimpleAuction.address, admin.address, toNano("0.21"));
-        const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on ${jettonSimpleAuctionConfig.domainName} was outbid by another user on webdom.market`).endCell();
+        const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on webdom.market was outbid by another user. Domain: `).storeRef(beginCell().storeStringTail(DOMAIN_NAME).endCell()).endCell();
         expect(transactionRes.transactions).toHaveTransaction({
             from: jettonSimpleAuction.address,
             to: admin.address,
@@ -298,8 +300,8 @@ describe('JettonSimpleAuction', () => {
 
         let prevBid = bid;
         bid = jettonSimpleAuctionConfig.maxBidValue + 100n;
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
-        const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on ${jettonSimpleAuctionConfig.domainName} was outbid by another user on webdom.market`).endCell();
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.25"));
+        const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on webdom.market was outbid by another user. Domain: `).storeRef(beginCell().storeStringTail(DOMAIN_NAME).endCell()).endCell();
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtAdminWallet.address,
             to: admin.address,

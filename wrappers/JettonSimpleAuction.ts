@@ -96,34 +96,24 @@ export function jettonSimpleAuctionConfigToCell(config: JettonSimpleAuctionConfi
         .storeUint(config.startTime, 32)
         .storeUint(config.endTime, 32)
         .storeUint(config.lastDomainRenewalTime, 32)
-
         .storeCoins(config.lastBidValue)
         .storeUint(config.lastBidTime, 32)
         .storeAddress(config.lastBidderAddress)
-        
-        .storeRef(beginCell().storeUint(0, 32).storeStringTail("Your bid on " + config.domainName + " was outbid by another user on webdom.market").endCell())
-        .storeRef(beginCell().storeUint(0, 32).storeStringTail("Domain " + config.domainName + " was sold on webdom.market").endCell())
-        
+        .storeRef(beginCell().storeStringTail(config.domainName).endCell())
         .storeUint(config.hotUntil ?? 0, 32)
         .storeUint(config.coloredUntil ?? 0, 32)
-        .storeAddress(config.jettonWalletAddress)
-
+        .storeAddress(config.sellerAddress)
+        .storeUint(config.minBidValue, 64)
+        .storeUint(config.minBidIncrement, 16)
+        .storeUint(config.timeIncrement, 32)
+        .storeUint(config.commissionFactor, 16)
         .storeRef(
             beginCell()
-                .storeAddress(config.domainAddress)
-                .storeAddress(config.sellerAddress)
+                .storeAddress(config.jettonWalletAddress)
                 .storeAddress(config.jettonMinterAddress)
-                .storeRef(
-                    beginCell()
-                        .storeCoins(config.minBidValue)
-                        .storeCoins(config.maxBidValue)
-                        .storeUint(config.minBidIncrement, 12)
-                        .storeUint(config.timeIncrement, 32)
-
-                        .storeUint(config.commissionFactor, 16)
-                        .storeCoins(config.maxCommission)
-                    .endCell()
-                )
+                .storeCoins(config.maxBidValue)
+                .storeUint(config.maxCommission, 64)
+                .storeAddress(config.domainAddress)
             .endCell()
         )
     .endCell();
@@ -197,8 +187,8 @@ export class JettonSimpleAuction extends DefaultContract {
             timeIncrement: stack.readNumber(),
             lastBidValue: stack.readBigNumber(),
             lastBidTime: stack.readNumber(),
-            domainName: outbidNotificationToDomain(stack.readCell()),
-            maxCommission: (stack.readCellOpt() ?? 1) ? stack.readBigNumber() : toNano("99999"),
+            domainName: stack.readCell().beginParse().loadStringTail(),
+            maxCommission: stack.readBigNumber(),
 
             jettonWalletAddress: stack.readAddressOpt(),
             isDeferred: stack.readBoolean(),

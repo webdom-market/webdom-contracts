@@ -55,13 +55,12 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
               
     val saleAddress = AutoDeployAddress {
         stateInit: ContractState {
-            code: args.code,
+            code: args.commonArgs.code,
             data: data,
         }
     }.buildAddress();
 
     // Transfer NFT to the sale contract
-    var requiredGas = TONS_NFT_TRANSFER;
     createMessage({
         bounce: false,
         value: requiredGas,
@@ -82,7 +81,6 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
         dest: saleAddress,
         body: FillUpBalanceMessage { queryId: args.queryId }
     });
-    requiredGas += (msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_DEPLOY_TON_SIMPLE_SALE);
-
-    return requiredGas;
+    
+    return TONS_DEPLOY_TON_SIMPLE_SALE + TONS_NFT_TRANSFER + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 } 

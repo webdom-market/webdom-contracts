@@ -44,7 +44,7 @@ export class TonSimpleOffer extends DefaultContract {
     static DECLINE_REWARD = Tons.DECLINE_REWARD ;
     static STATE_NOT_INITIALIZED = 0;
     static STATE_ACTIVE = 1;
-    static STATE_ACCEPTED = 2;
+    static STATE_COMPLETED = 2;
     static STATE_CANCELLED = 3;
 
     static createFromAddress(address: Address) {

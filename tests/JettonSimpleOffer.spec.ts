@@ -125,7 +125,7 @@ describe('JettonSimpleOffer', () => {
 
         // check offer state
         offerConfig = await offer.getStorageData();
-        expect(offerConfig.state).toEqual(JettonSimpleOffer.STATE_ACCEPTED);
+        expect(offerConfig.state).toEqual(JettonSimpleOffer.STATE_COMPLETED);
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         
         // should return domain if the offer is already accepted
@@ -186,7 +186,7 @@ describe('JettonSimpleOffer', () => {
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), toNano("0.55"), offer.address, buyer.address, 
                                                             toNano("0.025"), JettonSimpleOffer.changePricePayload(blockchain.now!! + ONE_DAY * 4, false));
         offerConfig = await offer.getStorageData();
-        expect(offerConfig.state).toEqual(JettonSimpleOffer.STATE_ACCEPTED);
+        expect(offerConfig.state).toEqual(JettonSimpleOffer.STATE_COMPLETED);
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         domainConfig = await domain.getStorageData();
         expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());

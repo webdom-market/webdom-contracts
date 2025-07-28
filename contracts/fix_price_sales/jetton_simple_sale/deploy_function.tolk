@@ -37,6 +37,9 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     var deployInfo: DeployInfoForJetton;
     if (payload.isWeb3) {
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice.loadRef().beginParse());
+        if (args.commonArgs.commissionDiscount != 0) {
+            args.commonArgs.commissionDiscount = COMMISSION_DIVIDER;
+        }
     } else {
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice, { assertEndAfterReading: false });
     }
@@ -71,13 +74,13 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
               
     val saleAddress = AutoDeployAddress {
         stateInit: ContractState {
-            code: args.code,
+            code: args.commonArgs.code,
             data: data,
         }
     }.buildAddress();
 
     // Transfer NFT to the sale contract
-    var requiredGas = TONS_NFT_TRANSFER;
+    var requiredGas = ;
     createMessage({
         bounce: false,
         value: requiredGas,
@@ -105,7 +108,6 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
                         calculateUsdtWalletAddress(saleAddress))
                 .endCell()
     }); 
-    requiredGas += (msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_DEPLOY_JETTON_SIMPLE_SALE);
 
-    return requiredGas;
+    return TONS_NFT_TRANSFER + TONS_DEPLOY_JETTON_SIMPLE_SALE + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 } 

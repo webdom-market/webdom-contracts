@@ -39,7 +39,7 @@ fun acceptOffer(mutate storage: Storage, sellerAddress: address, sellerMsgValue:
         }
     }).send(SEND_MODE_CARRY_ALL_BALANCE);
     
-    storage.state = STATE_ACCEPTED;
+    storage.state = STATE_COMPLETED;
     storage.validUntil = blockchain.now();
 }
 
@@ -410,7 +410,7 @@ get fun get_storage_data() {
         sellerAddress,
         domainsDict,
         1,
-        storage.state == STATE_ACCEPTED ? 1 : 0,
+        storage.state == STATE_COMPLETED ? 1 : 0,
         storage.state,
         storage.price,
         mulDivFloor(storage.commission, COMMISSION_DIVIDER, storage.price),
