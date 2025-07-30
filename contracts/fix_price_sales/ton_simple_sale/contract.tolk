@@ -38,20 +38,21 @@ fun cancelDeal(mutate storage: Storage, queryId: uint64) {
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
     
+    // var storage = lazy Storage.load();
+
     handleAdminMessage(in.senderAddress, in.body, Permissions {
-        allowChangeCode: false,
-        allowChangeData: false,
-        allowSendAnyMessage: false,
-        allowWithdrawTon: true,
+        allowChangeCode: storage.state != STATE_ACTIVE,
+        allowChangeData: storage.state != STATE_ACTIVE,
+        allowSendAnyMessage: storage.state != STATE_ACTIVE,
+        allowWithdrawTon:  true,
         allowWithdrawJetton: true,
-        allowSendNft: false
     });
     
     val msg = lazy AllowedMessage.fromSlice(in.body);
     
     match (msg) {
         FillUpBalanceMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             if (storage.state == STATE_UNINIT) {
                 assert(in.senderAddress == MARKETPLACE_ADDRESS) throw EXC_INCORRECT_SENDER;
                 storage.state = STATE_ACTIVE;
@@ -62,7 +63,7 @@ fun onInternalMessage(in: InMessage) {
         }
         
         DnsBalanceReleaseMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             assert(in.senderAddress == storage.domainAddress) throw EXC_INCORRECT_DOMAIN;
             
             createMessage({
@@ -81,7 +82,7 @@ fun onInternalMessage(in: InMessage) {
         }
         
         ChangePriceMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;            
             assert((msg.newValidUntil >= max(blockchain.now() + 600, storage.validUntil)) && 
                    (msg.newValidUntil <= storage.lastRenewalTime + ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_VALID_UNTIL;
@@ -107,7 +108,7 @@ fun onInternalMessage(in: InMessage) {
         }
         
         RenewDomainMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
             assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN) throw EXC_OUT_OF_GAS;
             assert(storage.lastRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;  // check that domain expires later than in one day
@@ -144,13 +145,13 @@ fun onInternalMessage(in: InMessage) {
         }
 
         MakeHotMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             handleMakeHot<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
         }
 
         MakeColoredMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             handleMakeColored<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
         }
@@ -173,7 +174,7 @@ fun onInternalMessage(in: InMessage) {
                 }
             }
             
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             try {
                 if (op == 0) {
                     assert(storage.state == STATE_ACTIVE && storage.validUntil > blockchain.now()) throw EXC_DEAL_NOT_ACTIVE;

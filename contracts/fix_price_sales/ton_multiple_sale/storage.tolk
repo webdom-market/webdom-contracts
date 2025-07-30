@@ -1,19 +1,22 @@
-import "../../imports/types";
-
 struct Storage {
-    state: uint2;
+    sellerAddress: address;
+    domainsDict: dict;
+    domainsTotal: uint8;
+    domainsReceived: uint8;
+
     price: coins;
     commission: coins;
-    validUntil: uint32;
-    sellerAddress: Cell<address>?;
-    cancelledBySeller: bool;
-    sellerPrice: coins;
 
+    state: uint2;
     createdAt: uint32;
-    domainAddress: address;
+    lastRenewalTime: uint32;
+    validUntil: uint32;
+
+    tonsToReserve: uint32;
     buyerAddress: address;
-    domainName: Cell<SerializableSlice>;
-    publicKeyCell: Cell<uint256>?;
+
+    hotUntil: uint32;
+    coloredUntil: uint32;
 }
 
 fun Storage.load(): Storage {
@@ -23,4 +26,4 @@ fun Storage.load(): Storage {
 @inline
 fun Storage.save(self): void {
     contract.setData(self.toCell())
-}
+} 

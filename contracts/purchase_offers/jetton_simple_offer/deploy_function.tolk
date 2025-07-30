@@ -122,11 +122,11 @@ fun deployTonMultipleOffer(args: DeployWithJettonTransferArgs): int {
         offerJettonWalletAddress = calculateUsdtWalletAddress(offerAddress);
     }
 
-    val deployMsg = createMessage<DeployMessage>({
+    val deployMsg = createMessage<DeployAndSetWalletMessage>({
         bounce: false,
         value: TONS_DEPLOY_JETTON_OFFER,
         dest: offerAddress,
-        body: DeployMessage {queryId: args.queryId, jettonWalletAddress: offerJettonWalletAddress }
+        body: DeployAndSetWalletMessage {queryId: args.queryId, jettonWalletAddress: offerJettonWalletAddress }
     });
     requiredGas += deployMsg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_DEPLOY_JETTON_OFFER + TONS_JETTON_TRANSFER;
     

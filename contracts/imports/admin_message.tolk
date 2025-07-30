@@ -82,7 +82,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
         }
 
         WithdrawTonAdminMessage => {
-            assert(permissions.allowWithdrawTon) throw EXC_UNSUPPORTED_OP;
+            assert(permissions.allowWithdrawTon || permissions.allowSendAnyMessage) throw EXC_UNSUPPORTED_OP;
             reserveToncoinsOnBalance(msgBodyTyped.tonsToReserve, RESERVE_MODE_EXACT_AMOUNT);
             createMessage<CommentMessage>({
                 bounce: false,
@@ -94,7 +94,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
         }
 
         WithdrawJettonAdminMessage => {
-            assert(permissions.allowWithdrawJetton) throw EXC_UNSUPPORTED_OP;
+            assert(permissions.allowWithdrawJetton || permissions.allowSendAnyMessage) throw EXC_UNSUPPORTED_OP;
             createMessage<SendJettonsMessage<CommentMessage>>({
                 bounce: false,
                 value: 0,
@@ -112,7 +112,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
         }
 
         WithdrawNftAdminMessage => {
-            assert(permissions.allowSendNft) throw EXC_UNSUPPORTED_OP;
+            assert(permissions.allowSendNft || permissions.allowSendAnyMessage) throw EXC_UNSUPPORTED_OP;
             createMessage<NftTransferMessage<CommentMessage>>({
                 bounce: false,
                 value: 0,

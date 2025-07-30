@@ -122,7 +122,9 @@ describe('MultipleJettonSale', () => {
             tonsToReserve: 15000000,
         }
         jettonMultipleSale = blockchain.openContract(JettonMultipleSale.createFromConfig(jettonMultipleSaleConfig, jettonMultipleSaleCode));
-        transactionRes = await jettonMultipleSale.sendDeploy(admin.getSender(), toNano('0.04'));
+        usdtSaleWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonMultipleSale.address)));
+
+        transactionRes = await jettonMultipleSale.sendDeploy(admin.getSender(), toNano('0.05'), beginCell().storeAddress(usdtSaleWallet.address).endCell());
         expect(transactionRes.transactions).toHaveTransaction({
             from: admin.address,
             to: jettonMultipleSale.address,
@@ -147,13 +149,12 @@ describe('MultipleJettonSale', () => {
             expect(jettonMultipleSaleConfig.domainsDict.get(domain.address)).toEqual(1);
         }
 
-        usdtSaleWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonMultipleSale.address)));
         expect(usdtSaleWallet.address.toString()).toEqual(jettonMultipleSaleConfig.jettonWalletAddress!!.toString());
     });
 
-    it('should deploy', async () => {
+    // it('should deploy', async () => {
 
-    });
+    // });
 
     it('should sell domains', async () => {
         // reject if valid_until < now
@@ -222,7 +223,7 @@ describe('MultipleJettonSale', () => {
                 
                 let notificationMessage = transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail();
                 let priceString = notificationMessage.split(' ')[3];
-                let expectedPriceString = jettonsToString(Number(newPrice), 9);
+                let expectedPriceString = jettonsToString(Number(newPrice), 6);
                 expect(priceString).toEqual(expectedPriceString);
             }
         }

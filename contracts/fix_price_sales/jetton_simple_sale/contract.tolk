@@ -36,10 +36,16 @@ fun cancelDeal(mutate storage: Storage, domainAddress: address, queryId: uint64)
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
 
+    var storage = lazy Storage.load();
+
+    val allowAdminCommands = storage.state != STATE_ACTIVE || storage.validUntil + 600 < blockchain.now();
     handleAdminMessage(
         in.senderAddress,
         in.body,
         Permissions {
+            allowChangeCode: allowAdminCommands,
+            allowChangeData: allowAdminCommands,
+            allowSendAnyMessage: allowAdminCommands,
             allowWithdrawTon:  true,
             allowWithdrawJetton: true
         }
@@ -48,8 +54,8 @@ fun onInternalMessage(in: InMessage) {
     var msg = lazy AllowedMessage.fromSlice(in.body);
 
     match(msg) {
-        DeployMessage => {
-            var storage = lazy Storage.load();
+        DeployAndSetWalletMessage => {
+            // var storage = lazy Storage.load();
             if (storage.state == STATE_UNINIT) {
                 assert(in.senderAddress == MARKETPLACE_ADDRESS) throw EXC_INCORRECT_SENDER;
                 
@@ -72,20 +78,20 @@ fun onInternalMessage(in: InMessage) {
         }
 
         JettonsTransferNotificationMessage<SerializableSlice> => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             var storage2 = lazy storage.ds2.load();
+            if (msg.forwardPayload is Cell<SerializableSlice>) {
+                msg.forwardPayload = msg.forwardPayload.load(); 
+            }
+            if ((msg.forwardPayload as slice).remainingBitsCount() == 267) {
+                msg.fromAddress = address.fromSlice(msg.forwardPayload);
+            }
+
             try {
                 assert(in.senderAddress == storage.jettonWalletAddress) throw EXC_INCORRECT_SENDER;
                 assert(storage.state == STATE_ACTIVE && storage.validUntil > blockchain.now()) throw EXC_DEAL_NOT_ACTIVE;
                 assert(in.valueCoins >= TONS_JETTON_SIMPLE_PURCHASE) throw EXC_OUT_OF_GAS;
                 assert(msg.transferredJettons >= storage.price) throw EXC_NOT_ENOUGH_JETTONS;
-
-                if (msg.forwardPayload is Cell<SerializableSlice>) {
-                    msg.forwardPayload = msg.forwardPayload.load(); 
-                }
-                if ((msg.forwardPayload as slice).remainingBitsCount() == 267) {
-                    msg.fromAddress = address.fromSlice(msg.forwardPayload);
-                }
 
                 var excesses = msg.transferredJettons - storage.price;
                 if (excesses > 0) {
@@ -180,7 +186,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         ChangePriceMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             var storage2 = lazy storage.ds2.load();
             assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
             assert(msg.newValidUntil >= max(blockchain.now() + 300, storage.validUntil)) throw EXC_INCORRECT_VALID_UNTIL;
@@ -206,7 +212,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         RenewDomainMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             var storage2 = lazy storage.ds2.load();
             assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
             assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN) throw EXC_OUT_OF_GAS;
@@ -244,7 +250,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         DnsBalanceReleaseMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             var storage2 = lazy storage.ds2.load();
             assert(in.senderAddress == storage2.domainAddress) throw EXC_INCORRECT_DOMAIN;
 
@@ -262,12 +268,12 @@ fun onInternalMessage(in: InMessage) {
         }
 
         MakeHotMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             handleMakeHot<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
         }
         MakeColoredMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             handleMakeColored<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
         }
@@ -280,7 +286,7 @@ fun onInternalMessage(in: InMessage) {
             if (in.body.remainingBitsCount() >= 32) {
                 var op = in.body.loadUint(32);
                 if ((op == 0 && in.body.bitsEqual("cancel")) || op == OP_CANCEL_DEAL) {
-                    var storage = lazy Storage.load();
+                    // var storage = lazy Storage.load();
                     var storage2 = lazy storage.ds2.load();
                     cancelDeal(mutate storage, storage2.domainAddress, 0);
                     return;
@@ -293,7 +299,7 @@ fun onInternalMessage(in: InMessage) {
 
 
 fun onExternalMessage(in: InMessage): void {
-    var storage = Storage.load();
+    var storage = lazy Storage.load();
     
     if (storage.state != STATE_ACTIVE) {
         throw EXC_DEAL_NOT_ACTIVE;

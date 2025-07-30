@@ -118,7 +118,7 @@ fun onInternalMessage(in: InMessage) {
     
     match (msg) {
         // Fill up balance message from marketplace
-        DeployMessage => {
+        DeployAndSetWalletMessage => {
             var storage: Storage = lazy Storage.load();
             var storage2 = lazy storage.ds2.load();
             if (in.senderAddress == MARKETPLACE_ADDRESS) {

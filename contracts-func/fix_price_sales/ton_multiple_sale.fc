@@ -6,7 +6,7 @@ const int tons::MIN_TON_FOR_STORAGE = 44000000;  ;; 0.044 TON
 
 
 global slice storage::seller_address;    ;; MsgAddress
-global cell  storage::domains_dict;      ;; HashmapE: DomainAddress(MsgAddress) -> {expired?(Bool), received?(Bool)}
+global cell  storage::domains_dict;      ;; HashmapE: DomainAddress(MsgAddress) -> received?(Bool)
 global int   storage::domains_total;     ;; uint8
 global int   storage::domains_received;  ;; uint8
 

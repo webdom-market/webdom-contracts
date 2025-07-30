@@ -129,4 +129,9 @@ struct (0x975f5690) RenewalFeeMessage {
     queryId: uint64;
 }
 
+struct (0x0609e47b) DeployAndSetWalletMessage {
+    queryId: uint64;
+    jettonWalletAddress: address;
+}
+
 type DedustJettonPayoutMessage = JettonsTransferNotificationMessage<address> | DedustTonPayoutMessage;

@@ -79,7 +79,6 @@ describe('MultipleTonSale', () => {
             blockchain.now += 60 * 60 + 1;  // end of the auction
             transactionRes = await domain.sendTransfer(admin.getSender(), seller.address, seller.address);
             
-            // console.log((await domain.getStorageData()).ownerAddress);
             domains.push(domain);
             domainsDict.set(domainAddress, 0);
         }
@@ -146,7 +145,7 @@ describe('MultipleTonSale', () => {
         // accept 
         transactionRes = await tonMultipleSale.sendChangePrice(seller.getSender(), tonMultipleSaleConfig.price, blockchain.now!! + 600);
         transactionRes = await tonMultipleSale.sendPurchase(buyer.getSender(), tonMultipleSaleConfig.price, domains.length);
-
+        
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonMultipleSale.address,
             to: seller.address,
@@ -248,4 +247,5 @@ describe('MultipleTonSale', () => {
             expect(domainConfig.ownerAddress!!.toString()).toEqual(tonMultipleSaleConfig.sellerAddress.toString());
         }
     });
+
 });

@@ -93,16 +93,21 @@ fun endAuctionFailed(mutate storage: Storage, storage2: StorageDs2, queryId: uin
 
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
-    
+    var storage = lazy Storage.load();
+
+    val allowAdminCommands = storage.state != STATE_ACTIVE || storage.endTime + 600 < blockchain.now();
     handleAdminMessage(in.senderAddress, in.body, Permissions {
+        allowChangeCode: allowAdminCommands,
+        allowChangeData: allowAdminCommands,
+        allowSendAnyMessage: allowAdminCommands,
         allowWithdrawTon: true,
     });
     
     val msg = lazy AllowedMessage.fromSlice(in.body);
     
     match (msg) {
-        DeployMessage => {
-            var storage = lazy Storage.load();
+        DeployAndSetWalletMessage => {
+            // var storage = lazy Storage.load();
             if (storage.state == STATE_UNINIT) {
                 assert(in.senderAddress == MARKETPLACE_ADDRESS) throw EXC_INCORRECT_SENDER;
                 var storage2 = lazy storage.ds2.load();
@@ -115,11 +120,11 @@ fun onInternalMessage(in: InMessage) {
         }
         
         JettonsTransferNotificationMessage<SerializableSlice> => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             var storage2 = lazy storage.ds2.load();
                         
-            // if jettons were received by dedust swap
             var fromAddress = msg.fromAddress;
+            // if jettons were received by dedust swap
             if (msg.forwardPayload is Cell<SerializableSlice>) {
                 fromAddress = address.fromSlice(msg.forwardPayload.load());
             }
@@ -250,7 +255,7 @@ fun onInternalMessage(in: InMessage) {
         }
         
         RenewDomainMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
             
             createMessage({
@@ -272,13 +277,13 @@ fun onInternalMessage(in: InMessage) {
         }
         
         MakeHotMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             handleMakeHot<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
         }
 
         MakeColoredMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             handleMakeColored<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
         }
@@ -303,7 +308,7 @@ fun onInternalMessage(in: InMessage) {
                 op = OP_STOP_AUCTION;
             }
             
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             var storage2 = lazy storage.ds2.load();
             
             try {

@@ -134,10 +134,10 @@ fun USDT_WALLET_CODE(): cell
 /* OTHER */
 
 fun BIT_TRUE_SLICE(): slice 
-    asm "b{0} PUSHSLICE";
+    asm "b{1} PUSHSLICE";
 
 fun BIT_FALSE_SLICE(): slice 
-    asm "b{1} PUSHSLICE";
+    asm "b{0} PUSHSLICE";
 
 fun TWO_ZEROS_SLICE(): slice 
     asm "b{00} PUSHSLICE";

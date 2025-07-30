@@ -80,10 +80,9 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     }.buildAddress();
 
     // Transfer NFT to the sale contract
-    var requiredGas = ;
     createMessage({
         bounce: false,
-        value: requiredGas,
+        value: TONS_NFT_TRANSFER,
         dest: domainAddress,
         body: NftTransferMessageBuilder<cell> {
             queryId: 0,

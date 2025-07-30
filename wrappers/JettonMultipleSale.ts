@@ -61,17 +61,12 @@ export function multipleJettonSaleConfigToCell(config: JettonMultipleSaleConfig)
             .storeUint(config.validUntil, 32)
             
             .storeUint(config.tonsToReserve, 32)
-            .storeAddress(config.buyerAddress)
+            .storeAddress(config.jettonWalletAddress)
             
             .storeUint(config.hotUntil ?? 0, 32)
             .storeUint(config.coloredUntil ?? 0, 32)
-            
-            .storeRef(
-                beginCell()
-                    .storeAddress(config.jettonMinterAddress)
-                    .storeAddress(config.jettonWalletAddress)
-                .endCell()
-            )
+            .storeRef(beginCell().storeAddress(config.buyerAddress).endCell())
+            .storeRef(beginCell().storeAddress(config.jettonMinterAddress).endCell())
         .endCell();
 }
 
@@ -127,7 +122,7 @@ export class JettonMultipleSale extends DefaultContract {
         await provider.internal(via, {
             value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN * BigInt(domainsNumber),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).endCell()
+            body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).storeBit(0).endCell()
         });
     }
 

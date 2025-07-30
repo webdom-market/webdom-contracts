@@ -209,11 +209,6 @@ global int   storage::colored_until;          ;; uint32
         send_message_with_comment(storage::seller_address, 0, "Your domain has expired", mode::CARRY_REMAINING_BALANCE);
         return ();
     }
-    
-    if (op == op::DEDUST_PAYOUT) {
-        op = 0;
-        sender_address = in_msg_body~load_maybe_ref().begin_parse();
-    }
 
     return_tons_if_condition(sender_address, exc::DEAL_NOT_ACTIVE, storage::state != state::ACTIVE);  ;; check that the sale is active
     
@@ -302,7 +297,7 @@ global int   storage::colored_until;          ;; uint32
         save_data();
 
         raw_reserve(max(storage::tons_to_reserve, my_balance - msg_value - 7000000), 0);
-        cell payload = payload_with_comment("Price changed to ").store_str_jettons(new_price, ONE_TON, "TON").end_cell();
+        cell payload = payload_with_comment("Price changed to ").store_str_jettons(new_price, ONE_TON, "TON").end_cell();  ;; Ошибка
         send_cell_message(sender_address, 0, payload, mode::CARRY_REMAINING_BALANCE);
 
         return ();

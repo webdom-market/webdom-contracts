@@ -2,13 +2,13 @@ import "../../imports/messages"
 import "../../imports/types"
 import "../messages"
 
-struct (0x0609e47b) DeployMessage {
+struct (0x0609e47b) DeployAndSetWalletMessage {
     queryId: uint64;
     jettonWalletAddress: address;
 }
 
 type AllowedMessage = (
-    DeployMessage
+    DeployAndSetWalletMessage
     | JettonsTransferNotificationMessage<SerializableSlice>
     | ChangePriceMessage
     | RenewDomainMessage

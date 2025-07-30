@@ -73,8 +73,14 @@ fun endAuctionFailed(mutate storage: Storage, storage2: StorageDs2, queryId: uin
 
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
-    
+
+    var storage = lazy Storage.load();
+
+    val allowAdminCommands = (storage.state != STATE_ACTIVE || storage.endTime + 600 < blockchain.now());
     handleAdminMessage(in.senderAddress, in.body, Permissions {
+        allowChangeCode: allowAdminCommands,
+        allowChangeData: allowAdminCommands,
+        allowSendAnyMessage: allowAdminCommands,
         allowWithdrawJetton: true,
     });
     
@@ -82,7 +88,7 @@ fun onInternalMessage(in: InMessage) {
     
     match (msg) {
         FillUpBalanceMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             if (storage.state == STATE_UNINIT) {
                 assert(in.senderAddress == MARKETPLACE_ADDRESS) throw EXC_INCORRECT_SENDER;
                 storage.state = STATE_ACTIVE;
@@ -92,7 +98,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         RenewDomainMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
             
             createMessage({
@@ -114,13 +120,13 @@ fun onInternalMessage(in: InMessage) {
         }
         
         MakeHotMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             handleMakeHot<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
         }
 
         MakeColoredMessage => {
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             handleMakeColored<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
         }
@@ -150,7 +156,7 @@ fun onInternalMessage(in: InMessage) {
                 senderAddress = in.body as address;
             }
             
-            var storage = lazy Storage.load();
+            // var storage = lazy Storage.load();
             var storage2 = lazy storage.ds2.load();
             
             try {
