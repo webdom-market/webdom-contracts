@@ -43,7 +43,6 @@ export function multipleTonSaleConfigToCell(config: TonMultipleSaleConfig): Cell
             .storeUint(config.lastRenewalTime, 32)
             .storeUint(config.validUntil, 32)
             
-            .storeUint(config.tonsToReserve, 32)
             .storeAddress(config.buyerAddress)
             
             .storeUint(config.hotUntil ?? 0, 32)

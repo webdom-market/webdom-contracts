@@ -41,7 +41,7 @@ describe('TonMultipleAuction', () => {
             TonMultipleAuction.createFromConfig(tonMultipleAuctionConfig, tonMultipleAuctionCode)
         );
 
-        transactionRes = await tonMultipleAuction.sendDeploy(marketplace.getSender(), tonMultipleAuctionConfig.tonsToEndAuction);
+        transactionRes = await tonMultipleAuction.sendDeploy(marketplace.getSender(), toNano('0.06'));
         expect(transactionRes.transactions).toHaveTransaction({
             from: marketplace.address,
             to: tonMultipleAuction.address,
@@ -52,7 +52,7 @@ describe('TonMultipleAuction', () => {
 
     async function sendDomainsToAuction() {
         for (let domain of domains) {
-            transactionRes = await domain.sendTransfer(seller.getSender(), tonMultipleAuction.address, seller.address, null, toNano('0.01'));
+            transactionRes = await domain.sendTransfer(seller.getSender(), tonMultipleAuction.address, seller.address, null, toNano('0.07'));
             domainConfigs.push(await domain.getStorageData());
         }
     }
@@ -116,7 +116,6 @@ describe('TonMultipleAuction', () => {
             lastBidValue: 0n,
             lastBidTime: blockchain.now!,
             lastBidderAddress: null,
-            tonsToEndAuction: TonMultipleAuction.getTonsToEndAuction(domains.length),
             isDeferred: false
         };
 
@@ -298,7 +297,7 @@ describe('TonMultipleAuction', () => {
         blockchain.now = tonMultipleAuctionConfig.startTime + 60;
         
         transactionRes = await tonMultipleAuction.sendStopAuction(seller.getSender());
-        
+        printTransactionFees(transactionRes.transactions)
         tonMultipleAuctionConfig = await tonMultipleAuction.getStorageData();
         expect(tonMultipleAuctionConfig.state).toEqual(TonMultipleAuction.STATE_CANCELLED);
 
@@ -462,6 +461,7 @@ describe('TonMultipleAuction', () => {
         // Store initial balances
         const initialBuyerBalance = await buyer.getBalance();
         const initialSellerBalance = await seller.getBalance();
+        const initialAuctionBalance = (await blockchain.getContract(tonMultipleAuction.address)).balance;
 
         // Try to place bid with zero value
         transactionRes = await tonMultipleAuction.sendPlaceBid(buyer.getSender(), 0n, domains.length);
@@ -482,7 +482,7 @@ describe('TonMultipleAuction', () => {
 
         // Verify balance changes after successful bid
         expect(await buyer.getBalance()).toBeLessThan(initialBuyerBalance - bidAmount);
-        expect(await seller.getBalance()).toEqual(initialSellerBalance);
+        expect(Math.abs(Number(await seller.getBalance() - initialSellerBalance - initialAuctionBalance))).toBeLessThan(Number(toNano('0.01')));
 
         // Try to place lower bid (should fail)
         const lowerBidAmount = bidAmount - toNano('0.1');

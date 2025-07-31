@@ -52,7 +52,7 @@ describe('JettonSimpleAuction', () => {
 
     let jettonSimpleAuctionConfig: JettonSimpleAuctionConfig;
 
-    async function deployJettonSimpleAuction() {
+    async function deployJettonSimpleAuction(jettonSimpleAuctionConfig: JettonSimpleAuctionConfig) {
         jettonSimpleAuctionConfig.jettonWalletAddress = undefined;
         jettonSimpleAuctionConfig.state = JettonSimpleAuction.STATE_UNINIT;
 
@@ -72,6 +72,7 @@ describe('JettonSimpleAuction', () => {
         expect(usdtAuctionWallet.address.toString()).toEqual(jettonSimpleAuctionConfig.jettonWalletAddress!.toString());
 
         await domain.sendTransfer(seller.getSender(), jettonSimpleAuction.address, seller.address);
+
     }
     beforeEach(async () => {
         blockchain = await Blockchain.create();
@@ -139,13 +140,13 @@ describe('JettonSimpleAuction', () => {
             maxCommission: toNano("999"),
             isDeferred: false,
         }
-        await deployJettonSimpleAuction();
+        await deployJettonSimpleAuction(jettonSimpleAuctionConfig);
     });
 
     it('should sell the domain after auction end time', async () => {        
         // bid before auction start time rejected
 
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleAuctionConfig.minBidValue, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleAuctionConfig.minBidValue, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
             to: buyer.address,
@@ -155,7 +156,7 @@ describe('JettonSimpleAuction', () => {
         
         // minimum bid - 1 rejected
         blockchain.now!! += 10;
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleAuctionConfig.minBidValue - 1n, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleAuctionConfig.minBidValue - 1n, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
             to: buyer.address,
@@ -165,7 +166,7 @@ describe('JettonSimpleAuction', () => {
 
         // minimum bid accepted
         let bid = toNano('1');
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         let notificationMsg = beginCell().storeUint(0, 32).storeStringTail(`Bid placed successfully`).endCell();
         expect(transactionRes.transactions).toHaveTransaction({
             from: jettonSimpleAuction.address,
@@ -180,7 +181,7 @@ describe('JettonSimpleAuction', () => {
         // minimum increased - 1 bid rejected
         blockchain.now!! += 60 * 5;
         bid = (bid * BigInt(jettonSimpleAuctionConfig.minBidIncrement)) / BigInt(1000);
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid - 1n, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid - 1n, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
             to: buyer.address,
@@ -190,7 +191,7 @@ describe('JettonSimpleAuction', () => {
 
         // minimum increased bid accepted
         blockchain.now!! += 60 * 5;
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: jettonSimpleAuction.address,
             to: buyer.address,
@@ -205,7 +206,7 @@ describe('JettonSimpleAuction', () => {
         // bid accepted (+ outbid notification message)
         let prevBid = bid;
         bid = toNano('5');
-        transactionRes = await usdtAdminWallet.sendTransfer(admin.getSender(), bid, jettonSimpleAuction.address, admin.address, toNano("0.21"));
+        transactionRes = await usdtAdminWallet.sendTransfer(admin.getSender(), bid, jettonSimpleAuction.address, admin.address, toNano("0.26"));
         const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on webdom.market was outbid by another user. Domain: `).storeRef(beginCell().storeStringTail(DOMAIN_NAME).endCell()).endCell();
         expect(transactionRes.transactions).toHaveTransaction({
             from: jettonSimpleAuction.address,
@@ -224,7 +225,7 @@ describe('JettonSimpleAuction', () => {
         // minimum increased - 1 bid rejected
         prevBid = bid;
         bid = (bid * BigInt(jettonSimpleAuctionConfig.minBidIncrement)) / BigInt(1000);
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid - 1n, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid - 1n, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
             to: buyer.address,
@@ -233,7 +234,7 @@ describe('JettonSimpleAuction', () => {
         });
 
         // minimum increased bid accepted
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: jettonSimpleAuction.address,
             to: buyer.address,
@@ -260,7 +261,7 @@ describe('JettonSimpleAuction', () => {
 
         // bid after auction end time rejected
         blockchain.now!! = jettonSimpleAuctionConfig.endTime;
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleAuctionConfig.maxBidValue + 1n, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleAuctionConfig.maxBidValue + 1n, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
             to: buyer.address,
@@ -296,11 +297,11 @@ describe('JettonSimpleAuction', () => {
     it('should sell the domain after max bid value', async () => {
         blockchain.now!! = jettonSimpleAuctionConfig.startTime;
         let bid = toNano('5');
-        transactionRes = await usdtAdminWallet.sendTransfer(admin.getSender(), bid, jettonSimpleAuction.address, admin.address, toNano("0.21"));
+        transactionRes = await usdtAdminWallet.sendTransfer(admin.getSender(), bid, jettonSimpleAuction.address, admin.address, toNano("0.26"));
 
         let prevBid = bid;
         bid = jettonSimpleAuctionConfig.maxBidValue + 100n;
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.25"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.29"));
         const outbidMsg = beginCell().storeUint(0, 32).storeStringTail(`Your bid on webdom.market was outbid by another user. Domain: `).storeRef(beginCell().storeStringTail(DOMAIN_NAME).endCell()).endCell();
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtAdminWallet.address,
@@ -342,7 +343,7 @@ describe('JettonSimpleAuction', () => {
     it('should trigger auction finish by external (success)', async () => {
         blockchain.now!! = jettonSimpleAuctionConfig.startTime;
         let bid = toNano('5');
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         blockchain.now!! = jettonSimpleAuctionConfig.endTime;
         
         transactionRes = await jettonSimpleAuction.sendExternalCancel();
@@ -403,17 +404,21 @@ describe('JettonSimpleAuction', () => {
     it('should run deferred auction', async () => {
         jettonSimpleAuctionConfig.isDeferred = true;
         let auctionDuration = jettonSimpleAuctionConfig.endTime - jettonSimpleAuctionConfig.startTime;
-        jettonSimpleAuctionConfig.startTime = blockchain.now!! + 360 * 24 * 60 * 60;
+        jettonSimpleAuctionConfig.startTime = blockchain.now! + 360 * 24 * 60 * 60;
         jettonSimpleAuctionConfig.endTime = jettonSimpleAuctionConfig.startTime + auctionDuration;
-        await deployJettonSimpleAuction();
+        await deployJettonSimpleAuction(jettonSimpleAuctionConfig);
 
-        blockchain.now!! += 350 * 24 * 60 * 60;
+        console.log(blockchain.now);
+        blockchain.now! += 350 * 24 * 60 * 60;
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.isDeferred).toEqual(true);
         
         let bid = toNano('5');
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.21"));
-        blockchain.now!! += auctionDuration;
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.36"));
+        
+        jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
+        expect(jettonSimpleAuctionConfig.endTime).toBe(blockchain.now! + auctionDuration);  
+        blockchain.now! += auctionDuration;
         transactionRes = await jettonSimpleAuction.sendExternalCancel();
         
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();

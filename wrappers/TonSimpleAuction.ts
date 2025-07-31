@@ -121,7 +121,7 @@ export class TonSimpleAuction extends DefaultContract {
     
     async sendPlaceBid(provider: ContractProvider, via: Sender, value: bigint, queryId: number = 0) {
         await provider.internal(via, {
-            value: value + Tons.END_TON_AUCTION + Tons.NOTIFY_BIDDER,
+            value: value + Tons.END_TON_AUCTION + Tons.NOTIFY_BIDDER + toNano("0.035"),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell().endCell(),
         });

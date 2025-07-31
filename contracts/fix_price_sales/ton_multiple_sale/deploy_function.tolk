@@ -60,7 +60,7 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
         createdAt: blockchain.now(),
         lastRenewalTime: blockchain.now(),
         validUntil: payload.validUntil,
-        tonsToReserve: ton("0.015"),
+        tonsToReserve: ton("0.035"),
         buyerAddress: createAddressNone(),
         hotUntil: 0,
         coloredUntil: 0

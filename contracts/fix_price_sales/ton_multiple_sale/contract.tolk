@@ -12,7 +12,7 @@ import "../messages";
 import "../constants";
 import "storage";
 
-const TONS_MIN_TON_FOR_STORAGE: uint32 = ton("0.044") as uint32;
+const TONS_MIN_TON_FOR_STORAGE: uint32 = ton("0.035") as uint32;
 
 @inline
 fun cancelSale(mutate storage: Storage, queryId: uint64, cancelReason: slice) {
@@ -60,6 +60,17 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
+@inline
+fun getTonsToReserve(domainsTotal: uint8, nothrow: bool): int {
+    var tonsToReserve = (TONS_NFT_TRANSFER + ton("0.0075")) * domainsTotal + TONS_MIN_TON_FOR_STORAGE;
+    var actualBalance = contract.getOriginalBalance() - ton("0.01") - storageFees();
+    assert(actualBalance >= TONS_MIN_TON_FOR_STORAGE || nothrow) throw EXC_OUT_OF_GAS;
+    if (actualBalance < tonsToReserve) {
+        return TONS_MIN_TON_FOR_STORAGE;
+    }
+    return tonsToReserve as int;
+}
+
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
     
@@ -82,13 +93,6 @@ fun onInternalMessage(in: InMessage) {
                 storage.state = STATE_ACTIVE;
                 storage.save();
             }
-            else if (storage.state == STATE_ACTIVE && storage.tonsToReserve == TONS_MIN_TON_FOR_STORAGE) {
-                val balanceForExternalCancel = (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsTotal + TONS_MIN_TON_FOR_STORAGE;
-                if (contract.getOriginalBalance() > balanceForExternalCancel) {
-                    storage.tonsToReserve = balanceForExternalCancel;
-                    storage.save();
-                }
-            }
             return;
         }
         
@@ -101,11 +105,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.domainsReceived += 1;
 
                 if (storage.domainsReceived == storage.domainsTotal) {
-                    storage.tonsToReserve = (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsTotal + TONS_MIN_TON_FOR_STORAGE;
-                    if (contract.getOriginalBalance() - ton("0.015") < storage.tonsToReserve) {
-                        storage.tonsToReserve = TONS_MIN_TON_FOR_STORAGE;  // disable cancellation by external message if balance is not enough
-                    }
-                    reserveToncoinsOnBalance(storage.tonsToReserve as int, RESERVE_MODE_EXACT_AMOUNT);
+                    reserveToncoinsOnBalance(getTonsToReserve(storage.domainsTotal, false), RESERVE_MODE_EXACT_AMOUNT);
                     
                     createMessage({
                         bounce: false,
@@ -184,7 +184,7 @@ fun onInternalMessage(in: InMessage) {
             assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN * storage.domainsTotal) throw EXC_OUT_OF_GAS;
             assert(storage.lastRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;
 
-            reserveToncoinsOnBalance(max(storage.tonsToReserve, contract.getOriginalBalance() - in.valueCoins - ton("0.007")), RESERVE_MODE_EXACT_AMOUNT);
+            reserveToncoinsOnBalance(max(getTonsToReserve(storage.domainsTotal, false), contract.getOriginalBalance() - in.valueCoins - ton("0.007")), RESERVE_MODE_EXACT_AMOUNT);
             
             var (domainAddress, _, found) = storage.domainsDict.sDictGetFirst(267);
             while (found) {
@@ -362,7 +362,7 @@ get fun get_storage_data() {
         storage.lastRenewalTime,
         storage.validUntil,
         storage.buyerAddress,
-        storage.tonsToReserve,
+        getTonsToReserve(storage.domainsTotal, true),
         storage.hotUntil,
         storage.coloredUntil,
         BURN_ADDRESS,

@@ -60,7 +60,6 @@ export function multipleJettonSaleConfigToCell(config: JettonMultipleSaleConfig)
             .storeUint(config.lastRenewalTime, 32)
             .storeUint(config.validUntil, 32)
             
-            .storeUint(config.tonsToReserve, 32)
             .storeAddress(config.jettonWalletAddress)
             
             .storeUint(config.hotUntil ?? 0, 32)

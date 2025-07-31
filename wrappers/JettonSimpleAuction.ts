@@ -104,7 +104,7 @@ export function jettonSimpleAuctionConfigToCell(config: JettonSimpleAuctionConfi
         .storeUint(config.coloredUntil ?? 0, 32)
         .storeAddress(config.sellerAddress)
         .storeUint(config.minBidValue, 64)
-        .storeUint(config.minBidIncrement, 16)
+        .storeUint(config.minBidIncrement, 12)
         .storeUint(config.timeIncrement, 32)
         .storeUint(config.commissionFactor, 16)
         .storeRef(

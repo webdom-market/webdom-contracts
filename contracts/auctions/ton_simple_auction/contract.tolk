@@ -12,11 +12,11 @@ import "../messages";
 import "../constants";
 
 
-const TONS_MIN_TON_FOR_STORAGE: coins = ton("0.055");
+const TONS_MIN_TON_FOR_STORAGE: coins = ton("0.035");
 
 
 @inline
-fun endAuctionSuccess(mutate storage: Storage, storage2: StorageDs2, queryId: uint64, myBalance: coins, buyerOverpayment: coins) {
+fun endAuctionSuccess(mutate storage: Storage, storage2: StorageDs2, queryId: uint64, additionalSellerTons: coins) {
     var commission = min(mulDivFloor(storage.lastBidValue, storage.commissionFactor, COMMISSION_DIVIDER), storage2.maxCommission);
     
     createMessage<CommentMessage>({
@@ -28,7 +28,7 @@ fun endAuctionSuccess(mutate storage: Storage, storage2: StorageDs2, queryId: ui
     
     createMessage<cell>({
         bounce: false,
-        value: myBalance - commission - buyerOverpayment,
+        value: storage.lastBidValue - commission + additionalSellerTons,
         dest: storage.sellerAddress,
         body: getPayoutNotificationBody(storage.domainNameCell)
     }).send(SEND_MODE_REGULAR);
@@ -175,7 +175,7 @@ fun onInternalMessage(in: InMessage) {
                         mulDivFloor(storage.lastBidValue, storage.minBidIncrement, BID_INCREMENT_DIVIDER)
                     );
                     
-                    var userBid = in.valueCoins - TONS_END_TON_AUCTION - TONS_NOTIFY_BIDDER;
+                    var userBid = in.valueCoins - TONS_END_TON_AUCTION - TONS_NOTIFY_BIDDER - TONS_MIN_TON_FOR_STORAGE;
                     assert(userBid >= nextMinBidValue) throw EXC_BID_TOO_LOW;
                     
                     if (storage.endTime <= blockchain.now() + storage.timeIncrement) {
@@ -192,16 +192,27 @@ fun onInternalMessage(in: InMessage) {
                         }).send(SEND_MODE_PAY_FEES_SEPARATELY);
                     }
                     
+                    val prevTonBalance = contract.getOriginalBalance() - in.valueCoins - storageFees();
                     if (storage.lastBidValue != 0) {
                         createMessage({
                             bounce: false,
-                            value: contract.getOriginalBalance() - in.valueCoins - TONS_MIN_TON_FOR_STORAGE,
+                            value: prevTonBalance,
                             dest: storage.lastBidderAddress,
                             body: beginCell()
                                 .storeUint(0, 32)
                                 .storeSlice("Your bid on webdom.market was outbid by another user. Domain: ")
                                 .storeRef(storage.domainNameCell)
                             .endCell()
+                        }).send(SEND_MODE_REGULAR);
+                    }
+                    else if (prevTonBalance > TONS_MIN_EXCESS) {
+                        // после первой ставки за обеспечение аукциона отвечает последний участник аукциона, 
+                        // поэтому возвращаем продавцу изначально отправленные на контракт тоны
+                        createMessage({
+                            bounce: true,
+                            value: prevTonBalance,
+                            dest: storage.sellerAddress,
+                            body: ExcessesMessage { queryId: 0 }
                         }).send(SEND_MODE_REGULAR);
                     }
                     
@@ -213,7 +224,7 @@ fun onInternalMessage(in: InMessage) {
                         storage.lastBidValue = storage2.maxBidValue;
                         storage.endTime = blockchain.now();
                         
-                        endAuctionSuccess(mutate storage, storage2, queryId, in.valueCoins + TONS_MIN_TON_FOR_STORAGE, in.valueCoins - storage2.maxBidValue);
+                        endAuctionSuccess(mutate storage, storage2, queryId, 0);
                         return;
                     } else {
                         createMessage({
@@ -236,14 +247,14 @@ fun onInternalMessage(in: InMessage) {
                         assert(senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
                         endAuctionFailed(mutate storage, storage2, queryId);
                     } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
-                        var msgValue = 0;
+                        var additionalSellerTons: coins;
                         if (senderAddress == storage.sellerAddress) {
-                            msgValue = 0;
+                            additionalSellerTons = in.valueCoins;
                         } else {
                             assert(senderAddress == storage.lastBidderAddress) throw EXC_INCORRECT_SENDER;
-                            msgValue = in.valueCoins;
+                            additionalSellerTons = 0;
                         }
-                        endAuctionSuccess(mutate storage, storage2, queryId, contract.getOriginalBalance(), msgValue + TONS_END_TON_AUCTION);
+                        endAuctionSuccess(mutate storage, storage2, queryId, additionalSellerTons);
                     } else {
                         throw EXC_AUCTION_NOT_ENDED;
                     }
@@ -288,7 +299,7 @@ fun onExternalMessage(in: InMessage) {
         if (storage.lastBidValue == 0) {  // No one participated in the auction
             endAuctionFailed(mutate storage, storage2, queryId);
         } else {  // Auction finished successfully
-            endAuctionSuccess(mutate storage, storage2, queryId, contract.getOriginalBalance(), TONS_END_TON_AUCTION);
+            endAuctionSuccess(mutate storage, storage2, queryId, 0);
         }
         
         storage.save();

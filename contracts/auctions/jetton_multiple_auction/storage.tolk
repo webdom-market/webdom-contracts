@@ -5,7 +5,6 @@ struct StorageDs2 {
     jettonMinterAddress: address;
     maxBidValue: coins;
     maxCommission: uint64;
-    domainAddress: address;
 }
 
 struct Storage {
@@ -20,7 +19,9 @@ struct Storage {
     lastBidTime: uint32;
     lastBidderAddress: address;
 
-    domainNameCell: cell
+    domainsDict: dict;
+    domainsTotal: uint8;
+    domainsReceived: uint8;
 
     hotUntil: uint32;
     coloredUntil: uint32;
@@ -35,12 +36,11 @@ struct Storage {
     ds2: Cell<StorageDs2>;
 }
 
-
 fun Storage.load(): Storage {
-    return Storage.fromCell(contract.getData());
+    return Storage.fromCell(contract.getData())
 }
 
 @inline
 fun Storage.save(self): void {
-    contract.setData(self.toCell());
+    contract.setData(self.toCell())
 }

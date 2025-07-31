@@ -33,7 +33,6 @@ export type JettonMultipleAuctionConfig = {
     lastBidTime: number;
     lastBidderAddress: Maybe<Address>;
 
-    tonsToEndAuction: bigint;
     isDeferred: boolean;
 
     hotUntil?: number;
@@ -44,6 +43,7 @@ export function jettonMultipleAuctionConfigToCell(config: JettonMultipleAuctionC
     return beginCell()
         .storeUint(config.state, 2)
         .storeBit(config.isDeferred)
+
         .storeUint(config.startTime, 32)
         .storeUint(config.endTime, 32)
         .storeUint(config.lastDomainRenewalTime, 32)
@@ -56,22 +56,22 @@ export function jettonMultipleAuctionConfigToCell(config: JettonMultipleAuctionC
         .storeUint(config.domainsTotal, 8)
         .storeUint(config.domainsReceived, 8)
 
-        .storeCoins(0) // initial_balance
         .storeUint(config.hotUntil ?? 0, 32)
         .storeUint(config.coloredUntil ?? 0, 32)
 
-        .storeAddress(config.jettonWalletAddress)
+        .storeAddress(config.sellerAddress)
+
+        .storeUint(config.minBidValue, 64)
+        .storeUint(config.minBidIncrement, 12)
+        .storeUint(config.timeIncrement, 32)
+        .storeUint(config.commissionFactor, 16)
+
         .storeRef(
             beginCell()
-                .storeAddress(config.sellerAddress)
+                .storeAddress(config.jettonWalletAddress)
                 .storeAddress(config.jettonMinterAddress)
-                .storeCoins(config.minBidValue)
                 .storeCoins(config.maxBidValue)
-                .storeUint(config.minBidIncrement, 12)
-                .storeUint(config.timeIncrement, 32)
-                .storeUint(config.commissionFactor, 16)
-                .storeCoins(config.maxCommission)
-                .storeCoins(config.tonsToEndAuction)
+                .storeUint(config.maxCommission, 64)
             .endCell()
         )
     .endCell();
@@ -114,7 +114,7 @@ export class JettonMultipleAuction extends DefaultContract {
     }
 
     static getTonsToEndAuction(domainsNumber: number) {
-        return (Tons.NFT_TRANSFER + Tons.PURCHASE_NOTIFICATION + toNano('0.005')) * BigInt(domainsNumber) + toNano('0.01') + Tons.JETTON_TRANSFER * 3n;
+        return (Tons.NFT_TRANSFER + Tons.PURCHASE_NOTIFICATION + toNano('0.01')) * BigInt(domainsNumber) + toNano('0.01') + Tons.JETTON_TRANSFER * 2n;
     }
 
     async sendStopAuction(provider: ContractProvider, via: Sender, queryId: number = 0) {
@@ -128,7 +128,7 @@ export class JettonMultipleAuction extends DefaultContract {
         await provider.internal(via, {
             value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN * BigInt(domainsNumber),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).endCell()
+            body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).storeBit(0).endCell()
         });
     }
 
@@ -163,9 +163,7 @@ export class JettonMultipleAuction extends DefaultContract {
             coloredUntil: stack.readNumber(),
 
             jettonMinterAddress: stack.readAddress(),
-            tonsToEndAuction: 0n
         };
-        res.tonsToEndAuction = JettonMultipleAuction.getTonsToEndAuction(res.domainsTotal);
         return res;
     }
 }

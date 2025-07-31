@@ -12,11 +12,11 @@ import "../messages";
 import "../constants";
 
 
-const TONS_MIN_TON_FOR_STORAGE: coins = ton("0.055");
+const TONS_MIN_TON_FOR_STORAGE: coins = ton("0.035");
 
 
 @inline
-fun endAuctionSuccess(mutate storage: Storage, storage2: StorageDs2, queryId: uint64) {
+fun endAuctionSuccess(mutate storage: Storage, storage2: StorageDs2, queryId: uint64, additionalSellerTons: coins) {
     var commission: coins = 0;
     if (storage.commissionFactor != 0) {
         commission = min(mulDivFloor(storage.lastBidValue, storage.commissionFactor, COMMISSION_DIVIDER), storage2.maxCommission);
@@ -40,14 +40,14 @@ fun endAuctionSuccess(mutate storage: Storage, storage2: StorageDs2, queryId: ui
     // send seller payout
     createMessage<SendJettonsMessage<cell>>({
         bounce: false,
-        value: TONS_JETTON_TRANSFER,
+        value: TONS_JETTON_TRANSFER + additionalSellerTons,
         dest: storage2.jettonWalletAddress,
         body: SendJettonsMessage<cell> {
             queryId: queryId,
             jettonAmount: storage.lastBidValue - commission,
             toAddress: storage.sellerAddress,
-            responseAddress: storage.sellerAddress,
-            forwardTonAmount: 1,
+            responseAddress: storage.lastBidderAddress,
+            forwardTonAmount: additionalSellerTons + 1,
             forwardPayload: getPayoutNotificationBody(storage.domainNameCell)
         }
     }).send(SEND_MODE_REGULAR);
@@ -143,18 +143,17 @@ fun onInternalMessage(in: InMessage) {
                     assert(blockchain.now() >= storage.startTime && blockchain.now() < storage.endTime && storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
                 }
                 
-                
                 var nextMinBidValue = max(
                     max(storage.lastBidValue, storage.minBidValue),
                     mulDivFloor(storage.lastBidValue, storage.minBidIncrement, BID_INCREMENT_DIVIDER)
                 );
                 assert(msg.transferredJettons >= nextMinBidValue) throw EXC_BID_TOO_LOW;
                 
-                if (storage.endTime <= blockchain.now() + storage.timeIncrement) {
+                if (storage.endTime < blockchain.now() + storage.timeIncrement) {
                     storage.endTime = blockchain.now() + storage.timeIncrement;
                 }
                 
-                var requiredGas = TONS_END_JETTON_AUCTION;
+                var requiredGas = TONS_END_JETTON_AUCTION + TONS_MIN_TON_FOR_STORAGE;
 
                 if (blockchain.now() - storage.lastDomainRenewalTime >= ONE_YEAR - max(storage.timeIncrement * 2, ONE_DAY * 7)) {
                     // renew domain if it had not been renewed for a year
@@ -167,11 +166,12 @@ fun onInternalMessage(in: InMessage) {
                     requiredGas += TONS_RENEW_DOMAIN;
                 }
                 
+                val prevTonBalance = contract.getOriginalBalance() - in.valueCoins - storageFees();
                 if (storage.lastBidValue != 0) {
                     // return the previous bid
                     createMessage<SendJettonsMessage<cell>>({
                         bounce: false,
-                        value: contract.getOriginalBalance() - in.valueCoins - TONS_MIN_TON_FOR_STORAGE,
+                        value: prevTonBalance,
                         dest: storage2.jettonWalletAddress,
                         body: SendJettonsMessage<cell> {
                             queryId: msg.queryId,
@@ -185,6 +185,16 @@ fun onInternalMessage(in: InMessage) {
                                 .storeRef(storage.domainNameCell)
                             .endCell()
                         }
+                    }).send(SEND_MODE_REGULAR);
+                }
+                else if (prevTonBalance > TONS_MIN_EXCESS) {
+                    // после первой ставки за обеспечение аукциона отвечает последний участник аукциона, 
+                    // поэтому возвращаем продавцу изначально отправленные на контракт тоны
+                    createMessage({
+                        bounce: true,
+                        value: prevTonBalance,
+                        dest: storage.sellerAddress,
+                        body: ExcessesMessage { queryId: msg.queryId }
                     }).send(SEND_MODE_REGULAR);
                 }
                 
@@ -212,10 +222,10 @@ fun onInternalMessage(in: InMessage) {
                     storage.lastBidValue = storage2.maxBidValue;
                     storage.endTime = blockchain.now();
                     
-                    endAuctionSuccess(mutate storage, storage2, msg.queryId);
+                    endAuctionSuccess(mutate storage, storage2, msg.queryId, 0);
                 } else {
                     storage.lastBidValue = msg.transferredJettons;
-                    reserveToncoinsOnBalance(TONS_END_JETTON_AUCTION, RESERVE_MODE_EXACT_AMOUNT);
+                    reserveToncoinsOnBalance(TONS_END_JETTON_AUCTION + TONS_MIN_TON_FOR_STORAGE, RESERVE_MODE_EXACT_AMOUNT);
 
                     createMessage<CommentMessage>({
                         bounce: false,
@@ -227,6 +237,7 @@ fun onInternalMessage(in: InMessage) {
                 
                 assert(in.valueCoins >= requiredGas) throw EXC_OUT_OF_GAS;
                 storage.save();
+                var tmp = Storage.load();
                 return;
                 
             } catch (e, _) {
@@ -319,8 +330,14 @@ fun onInternalMessage(in: InMessage) {
                         assert(senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
                         endAuctionFailed(mutate storage, storage2, queryId);
                     } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
-                        assert(senderAddress == storage.sellerAddress || senderAddress == storage.lastBidderAddress) throw EXC_INCORRECT_SENDER;
-                        endAuctionSuccess(mutate storage, storage2, queryId);
+                        var additionalSellerTons: coins;
+                        if (senderAddress == storage.lastBidderAddress) {
+                            additionalSellerTons = 0;
+                        } else {
+                            assert(senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
+                            additionalSellerTons = in.valueCoins;
+                        }
+                        endAuctionSuccess(mutate storage, storage2, queryId, additionalSellerTons);
                     } else {
                         throw EXC_AUCTION_NOT_ENDED;
                     }
@@ -364,7 +381,7 @@ fun onExternalMessage(in: InMessage) {
         if (storage.lastBidValue == 0) {  // No one participated in the auction
             endAuctionFailed(mutate storage, storage2, queryId);
         } else {  // Auction finished successfully
-            endAuctionSuccess(mutate storage, storage2, queryId);
+            endAuctionSuccess(mutate storage, storage2, queryId, 0);
         }
         
         return;
@@ -379,7 +396,6 @@ get fun get_storage_data() {
     
     var domainsDict = createEmptyDict();
     domainsDict.sDictSet(267, storage2.domainAddress as slice, BIT_TRUE_SLICE());
-    
     return (
         storage.sellerAddress,
         domainsDict,

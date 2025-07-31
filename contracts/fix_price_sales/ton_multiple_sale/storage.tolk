@@ -12,7 +12,6 @@ struct Storage {
     lastRenewalTime: uint32;
     validUntil: uint32;
 
-    tonsToReserve: uint32;
     buyerAddress: address;
 
     hotUntil: uint32;

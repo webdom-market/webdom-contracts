@@ -53,8 +53,9 @@ describe('JettonMultipleAuction', () => {
         jettonMultipleAuction = blockchain.openContract(
             JettonMultipleAuction.createFromConfig(jettonMultipleAuctionConfig, jettonMultipleAuctionCode)
         );
+        usdtAuctionWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonMultipleAuction.address)));
 
-        transactionRes = await jettonMultipleAuction.sendDeploy(marketplace.getSender(), jettonMultipleAuctionConfig.tonsToEndAuction);
+        transactionRes = await jettonMultipleAuction.sendDeploy(marketplace.getSender(), toNano('0.05'), beginCell().storeAddress(usdtAuctionWallet.address).endCell());
         expect(transactionRes.transactions).toHaveTransaction({
             from: marketplace.address,
             to: jettonMultipleAuction.address,
@@ -62,7 +63,6 @@ describe('JettonMultipleAuction', () => {
             success: true
         });
 
-        usdtAuctionWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonMultipleAuction.address)));
         jettonMultipleAuctionConfig = await jettonMultipleAuction.getStorageData();
         expect(jettonMultipleAuctionConfig.state).toEqual(JettonMultipleAuction.STATE_ACTIVE);
         expect(usdtAuctionWallet.address.toString()).toEqual(jettonMultipleAuctionConfig.jettonWalletAddress!!.toString());
@@ -70,7 +70,7 @@ describe('JettonMultipleAuction', () => {
 
     async function sendDomainsToAuction() {
         for (let domain of domains) {
-            transactionRes = await domain.sendTransfer(seller.getSender(), jettonMultipleAuction.address, seller.address, null, toNano('0.01'));
+            transactionRes = await domain.sendTransfer(seller.getSender(), jettonMultipleAuction.address, seller.address, null, toNano('0.04'));
             domainConfigs.push(await domain.getStorageData());
         }
     }
@@ -137,7 +137,7 @@ describe('JettonMultipleAuction', () => {
             domainsTotal: domains.length,
             domainsReceived: 0,
             minBidValue: toNano('1'),
-            maxBidValue: toNano('10'),
+            maxBidValue: toNano('25'),
             minBidIncrement: 1050,  // 5% minimum increment
             timeIncrement: 60 * 5,  // 5 minutes extension
             commissionFactor: 500,  // 5% commission
@@ -150,7 +150,6 @@ describe('JettonMultipleAuction', () => {
             lastBidTime: blockchain.now!,
             lastBidderAddress: null,
             jettonMinterAddress: usdtMinter.address,
-            tonsToEndAuction: JettonMultipleAuction.getTonsToEndAuction(domains.length),
             isDeferred: false
         };
         
@@ -166,7 +165,7 @@ describe('JettonMultipleAuction', () => {
             jettonMultipleAuctionConfig.minBidValue, 
             jettonMultipleAuction.address, 
             buyer.address, 
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
@@ -187,7 +186,7 @@ describe('JettonMultipleAuction', () => {
             jettonMultipleAuctionConfig.minBidValue, 
             jettonMultipleAuction.address, 
             buyer.address, 
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
         expect(transactionRes.transactions).toHaveTransaction({
             from: jettonMultipleAuction.address,
@@ -208,7 +207,7 @@ describe('JettonMultipleAuction', () => {
             newBid, 
             jettonMultipleAuction.address, 
             admin.address, 
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Check outbid notification
@@ -237,7 +236,7 @@ describe('JettonMultipleAuction', () => {
             jettonMultipleAuctionConfig.maxBidValue + 1n,
             jettonMultipleAuction.address,
             buyer.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length) + Tons.JETTON_TRANSFER
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05') + Tons.JETTON_TRANSFER
         );
 
         // Check commission payment
@@ -335,7 +334,7 @@ describe('JettonMultipleAuction', () => {
             bidAmount,
             jettonMultipleAuction.address,
             buyer.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Calculate expected commission
@@ -401,7 +400,7 @@ describe('JettonMultipleAuction', () => {
             firstBid,
             jettonMultipleAuction.address,
             buyer.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Second bid
@@ -411,7 +410,7 @@ describe('JettonMultipleAuction', () => {
             secondBid,
             jettonMultipleAuction.address,
             admin.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Third bid
@@ -421,7 +420,7 @@ describe('JettonMultipleAuction', () => {
             thirdBid,
             jettonMultipleAuction.address,
             buyer.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Verify outbid notifications and refunds
@@ -451,7 +450,7 @@ describe('JettonMultipleAuction', () => {
             jettonMultipleAuctionConfig.minBidValue,
             jettonMultipleAuction.address,
             buyer.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Try to place bid with insufficient increment
@@ -461,7 +460,7 @@ describe('JettonMultipleAuction', () => {
             smallIncrementBid,
             jettonMultipleAuction.address,
             admin.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Verify bid rejection
@@ -486,7 +485,7 @@ describe('JettonMultipleAuction', () => {
             jettonMultipleAuctionConfig.minBidValue,
             jettonMultipleAuction.address,
             buyer.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Place bid near end time
@@ -497,7 +496,7 @@ describe('JettonMultipleAuction', () => {
             newBid,
             jettonMultipleAuction.address,
             admin.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Verify time extension
@@ -545,7 +544,7 @@ describe('JettonMultipleAuction', () => {
             jettonMultipleAuctionConfig.minBidValue,
             jettonMultipleAuction.address,
             buyer.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
 
         // Try to cancel auction with active bid
@@ -588,7 +587,7 @@ describe('JettonMultipleAuction', () => {
             jettonMultipleAuctionConfig.minBidValue,
             jettonMultipleAuction.address,
             buyer.address,
-            JettonMultipleAuction.getTonsToEndAuction(domains.length)
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
         blockchain.now!! += auctionDuration;
         transactionRes = await jettonMultipleAuction.sendExternalCancel();
@@ -598,33 +597,33 @@ describe('JettonMultipleAuction', () => {
 
     });
         
-    // it('should handle auction completion with maximum commission', async () => {
-    //     await sendDomainsToAuction();
-    //     blockchain.now = jettonMultipleAuctionConfig.startTime;
+    it('should handle auction completion with maximum commission', async () => {
+        await sendDomainsToAuction();
+        blockchain.now = jettonMultipleAuctionConfig.startTime;
 
-    //     // Place a large bid that would exceed max commission
-    //     const largeBid = toNano('100');
-    //     transactionRes = await usdtBuyerWallet.sendTransfer(
-    //         buyer.getSender(),
-    //         largeBid,
-    //         jettonMultipleAuction.address,
-    //         buyer.address,
-    //         JettonMultipleAuction.getTonsToEndAuction(domains.length)
-    //     );
+        // Place a large bid that would exceed max commission
+        const largeBid = toNano('24');
+        transactionRes = await usdtBuyerWallet.sendTransfer(
+            buyer.getSender(),
+            largeBid,
+            jettonMultipleAuction.address,
+            buyer.address,
+            JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
+        );
 
-    //     // End auction
-    //     blockchain.now = jettonMultipleAuctionConfig.endTime;
-    //     transactionRes = await jettonMultipleAuction.sendStopAuction(seller.getSender());
+        // End auction
+        blockchain.now = jettonMultipleAuctionConfig.endTime;
+        transactionRes = await jettonMultipleAuction.sendStopAuction(seller.getSender());
 
-    //     // Verify commission is capped at max commission
-    //     expect(transactionRes.transactions).toHaveTransaction({
-    //         from: usdtAdminWallet.address,
-    //         to: admin.address,
-    //         body: JettonWallet.transferNotificationMessage(
-    //             jettonMultipleAuctionConfig.maxCommission,
-    //             jettonMultipleAuction.address,
-    //             beginCell().storeUint(0, 32).storeStringTail("Marketplace commission").endCell()
-    //         )
-    //     });
-    // });
+        // Verify commission is capped at max commission
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: usdtAdminWallet.address,
+            to: admin.address,
+            body: JettonWallet.transferNotificationMessage(
+                jettonMultipleAuctionConfig.maxCommission,
+                jettonMultipleAuction.address,
+                beginCell().storeUint(0, 32).storeStringTail("Marketplace commission").endCell()
+            )
+        });
+    });
 });

@@ -3,6 +3,9 @@ import "constants.tolk";
 fun beginParseExotic(c: cell): (slice, int)
     asm "XCTOS"
 
+fun storageFees(): int
+    asm "STORAGEFEES"  
+
 @pure
 fun dict.sDictGetNext(self, keyLen: int, pivot: slice): (slice?, slice?, bool)
     asm(pivot self keyLen -> 1 0 2) "DICTGETNEXT" "NULLSWAPIFNOT2"

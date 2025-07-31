@@ -29,8 +29,6 @@ export type TonMultipleAuctionConfig = {
     lastBidTime: number;
     lastBidderAddress: Maybe<Address>;
     
-    tonsToEndAuction: bigint;
-
     isDeferred: boolean;
 
     hotUntil?: number;
@@ -59,22 +57,19 @@ export function multipleTonSaleConfigToCell(config: TonMultipleAuctionConfig): C
             .storeUint(config.domainsTotal, 8)
             .storeUint(config.domainsReceived, 8)
 
-            .storeCoins(0)
             .storeUint(config.hotUntil ?? 0, 32)
             .storeUint(config.coloredUntil ?? 0, 32)
+            
+            .storeAddress(config.sellerAddress)
+            .storeUint(config.minBidValue, 64)
+            .storeUint(config.minBidIncrement, 12)
+            .storeUint(config.timeIncrement, 32)
+            .storeUint(config.commissionFactor, 16)
 
             .storeRef(
                 beginCell()
-                    .storeAddress(config.sellerAddress)
-
-                    .storeCoins(config.minBidValue)
                     .storeCoins(config.maxBidValue)
-                    .storeUint(config.minBidIncrement, 12)
-                    .storeUint(config.timeIncrement, 32)
-
-                    .storeUint(config.commissionFactor, 16)
                     .storeCoins(config.maxCommission)
-                    .storeCoins(config.tonsToEndAuction)
                 .endCell()
             )
         .endCell();
@@ -116,7 +111,7 @@ export class TonMultipleAuction extends DefaultContract {
     }
 
     static getTonsToEndAuction(domainsNumber: number) {
-        return (Tons.NFT_TRANSFER + Tons.PURCHASE_NOTIFICATION + toNano('0.005')) * BigInt(domainsNumber) + toNano('0.015');
+        return (Tons.NFT_TRANSFER + Tons.PURCHASE_NOTIFICATION + toNano('0.01')) * BigInt(domainsNumber) + toNano('0.035') + toNano('0.005');
     }
 
     async sendPurchase(provider: ContractProvider, via: Sender, price: bigint, domainsNumber: number, queryId: number = 0) {
@@ -129,7 +124,7 @@ export class TonMultipleAuction extends DefaultContract {
 
     async sendPlaceBid(provider: ContractProvider, via: Sender, value: bigint, domainsNumber: number, queryId: number = 0) {
         await provider.internal(via, {
-            value: value + TonMultipleAuction.getTonsToEndAuction(domainsNumber) + Tons.NOTIFY_BIDDER,
+            value: value + TonMultipleAuction.getTonsToEndAuction(domainsNumber),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell().endCell(),
         });
@@ -191,7 +186,6 @@ export class TonMultipleAuction extends DefaultContract {
             lastBidTime: stack.readNumber(),
 
             maxCommission: stack.readBigNumber(),
-            tonsToEndAuction: stack.readBigNumber(),
 
             isDeferred: stack.readBoolean(),
             

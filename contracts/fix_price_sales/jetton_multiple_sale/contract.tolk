@@ -60,6 +60,17 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
+@inline
+fun getTonsToReserve(domainsTotal: uint8, nothrow: bool): int {
+    var tonsToReserve = (TONS_NFT_TRANSFER + ton("0.0075")) * domainsTotal + TONS_MIN_TON_FOR_STORAGE;
+    var actualBalance = contract.getOriginalBalance() - ton("0.01") - storageFees();
+    assert(actualBalance >= TONS_MIN_TON_FOR_STORAGE || nothrow) throw EXC_OUT_OF_GAS;
+    if (actualBalance < tonsToReserve) {
+        return TONS_MIN_TON_FOR_STORAGE;
+    }
+    return tonsToReserve as int;
+}
+
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
     
@@ -97,11 +108,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.domainsReceived += 1;
 
                 if (storage.domainsReceived == storage.domainsTotal) {
-                    storage.tonsToReserve = (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsTotal + TONS_MIN_TON_FOR_STORAGE;
-                    if (contract.getOriginalBalance() - ton("0.015") < storage.tonsToReserve) {
-                        storage.tonsToReserve = TONS_MIN_TON_FOR_STORAGE as uint32;  // disable cancellation by external message if balance is not enough
-                    }
-                    reserveToncoinsOnBalance(storage.tonsToReserve as int, RESERVE_MODE_EXACT_AMOUNT);
+                    reserveToncoinsOnBalance(getTonsToReserve(storage.domainsTotal, false), RESERVE_MODE_EXACT_AMOUNT);
                     
                     createMessage({
                         bounce: false,
@@ -273,8 +280,6 @@ fun onInternalMessage(in: InMessage) {
             storage.price = msg.newPrice;
             storage.commission = newCommission;
             storage.save();
-
-            reserveToncoinsOnBalance(max(storage.tonsToReserve as int, contract.getOriginalBalance() - in.valueCoins - ton("0.007")), RESERVE_MODE_EXACT_AMOUNT);
             
             val isWeb3 = storage.jettonMinterAddressCell.load() == WEB3_ADDRESS;
             createMessage<cell>({
@@ -287,7 +292,7 @@ fun onInternalMessage(in: InMessage) {
                     .storeStrFloat(msg.newPrice, isWeb3 ? 1000 : 1000000)
                     .storeSlice(isWeb3 ? " WEB3" : " USDT")
                 .endCell()
-            }).send(SEND_MODE_CARRY_ALL_BALANCE);
+            }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             return;
         }
         
@@ -297,7 +302,7 @@ fun onInternalMessage(in: InMessage) {
             assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN * storage.domainsTotal) throw EXC_OUT_OF_GAS;
             assert(storage.lastRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;
 
-            reserveToncoinsOnBalance(max(storage.tonsToReserve as int, contract.getOriginalBalance() - in.valueCoins - ton("0.007")), RESERVE_MODE_EXACT_AMOUNT);
+            reserveToncoinsOnBalance(max(getTonsToReserve(storage.domainsTotal, false), contract.getOriginalBalance() - in.valueCoins - ton("0.007")), RESERVE_MODE_EXACT_AMOUNT);
             
             var (domainAddress, _, found) = storage.domainsDict.sDictGetFirst(267);
             while (found) {
@@ -396,7 +401,7 @@ get fun get_storage_data() {
         storage.lastRenewalTime,
         storage.validUntil,
         storage.buyerAddressCell.load(),
-        storage.tonsToReserve,
+        getTonsToReserve(storage.domainsTotal, true),
         storage.jettonWalletAddress,
         storage.hotUntil,
         storage.coloredUntil,

@@ -1,4 +1,5 @@
 import "../imports/constants";
+import "../fix_price_sales/constants"
 
 const OP_STOP_AUCTION = 0x793be3b5;
 
@@ -7,7 +8,7 @@ const EXC_AUCTION_STARTED = 62;
 const EXC_AUCTION_NOT_ENDED = 63;
 
 const TONS_MIN_BID_INCREMENT: coins     = ton("0.1");
-const TONS_END_TON_AUCTION: coins       = ton("0.055");
+const TONS_END_TON_AUCTION: coins       = TONS_TON_SIMPLE_PURCHASE;
 const TONS_END_JETTON_AUCTION: coins    = TONS_END_TON_AUCTION + TONS_JETTON_TRANSFER * 2 + TONS_NOTIFY_MARKETPLACE;
 const TONS_DEPLOY_TON_AUCTION: coins    = ton("0.05");
 const TONS_DEPLOY_JETTON_AUCTION: coins = TONS_DEPLOY_TON_AUCTION + ton("0.01");
