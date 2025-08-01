@@ -4,6 +4,7 @@ import "../../imports/constants";
 import "messages";
 import "../../marketplace/deploy_contracts";
 
+
 struct MultipleOfferDeployInfo {
     commissionFactor: uint16;
     web3CommissionFactor: uint16;
@@ -13,7 +14,7 @@ struct MultipleOfferDeployPayload {
     merkleRoot: uint256;
 }
 
-@method_id(103)
+
 fun deployMultipleOffer(args: SimpleDeployArgs): int {
     var deployInfo = MultipleOfferDeployInfo.fromSlice(args.deployInfoSlice);
     if (args.commissionDiscount) {
@@ -32,7 +33,9 @@ fun deployMultipleOffer(args: SimpleDeployArgs): int {
             data: data,
         }
     }).buildAddress();
-    val web3OfferAddress = calculateWeb3WalletAddress(offerAddress, args.publicKey);
+
+    val contractCodes = lazy args.contractCodes.load();
+    val web3OfferAddress = calculateWeb3WalletAddress(offerAddress, contractCodes.web3WalletCode);
     
     val msg = createMessage<cell>({
         bounce: false,
@@ -47,15 +50,4 @@ fun deployMultipleOffer(args: SimpleDeployArgs): int {
             .endCell()
     });
     return msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + ton("0.05");  // return msg sending price
-}
-
-fun deployFunctionCell(): cell 
-    asm """<{}>c PUSHREF""";
- 
-
-fun onInternalMessage(): void {
-}
-
-get fun getDeployFunctionCell(): cell {
-    return deployFunctionCell();
 }

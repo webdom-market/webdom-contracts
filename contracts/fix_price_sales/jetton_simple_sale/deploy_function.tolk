@@ -30,10 +30,8 @@ struct JettonSimpleSaleDeployPayload {
 
 const TONS_DEPLOY_JETTON_SIMPLE_SALE = TONS_NFT_TRANSFER + TONS_MIN_RESERVE * 2 + ton("0.005");
 
-
-@method_id(105)
-fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
-    var payload = JettonSimpleSaleDeployPayload.fromSlice(args.payloadSlice);
+fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
+    var payload = JettonSimpleSaleDeployPayload.fromSlice(args.commonArgs.payloadSlice);
     var deployInfo: DeployInfoForJetton;
     if (payload.isWeb3) {
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice.loadRef().beginParse());
@@ -65,11 +63,11 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
         domainNameCell: args.domainNameCell,
         hotUntil: 0,
         coloredUntil: 0, 
-        ds2: StorageDs2 {
+        ds2: (StorageDs2 {
             domainAddress: args.domainAddress,
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
             buyerAddress: createAddressNone(),
-        }
+        }).toCell()
     }).toCell();
               
     val saleAddress = AutoDeployAddress {
@@ -83,7 +81,7 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     createMessage({
         bounce: false,
         value: TONS_NFT_TRANSFER,
-        dest: domainAddress,
+        dest: args.domainAddress,
         body: NftTransferMessageBuilder<cell> {
             queryId: 0,
             toAddress: saleAddress,
@@ -94,6 +92,7 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     }).send(SEND_MODE_REGULAR);
 
     // Deploy sale contract
+    val contractCodes = lazy args.commonArgs.contractCodes.load();
     val msg = createMessage<cell>({
         bounce: false,
         value: TONS_DEPLOY_JETTON_SIMPLE_SALE,
@@ -103,8 +102,8 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
                 .storeUint(args.commonArgs.queryId, 64)
                 .storeBuilder(
                     payload.isWeb3 ?
-                        calculateWeb3WalletAddress(saleAddress) : 
-                        calculateUsdtWalletAddress(saleAddress))
+                        calculateWeb3WalletAddress(saleAddress, contractCodes.web3WalletCode) : 
+                        calculateUsdtWalletAddress(saleAddress, contractCodes.usdtWalletCode))
                 .endCell()
     }); 
 

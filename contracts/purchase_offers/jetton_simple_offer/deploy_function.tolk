@@ -8,8 +8,7 @@ import "../../imports/types";
 import "storage";
 import "../../imports/messages"
 import "../constants"
-import "../ton_simple_offer/deploy_function"
-
+import "../../imports/dns"
 
 struct DeployInfoForJetton {
     minPrice: coins;
@@ -34,8 +33,8 @@ struct JettonSimpleOfferDeployPayload {
 
 const TONS_DEPLOY_JETTON_OFFER = TONS_JETTON_SIMPLE_OFFER_RESERVE + ton("0.015"); // 0.185
 
-@method_id(102)
-fun deployTonMultipleOffer(args: DeployWithJettonTransferArgs): int {
+
+fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
     var deployInfo: DeployInfoForJetton;
     var jettonMinterAddress: address;
     var jettonPostfix: slice;
@@ -56,20 +55,22 @@ fun deployTonMultipleOffer(args: DeployWithJettonTransferArgs): int {
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice.loadRef().beginParse());
     }
 
-    var payload = JettonSimpleOfferDeployPayload.fromSlice(args.payloadSlice);
+    var payload = JettonSimpleOfferDeployPayload.fromSlice(args.commonArgs.payloadSlice);
+    var contractCodes = lazy args.commonArgs.contractCodes.load();
+    var domainAddressBuilder: builder;
     if (payload.isTgUsername) {
-        domainAddressBuilder = tgUsernameToAddress(payload.domainNameCell.load().removeLastBits(5 * 8));
+        domainAddressBuilder = tgUsernameToAddress(payload.domainNameCell.load().removeLastBits(5 * 8), contractCodes.tgUsernameCode);
     } else {
-        domainAddressBuilder = domainNameToAddress(payload.domainNameCell.load().removeLastBits(4 * 8));
+        domainAddressBuilder = domainNameToAddress(payload.domainNameCell.load().removeLastBits(4 * 8), contractCodes.domainCode);
     }
 
     assert(payload.price >= deployInfo.minPrice) throw(EXC_PRICE_TOO_LOW);
-    assert(payload.validUntil >= now() + deployInfo.minDuration) throw(EXC_INCORRECT_TIME_RANGE);
+    assert(payload.validUntil >= blockchain.now() + deployInfo.minDuration) throw(EXC_INCORRECT_TIME_RANGE);
 
-    var requiredGas = TONS_DEPLOY_TON_OFFER + TONS_JETTON_TRANSFER;
+    var requiredGas = TONS_DEPLOY_JETTON_OFFER + TONS_JETTON_TRANSFER;
     if (payload.notifySeller) {
         assert(payload.sellerAddress != createAddressNone()) throw(EXC_INCORRECT_SELLER_ADDRESS);
-        val msg = createMessage<cell>({
+        val deployMsg = createMessage<cell>({
             bounce: false,
             value: 0,
             dest: payload.sellerAddress,
@@ -80,14 +81,14 @@ fun deployTonMultipleOffer(args: DeployWithJettonTransferArgs): int {
                      .storeSlice(jettonPostfix)
                      .storeRef(payload.domainNameCell)
                 .endCell()
-        })
+        });
         requiredGas += deployMsg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_OFFER_NOTIFICATION;
     }
 
     val commission: int = mulDivFloor(min(
         mulDivFloor(payload.price, deployInfo.commissionFactor, COMMISSION_DIVIDER),
         deployInfo.maxCommission
-    ), COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
+    ), COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
     
     val data = beginCell()
             .storeUint(STATE_UNINIT, 2)
@@ -96,46 +97,46 @@ fun deployTonMultipleOffer(args: DeployWithJettonTransferArgs): int {
             .storeUint(payload.validUntil, 32)
             .storeMaybeRef(payload.sellerAddress == createAddressNone() ? null : payload.sellerAddress.toCell())
             .storeUint(0, 5)  //
-            .storeUint(now(), 32)
+            .storeUint(blockchain.now(), 32)
             .storeRef(
                 beginCell()
                     .storeBuilder(domainAddressBuilder)
-                    .storeAddress(args.fromAddress)
+                    .storeAddress(args.commonArgs.fromAddress)
                     .storeAddress(jettonMinterAddress)
                     .storeRef(payload.domainNameCell)
-                    .storeRef(args.publicKey.toCell())
+                    .storeRef(args.commonArgs.publicKey.toCell())
                 .endCell()
             )
         .endCell();
 
     val offerAddress = (AutoDeployAddress {
         stateInit: ContractState {
-            code: args.code,
+            code: args.commonArgs.code,
             data: data,
         }
     }).buildAddress();
 
-    var offerJettonWalletAddress: address;
-    if (args.isWeb3) {
-        offerJettonWalletAddress = calculateWeb3WalletAddress(offerAddress);
-    } else {
-        offerJettonWalletAddress = calculateUsdtWalletAddress(offerAddress);
-    }
-
-    val deployMsg = createMessage<DeployAndSetWalletMessage>({
+    val deployMsg = createMessage<cell>({
         bounce: false,
         value: TONS_DEPLOY_JETTON_OFFER,
         dest: offerAddress,
-        body: DeployAndSetWalletMessage {queryId: args.queryId, jettonWalletAddress: offerJettonWalletAddress }
+        body: beginCell()
+                .storeUint(OP_FILL_UP_BALANCE, 32)
+                .storeUint(args.commonArgs.queryId, 64)
+                .storeBuilder(
+                    args.isWeb3 ?
+                        calculateWeb3WalletAddress(offerAddress, contractCodes.web3WalletCode) : 
+                        calculateUsdtWalletAddress(offerAddress, contractCodes.usdtWalletCode))
+                .endCell()
     });
     requiredGas += deployMsg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_DEPLOY_JETTON_OFFER + TONS_JETTON_TRANSFER;
     
-    createMessage<SendJettonsMessage<cell>>({
+    createMessage({
         bounce: false,
         value: TONS_JETTON_TRANSFER,
         dest: args.jettonWalletAddress,
         body: SendJettonsMessageBuilder<cell> {
-            queryId: args.queryId,
+            queryId: args.commonArgs.queryId,
             jettonAmount: payload.price,
             toAddress: offerAddress,
             responseAddress: createAddressNone(),

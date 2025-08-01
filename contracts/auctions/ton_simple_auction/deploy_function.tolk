@@ -29,8 +29,8 @@ struct TonSimpleAuctionDeployPayload {
 const TONS_DEPLOY_TON_SIMPLE_AUCTION = TONS_NFT_TRANSFER + TONS_MIN_RESERVE * 2 + ton("0.005");
 
 fun deployTonSimpleAuction(args: DeployWithNftTransferArgs): int {
-    var deployInfo = lazy TonSimpleAuctionDeployInfo.fromSlice(args.deployInfoSlice);
-    var payload = lazy TonSimpleAuctionDeployPayload.fromSlice(args.payloadSlice);
+    var deployInfo = lazy TonSimpleAuctionDeployInfo.fromSlice(args.commonArgs.deployInfoSlice);
+    var payload = lazy TonSimpleAuctionDeployPayload.fromSlice(args.commonArgs.payloadSlice);
 
     payload.startTime = max(blockchain.now() + 30, payload.startTime);
 
@@ -39,33 +39,35 @@ fun deployTonSimpleAuction(args: DeployWithNftTransferArgs): int {
     assert(payload.minBidIncrement > 1000) throw(EXC_INCORRECT_BID_INCREMENT);
     assert(payload.timeIncrement >= deployInfo.minTimeIncrement) throw(EXC_INCORRECT_TIME_INCREMENT);
 
-    val commissionFactor = mulDivFloor(deployInfo.commissionFactor, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
-    val maxCommission = mulDivFloor(deployInfo.maxCommission, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
+    val commissionFactor = mulDivFloor(deployInfo.commissionFactor, COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
+    val maxCommission = mulDivFloor(deployInfo.maxCommission, COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
 
     var data = (Storage {
         state: STATE_UNINIT,
         isDeferred: payload.isDeferred,
-        domainAddress: args.domainAddress,
-        sellerAddress: args.sellerAddress,
-        maxBidValue: payload.maxBidValue,
-        commissionFactor: commissionFactor,
+
         startTime: payload.startTime,
-        lastDomainRenewalTime: blockchain.now(),
         endTime: payload.endTime,
+        lastDomainRenewalTime: blockchain.now(),
+
         lastBidValue: 0,
         lastBidTime: 0,
-        lastBidderAddress: 0,
-        domainNameCell: 0,
+        lastBidderAddress: createAddressNone(),
+
+        domainNameCell: args.domainNameCell,
+
         hotUntil: 0,
         coloredUntil: 0,
-        minBidValue: payload.minBidValue,
+
+        sellerAddress: args.commonArgs.fromAddress,
+        minBidValue: payload.minBidValue as uint64,
         minBidIncrement: payload.minBidIncrement,
         timeIncrement: payload.timeIncrement,
+        commissionFactor: commissionFactor,
         ds2: (StorageDs2 {
+            domainAddress: args.domainAddress,
             maxBidValue: payload.maxBidValue,
             maxCommission: maxCommission,
-            domainAddress: args.domainAddress,
-            sellerAddress: args.sellerAddress,
         }).toCell(),
     }).toCell();
 
@@ -76,10 +78,9 @@ fun deployTonSimpleAuction(args: DeployWithNftTransferArgs): int {
         },
     }).buildAddress();
 
-    val requiredGas = TONS_NFT_TRANSFER;
     createMessage({
         bounce: false,
-        value: requiredGas,
+        value: TONS_NFT_TRANSFER,
         dest: args.domainAddress,
         body: NftTransferMessageBuilder<cell> {
             queryId: 0,
@@ -97,5 +98,5 @@ fun deployTonSimpleAuction(args: DeployWithNftTransferArgs): int {
         body: FillUpBalanceMessage { queryId: args.commonArgs.queryId }
     });
 
-    return TONS_DEPLOY_TON_SIMPLE_AUCTION + TONS_NFT_TRANSFER + msg.sendAndEstimateFee();
+    return TONS_DEPLOY_TON_SIMPLE_AUCTION + TONS_NFT_TRANSFER + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 }

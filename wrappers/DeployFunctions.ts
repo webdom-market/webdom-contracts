@@ -22,16 +22,10 @@ export class TestConts implements Contract {
         });
     }
 
-    async getDeployFunctionCell(provider: ContractProvider): Promise<Cell> {
+    async getDeployFunctionCell(provider: ContractProvider): Promise<string> {
         const {stack} = await provider.get('getDeployFunctionCell', []);
         const res = stack.readCell();
-        return res;
-    }
-
-    async testCode(provider: ContractProvider): Promise<number> {
-        const {stack} = await provider.get('testCode', []);
-        const res = stack.readNumber();
-        return res;
+        return res.toBoc().toString('hex');
     }
 }
 

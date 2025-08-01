@@ -28,19 +28,21 @@ struct TonSimpleOfferDeployPayload {
 
 const TONS_DEPLOY_TON_OFFER = TONS_TON_SIMPLE_OFFER_RESERVE + ton("0.015");
 
-@method_id(101)
+
 fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
     var deployInfo = TonSimpleOfferDeploInfo.fromSlice(args.deployInfoSlice);
     var payload = TonSimpleOfferDeployPayload.fromSlice(args.payloadSlice);
     var domainAddressBuilder: builder;
+
+    var contractCodes = lazy args.contractCodes.load();
     if (payload.isTgUsername) {
-        domainAddressBuilder = tgUsernameToAddress(payload.domainNameCell.load().removeLastBits(5 * 8));
+        domainAddressBuilder = tgUsernameToAddress(payload.domainNameCell.load().removeLastBits(5 * 8), contractCodes.tgUsernameCode);
     } else {
-        domainAddressBuilder = domainNameToAddress(payload.domainNameCell.load().removeLastBits(4 * 8));
+        domainAddressBuilder = domainNameToAddress(payload.domainNameCell.load().removeLastBits(4 * 8), contractCodes.domainCode);
     }
 
     assert(payload.price >= deployInfo.minPrice) throw(EXC_PRICE_TOO_LOW);
-    assert(payload.validUntil >= now() + deployInfo.minDuration) throw(EXC_INCORRECT_TIME_RANGE);
+    assert(payload.validUntil >= blockchain.now() + deployInfo.minDuration) throw(EXC_INCORRECT_TIME_RANGE);
 
     var requiredGas = 0;
     if (payload.notifySeller) {
@@ -52,11 +54,11 @@ fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
             body: beginCell()
                      .storeUint(0, 32)
                      .storeSlice("New offer on webdom.market! ")
-                     .storeStrFloat(payload.price, ONE_TON)
+                     .storeStrFloat(payload.price, ton("1"))
                      .storeSlice(" TON for ")
                      .storeRef(payload.domainNameCell)
                 .endCell()
-        })
+        });
         requiredGas += msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_OFFER_NOTIFICATION;
     }
 

@@ -1,8 +1,0 @@
-{
-    "includeFiles": [
-        "node_modules/@ton/tolk-js/**/*"
-    ],
-    "excludeFiles": [
-        "node_modules/**/*"
-    ]
-}

@@ -23,11 +23,9 @@ struct TonSimpleSaleDeployPayload {
 
 const TONS_DEPLOY_TON_SIMPLE_SALE = TONS_NFT_TRANSFER + TONS_MIN_RESERVE * 2 + ton("0.005");
 
-
-@method_id(104)
 fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
-    var deployInfo = TonSimpleSaleDeployInfo.fromSlice(args.deployInfoSlice);
-    var payload = TonSimpleSaleDeployPayload.fromSlice(args.payloadSlice);
+    var deployInfo = TonSimpleSaleDeployInfo.fromSlice(args.commonArgs.deployInfoSlice);
+    var payload = TonSimpleSaleDeployPayload.fromSlice(args.commonArgs.payloadSlice);
     
     assert(payload.price >= deployInfo.minPrice) throw(EXC_PRICE_TOO_LOW);
     assert((payload.validUntil >= blockchain.now() + deployInfo.minDuration) && 
@@ -36,11 +34,11 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     val commission: int = mulDivFloor(min(
         mulDivFloor(payload.price, deployInfo.commissionFactor, COMMISSION_DIVIDER),
         deployInfo.maxCommission
-    ), COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
+    ), COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
 
     val data = (Storage {
         domainAddress: args.domainAddress,
-        sellerAddress: args.fromAddress,
+        sellerAddress: args.commonArgs.fromAddress,
         price: payload.price,
         state: STATE_UNINIT,
         commission: commission,
@@ -63,8 +61,8 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     // Transfer NFT to the sale contract
     createMessage({
         bounce: false,
-        value: requiredGas,
-        dest: domainAddress,
+        value: TONS_NFT_TRANSFER,
+        dest: args.domainAddress,
         body: NftTransferMessageBuilder<cell> {
             queryId: 0,
             toAddress: saleAddress,
@@ -79,7 +77,7 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
         bounce: false,
         value: TONS_DEPLOY_TON_SIMPLE_SALE,
         dest: saleAddress,
-        body: FillUpBalanceMessage { queryId: args.queryId }
+        body: FillUpBalanceMessage { queryId: args.commonArgs.queryId }
     });
     
     return TONS_DEPLOY_TON_SIMPLE_SALE + TONS_NFT_TRANSFER + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);

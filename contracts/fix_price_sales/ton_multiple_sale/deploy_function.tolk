@@ -25,7 +25,6 @@ struct TonMultipleSaleDeployPayload {
 
 const TONS_DEPLOY_TON_MULTIPLE_SALE: coins = ton("0.05");
 
-@method_id(106)
 fun deployTonMultipleSale(args: SimpleDeployArgs): int {
     var deployInfo = lazy TonMultipleSaleDeployInfo.fromSlice(args.deployInfoSlice);
     var payload = lazy TonMultipleSaleDeployPayload.fromSlice(args.payloadSlice);
@@ -45,7 +44,7 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
     while (found) {
         domainsTotal += 1;
         assert(received!.bitsEqual(BIT_FALSE_SLICE())) throw EXC_INCORRECT_DOMAIN;
-        (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress);
+        (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress!);
     }
     assert(domainsTotal > 0) throw EXC_EMPTY_DICT;
     
@@ -60,7 +59,7 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
         createdAt: blockchain.now(),
         lastRenewalTime: blockchain.now(),
         validUntil: payload.validUntil,
-        tonsToReserve: ton("0.035"),
+
         buyerAddress: createAddressNone(),
         hotUntil: 0,
         coloredUntil: 0
@@ -80,5 +79,5 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
         body: FillUpBalanceMessage { queryId: args.queryId }
     });
 
-    return TONS_DEPLOY_TON_MULTIPLE_SALE + msg.sendAndEstimateFee();
+    return TONS_DEPLOY_TON_MULTIPLE_SALE + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 } 

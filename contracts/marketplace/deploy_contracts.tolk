@@ -12,6 +12,13 @@ struct DeployInfo<T> {
     specificInfo: T;
 }
 
+struct ContractCodes {
+    domainCode: cell;
+    tgUsernameCode: cell;
+    web3WalletCode: cell;
+    usdtWalletCode: cell;
+}
+
 struct SimpleDeployArgs {
     fromAddress: address;
     payloadSlice: slice;
@@ -20,6 +27,7 @@ struct SimpleDeployArgs {
     commissionDiscount: uint16;
     queryId: uint64;
     publicKey: uint256;
+    contractCodes: Cell<ContractCodes>;
 }
 
 struct DeployWithNftTransferArgs {

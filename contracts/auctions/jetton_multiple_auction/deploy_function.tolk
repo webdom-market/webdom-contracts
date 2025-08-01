@@ -36,17 +36,17 @@ struct JettonMultipleAuctionDeployPayload {
 
 const TONS_DEPLOY_JETTON_MULTIPLE_AUCTION: coins = ton("0.06");
 
-@method_id(109)
+
 fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
     var payload = lazy JettonMultipleAuctionDeployPayload.fromSlice(args.payloadSlice);
     var deployInfo: DeployInfoForJetton;
     if (payload.isWeb3) {
-        deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice.loadRef().beginParse());
-        if (args.commonArgs.commissionDiscount != 0) {
-            args.commonArgs.commissionDiscount = COMMISSION_DIVIDER;
+        deployInfo = DeployInfoForJetton.fromSlice(args.deployInfoSlice.loadRef().beginParse());
+        if (args.commissionDiscount != 0) {
+            args.commissionDiscount = COMMISSION_DIVIDER;
         }
     } else {
-        deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice, { assertEndAfterReading: false });
+        deployInfo = DeployInfoForJetton.fromSlice(args.deployInfoSlice, { assertEndAfterReading: false });
     }
     
     payload.startTime = max(blockchain.now() + 30, payload.startTime);
@@ -57,15 +57,15 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
     assert(payload.minBidIncrement > 1000) throw EXC_INCORRECT_BID_INCREMENT;
     assert(payload.timeIncrement >= deployInfo.minTimeIncrement) throw EXC_INCORRECT_TIME_INCREMENT;
 
-    val commissionFactor = mulDivFloor(deployInfo.commissionFactor, COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
-    val maxCommission = mulDivFloor(deployInfo.maxCommission, COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
+    val commissionFactor = mulDivFloor(deployInfo.commissionFactor, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
+    val maxCommission = mulDivFloor(deployInfo.maxCommission, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
 
     var domainsTotal: uint8 = 0;
     var (domainAddress, received, found) = payload.domainsAddresses.sDictGetFirst(267);
     while (found) {
         domainsTotal += 1;
         assert(received!.bitsEqual(BIT_FALSE_SLICE())) throw EXC_INCORRECT_DOMAIN;
-        (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress);
+        (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress!);
     }
     assert(domainsTotal > 0) throw EXC_EMPTY_DICT;
 
@@ -88,20 +88,19 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
         hotUntil: 0,
         coloredUntil: 0,
 
-        sellerAddress: args.commonArgs.fromAddress,
+        sellerAddress: args.fromAddress,
 
-        minBidValue: payload.minBidValue,
-        maxBidValue: payload.maxBidValue,
+        minBidValue: payload.minBidValue as uint64,
         minBidIncrement: payload.minBidIncrement,
         timeIncrement: payload.timeIncrement,
         commissionFactor: commissionFactor,
 
-        ds2: StorageDs2 {
+        ds2: (StorageDs2 {
             jettonWalletAddress: createAddressNone(),
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
             maxBidValue: payload.maxBidValue,
-            maxCommission: deployInfo.maxCommission
-        },
+            maxCommission: deployInfo.maxCommission as uint64
+        }).toCell(),
     }).toCell();
 
     val auctionAddress = (AutoDeployAddress {
@@ -111,19 +110,20 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
         },
     }).buildAddress();
 
+    val contractCodes = lazy args.contractCodes.load();
     val msg = createMessage({
         bounce: false,
         value: TONS_DEPLOY_JETTON_MULTIPLE_AUCTION,
         dest: auctionAddress,
         body: beginCell()
                 .storeUint(OP_FILL_UP_BALANCE, 32)
-                .storeUint(args.commonArgs.queryId, 64)
+                .storeUint(args.queryId, 64)
                 .storeBuilder(
                     payload.isWeb3 ?
-                        calculateWeb3WalletAddress(auctionAddress) : 
-                        calculateUsdtWalletAddress(auctionAddress))
+                        calculateWeb3WalletAddress(auctionAddress, contractCodes.web3WalletCode) : 
+                        calculateUsdtWalletAddress(auctionAddress, contractCodes.usdtWalletCode))
                 .endCell()
     });
 
-    return TONS_DEPLOY_JETTON_MULTIPLE_AUCTION + msg.sendAndEstimateFee();
+    return TONS_DEPLOY_JETTON_MULTIPLE_AUCTION + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 }

@@ -1,32 +1,34 @@
 import "constants";
 
-fun domainNameToAddress(domainName: slice): builder {
+@inline
+fun domainNameToAddress(domainName: slice, domainCode: cell): builder {
     var domainIndex = domainName.hash();
-    var data = beginCell().storeUint(domainIndex, 256).storeSlice(TON_DNS_ADDRESS).endCell();
+    var data = beginCell().storeUint(domainIndex, 256).storeAddress(TON_DNS_ADDRESS).endCell();
 
     return AutoDeployAddress {
         stateInit: ContractState {
-            code: DOMAIN_CODE(),
+            code: domainCode,
             data: data,
         }
     }.buildAddress();
 }
 
 
-fun tgUsernameToAddress(tgUsername: slice): builder {
+@inline
+fun tgUsernameToAddress(tgUsername: slice, tgUsernameCode: cell): builder {
     var usernameIndex = tgUsername.bitsHash();
     var data = beginCell() 
                     .storeRef(
                         beginCell()
                             .storeUint(usernameIndex, 256)
-                            .storeSlice(TG_USERNAMES_ADDRESS)
+                            .storeAddress(TG_USERNAMES_ADDRESS)
                         .endCell()
                     )
                     .storeInt(0, 1)
                 .endCell();
     return AutoDeployAddress {
         stateInit: ContractState {
-            code: TG_USERNAME_CODE(),
+            code: tgUsernameCode,
             data: data,
         }
     }.buildAddress();

@@ -29,15 +29,19 @@ struct JettonSimpleAuctionDeployPayload {
 
 const TONS_DEPLOY_JETTON_SIMPLE_AUCTION = TONS_NFT_TRANSFER + TONS_MIN_RESERVE * 2 + ton("0.005");
 
+
 fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
-    var payload = lazy JettonSimpleAuctionDeployPayload.fromSlice(args.payloadSlice);
-    var deployInfo = lazy JettonSimpleAuctionDeployInfo.fromSlice(args.deployInfoSlice);
+    var payload = lazy JettonSimpleAuctionDeployPayload.fromSlice(args.commonArgs.payloadSlice);
+    var deployInfo: DeployInfoForJetton;
     
     if (payload.isWeb3) {
-        deployInfo = JettonSimpleAuctionDeployInfo.fromSlice(args.deployInfoSlice.loadRef().beginParse());
-        if (args.commissionDiscount != 0) {
-            args.commissionDiscount = COMMISSION_DIVIDER;
+        deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice.loadRef().beginParse());
+        if (args.commonArgs.commissionDiscount != 0) {
+            args.commonArgs.commissionDiscount = COMMISSION_DIVIDER;
         }
+    }
+    else {
+        deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice, { assertEndAfterReading: false });
     }
 
     payload.startTime = max(blockchain.now() + 30, payload.startTime);
@@ -47,8 +51,8 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
     assert(payload.minBidIncrement > 1000) throw(EXC_INCORRECT_BID_INCREMENT);
     assert(payload.timeIncrement >= deployInfo.minTimeIncrement) throw(EXC_INCORRECT_TIME_INCREMENT);
 
-    val commissionFactor = mulDivFloor(deployInfo.commissionFactor, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
-    val maxCommission = mulDivFloor(deployInfo.maxCommission, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
+    val commissionFactor = mulDivFloor(deployInfo.commissionFactor, COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
+    val maxCommission = mulDivFloor(deployInfo.maxCommission, COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
 
     var data = (Storage {
         state: STATE_UNINIT,
@@ -63,13 +67,12 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         hotUntil: 0,
         coloredUntil: 0,
         sellerAddress: args.commonArgs.fromAddress,
-        minBidValue: payload.minBidValue,
+        minBidValue: payload.minBidValue as uint64,
         minBidIncrement: payload.minBidIncrement,
         timeIncrement: payload.timeIncrement,
         commissionFactor: commissionFactor,
         ds2: (StorageDs2 {
             domainAddress: args.domainAddress,
-            sellerAddress: args.commonArgs.fromAddress,
             jettonWalletAddress: createAddressNone(),
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
             maxBidValue: payload.maxBidValue,
@@ -84,10 +87,9 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         },
     }).buildAddress();
 
-    val requiredGas = TONS_NFT_TRANSFER;
     createMessage({
         bounce: false,
-        value: requiredGas,
+        value: TONS_NFT_TRANSFER,
         dest: args.domainAddress,
         body: NftTransferMessageBuilder<cell> {
             queryId: 0,
@@ -105,5 +107,5 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         body: FillUpBalanceMessage { queryId: args.commonArgs.queryId }
     });
 
-    return TONS_DEPLOY_JETTON_SIMPLE_AUCTION + TONS_NFT_TRANSFER + msg.sendAndEstimateFee();
+    return TONS_DEPLOY_JETTON_SIMPLE_AUCTION + TONS_NFT_TRANSFER + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 } 

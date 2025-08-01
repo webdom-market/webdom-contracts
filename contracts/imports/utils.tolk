@@ -77,32 +77,32 @@ fun builder.storeStrJettons(mutate self, jettonAmount: int, oneJetton: int, symb
 }
 
 @inline
-fun calculateWeb3WalletAddress(ownerAddress: builder): builder {
+fun calculateWeb3WalletAddress(ownerAddress: builder, web3WalletCode: cell): builder {
     var data: cell = beginCell()
                 .storeCoins(0)
                 .storeBuilder(ownerAddress)
                 .storeAddress(WEB3_ADDRESS)
-                .storeRef(WEB3_WALLET_CODE())
+                .storeRef(web3WalletCode)
            .endCell();
     return (AutoDeployAddress {
         stateInit: ContractState {
-            code: WEB3_WALLET_CODE(),
+            code: web3WalletCode,
             data: data
         }
     }).buildAddress();
 }
 
 @inline
-fun calculateUsdtWalletAddress(ownerAddress: address): builder {
+fun calculateUsdtWalletAddress(ownerAddress: builder, usdtWalletCode: cell): builder {
     var data: cell = beginCell()
                     .storeUint(0, 4)
                     .storeCoins(0)
-                    .storeAddress(ownerAddress)
+                    .storeBuilder(ownerAddress)
                     .storeAddress(USDT_ADDRESS)
                 .endCell();
     return (AutoDeployAddress {
         stateInit: ContractState {
-            code: USDT_WALLET_CODE(),
+            code: usdtWalletCode,
             data: data
         }
     }).buildAddress();

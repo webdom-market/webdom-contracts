@@ -31,17 +31,17 @@ struct JettonMultipleSaleDeployPayload {
 
 const TONS_DEPLOY_JETTON_MULTIPLE_SALE: coins = ton("0.05");
 
-@method_id(107)
+
 fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
     var payload = lazy JettonMultipleSaleDeployPayload.fromSlice(args.payloadSlice);
     var deployInfo: DeployInfoForJetton;
     if (payload.isWeb3) {
-        deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice.loadRef().beginParse());
-        if (args.commonArgs.commissionDiscount != 0) {
-            args.commonArgs.commissionDiscount = COMMISSION_DIVIDER;
+        deployInfo = DeployInfoForJetton.fromSlice(args.deployInfoSlice.loadRef().beginParse());
+        if (args.commissionDiscount != 0) {
+            args.commissionDiscount = COMMISSION_DIVIDER;
         }
     } else {
-        deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice, { assertEndAfterReading: false });
+        deployInfo = DeployInfoForJetton.fromSlice(args.deployInfoSlice, { assertEndAfterReading: false });
     }
     
     assert(payload.price >= deployInfo.minPrice) throw EXC_PRICE_TOO_LOW;
@@ -74,7 +74,6 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
         createdAt: blockchain.now(),
         lastRenewalTime: blockchain.now(),
         validUntil: payload.validUntil,
-        tonsToReserve: ton("0.035"),
         jettonWalletAddress: createAddressNone(),
         hotUntil: 0,
         coloredUntil: 0,
@@ -89,6 +88,7 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
         },
     }).buildAddress();
 
+    val contractCodes = lazy args.contractCodes.load();
     val msg = createMessage({
         bounce: false,
         value: TONS_DEPLOY_JETTON_MULTIPLE_SALE,
@@ -98,10 +98,10 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
                 .storeUint(args.commonArgs.queryId, 64)
                 .storeBuilder(
                     payload.isWeb3 ?
-                        calculateWeb3WalletAddress(saleAddress) : 
-                        calculateUsdtWalletAddress(saleAddress))
+                        calculateWeb3WalletAddress(saleAddress, contractCodes.web3WalletCode) : 
+                        calculateUsdtWalletAddress(saleAddress, contractCodes.usdtWalletCode))
                 .endCell()
     }); 
 
-    return TONS_DEPLOY_TON_MULTIPLE_SALE + msg.sendAndEstimateFee();
+    return TONS_DEPLOY_JETTON_MULTIPLE_SALE + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 } 
