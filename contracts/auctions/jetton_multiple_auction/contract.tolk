@@ -187,26 +187,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.save();
                 return;
             } catch (e, _) {
-                // Try to return the domain back to the sender in case of error
-                createMessage({
-                    bounce: false,
-                    value: 0,
-                    dest: in.senderAddress,
-                    body: NftTransferMessage<cell> {
-                        queryId: 0,
-                        toAddress: msg.fromAddress,
-                        responseAddress: msg.fromAddress,
-                        forwardTonAmount: 1,
-                        forwardPayload: beginCell()
-                            .storeUint(0, 32)
-                            .storeSlice("Error, code ")
-                            .storeNumber10(e)
-                        .endCell()
-                    }
-                }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-                
-                commitContractDataAndActions();
-                throw e;
+                returnNftToSender(in.senderAddress, msg, e);
             }
         }
         
@@ -301,7 +282,7 @@ fun onInternalMessage(in: InMessage) {
                     storage.lastBidValue = storage2.maxBidValue;
                     storage.endTime = blockchain.now();
                     
-                    endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, msg.queryId);
+                    endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, msg.queryId, 0);
                     return;
                 } else {
                     reserveToncoinsOnBalance(tonsToReserve, RESERVE_MODE_EXACT_AMOUNT);
@@ -317,27 +298,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.save();
                 return;
             } catch (e, _) {
-                createMessage({
-                    bounce: false,
-                    value: 0,
-                    dest: in.senderAddress,
-                    body: SendJettonsMessage<cell> {
-                        queryId: msg.queryId,
-                        jettonAmount: msg.transferredJettons,
-                        toAddress: msg.fromAddress,
-                        responseAddress: msg.fromAddress,
-                        customPayload: null,
-                        forwardTonAmount: 1,
-                        forwardPayload: beginCell()
-                                        .storeUint(0, 32)
-                                        .storeSlice("Error. Code ")
-                                        .storeNumber10(e)
-                                    .endCell()
-                    }
-                }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-                
-                commitContractDataAndActions();
-                throw e;
+                returnJettonsToSender(in.senderAddress, msg, e);
             }
         }
         
@@ -391,9 +352,15 @@ fun onInternalMessage(in: InMessage) {
                         cancelAuction(mutate storage, 0, "Multiple auction on webdom.market was cancelled");
                         return;
                     } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
-                        assert(in.senderAddress == storage.sellerAddress || in.senderAddress == storage.lastBidderAddress) throw EXC_INCORRECT_SENDER;
+                        var additionalTons: coins;
+                        if (in.senderAddress == storage.sellerAddress) {
+                            additionalTons = in.valueCoins;
+                        } else {
+                            assert(in.senderAddress == storage.lastBidderAddress) throw EXC_INCORRECT_SENDER;
+                            additionalTons = 0;
+                        }
                         var storage2 = lazy storage.ds2.load();
-                        endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, 0);
+                        endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, 0, additionalTons);
                         return;
                     } else {
                         throw EXC_AUCTION_NOT_ENDED;
@@ -426,7 +393,7 @@ fun onExternalMessage(in: InMessage) {
             cancelAuction(mutate storage, queryId, "Multiple auction on webdom.market has ended without bids");
         } else {  // Auction finished successfully
             var storage2 = lazy storage.ds2.load();
-            endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, queryId);
+            endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, queryId, 0);
         }
         
         return;

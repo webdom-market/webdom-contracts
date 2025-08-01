@@ -2,7 +2,8 @@ import "@stdlib/tvm-lowlevel";
 import "../../imports/utils";
 import "../../imports/constants";
 import "messages";
-import "../../marketplace/deploy_contracts";
+import "../../marketplace/types";
+import "../../marketplace/constants";
 
 
 struct MultipleOfferDeployInfo {
@@ -14,6 +15,7 @@ struct MultipleOfferDeployPayload {
     merkleRoot: uint256;
 }
 
+const TONS_DEPLOY_MULTIPLE_OFFER = ton("0.05");
 
 fun deployMultipleOffer(args: SimpleDeployArgs): int {
     var deployInfo = MultipleOfferDeployInfo.fromSlice(args.deployInfoSlice);
@@ -32,16 +34,17 @@ fun deployMultipleOffer(args: SimpleDeployArgs): int {
             code: args.code,
             data: data,
         }
-    }).buildAddress();
+    });
 
     val contractCodes = lazy args.contractCodes.load();
-    val web3OfferAddress = calculateWeb3WalletAddress(offerAddress, contractCodes.web3WalletCode);
+    val web3OfferAddress = calculateWeb3WalletAddress(offerAddress.buildAddress(), contractCodes.web3WalletCode);
     
     val msg = createMessage<cell>({
         bounce: false,
-        value: ton("0.05"),
+        value: TONS_DEPLOY_MULTIPLE_OFFER,
         dest: offerAddress,
         body: beginCell()
+                .storeUint(OP_FILL_UP_BALANCE, 32)
                 .storeUint(args.queryId, 64)
                 .storeSlice(args.payloadSlice)
                 .storeUint(deployInfo.commissionFactor, 16)

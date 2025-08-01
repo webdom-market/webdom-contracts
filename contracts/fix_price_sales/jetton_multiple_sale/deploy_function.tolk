@@ -3,7 +3,8 @@ import "../../imports/utils";
 import "../../imports/constants";
 import "messages";
 import "../../imports/dns";
-import "../../marketplace/deploy_contracts";
+import "../../marketplace/types";
+import "../../marketplace/constants";
 import "../../imports/types";
 import "storage";
 import "../../imports/messages";
@@ -59,7 +60,7 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
     while (found) {
         domainsTotal += 1;
         assert(received!.bitsEqual(BIT_FALSE_SLICE())) throw EXC_INCORRECT_DOMAIN;
-        (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress);
+        (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress!);
     }
     assert(domainsTotal > 0) throw EXC_EMPTY_DICT;
 
@@ -95,7 +96,7 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
         dest: saleAddress,
         body: beginCell()
                 .storeUint(OP_FILL_UP_BALANCE, 32)
-                .storeUint(args.commonArgs.queryId, 64)
+                .storeUint(args.queryId, 64)
                 .storeBuilder(
                     payload.isWeb3 ?
                         calculateWeb3WalletAddress(saleAddress, contractCodes.web3WalletCode) : 

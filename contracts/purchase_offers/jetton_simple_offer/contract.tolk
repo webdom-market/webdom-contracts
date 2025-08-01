@@ -191,30 +191,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.save();
                 return;
             } catch (e, _) {
-                if (storage.state == STATE_ACTIVE) {
-                    reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
-                }
-                
-                createMessage({
-                    bounce: false,
-                    value: 0,
-                    dest: in.senderAddress,
-                    body: NftTransferMessage<cell> {
-                        queryId: msg.queryId,
-                        toAddress: msg.fromAddress,
-                        responseAddress: msg.fromAddress,
-                        customPayload: null,
-                        forwardTonAmount: 0,
-                        forwardPayload: beginCell()
-                                        .storeUint(0, 32)
-                                        .storeSlice("Error, code ")
-                                        .storeNumber10(e)
-                                    .endCell()
-                    }
-                }).send(SEND_MODE_CARRY_ALL_BALANCE);
-                
-                commitContractDataAndActions();
-                throw e;
+                returnNftToSender(in.senderAddress, msg, e);
             }
         }
         
@@ -222,7 +199,7 @@ fun onInternalMessage(in: InMessage) {
         CounterProposeMessage => {
             var storage = Storage.load();
             var storage2 = lazy storage.ds2.load();
-            assert (storage.sellerAddress == in.senderAddress) throw EXC_DEAL_NOT_ACTIVE;
+            assert (storage.sellerAddress == in.senderAddress) throw EXC_INCORRECT_SENDER;
             assert(storage.validUntil > blockchain.now() && storage.sellerPrice > 0) throw EXC_DEAL_NOT_ACTIVE;
             
             storage.sellerPrice = msg.sellerPrice;
@@ -339,31 +316,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.save();
                 return;
             } catch (e, _) {
-                if (storage.state == STATE_ACTIVE) {
-                    reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
-                }
-                
-                createMessage({
-                    bounce: false,
-                    value: 0,
-                    dest: in.senderAddress,
-                    body: SendJettonsMessage<cell> {
-                        queryId: msg.queryId,
-                        jettonAmount: msg.transferredJettons,
-                        toAddress: msg.fromAddress,
-                        responseAddress: msg.fromAddress,
-                        customPayload: null,
-                        forwardTonAmount: 1,
-                        forwardPayload: beginCell()
-                                        .storeUint(0, 32)
-                                        .storeSlice("Error. Code ")
-                                        .storeNumber10(e)
-                                    .endCell()
-                    }
-                }).send(SEND_MODE_CARRY_ALL_BALANCE);
-                
-                commitContractDataAndActions();
-                throw e;
+                returnJettonsToSender(in.senderAddress, msg, e);
             }
         }
                 

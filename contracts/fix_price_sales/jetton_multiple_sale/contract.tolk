@@ -120,26 +120,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.save();
                 return;
             } catch (e, _) {
-                // Try to return the domain back to the sender in case of error
-                createMessage({
-                    bounce: false,
-                    value: 0,
-                    dest: in.senderAddress,
-                    body: NftTransferMessage<cell> {
-                        queryId: 0,
-                        toAddress: msg.fromAddress,
-                        responseAddress: msg.fromAddress,
-                        forwardTonAmount: 1,
-                        forwardPayload: beginCell()
-                            .storeUint(0, 32)
-                            .storeSlice("Error, code ")
-                            .storeNumber10(e)
-                        .endCell()
-                    }
-                }).send(SEND_MODE_CARRY_ALL_BALANCE);
-                
-                commitContractDataAndActions();
-                throw e;
+                returnNftToSender(in.senderAddress, msg, e);
             }
         }
         
@@ -244,27 +225,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.save();
                 return;
             } catch (e, _) {
-                createMessage({
-                    bounce: false,
-                    value: 0,
-                    dest: in.senderAddress,
-                    body: SendJettonsMessage<cell> {
-                        queryId: msg.queryId,
-                        jettonAmount: msg.transferredJettons,
-                        toAddress: msg.fromAddress,
-                        responseAddress: msg.fromAddress,
-                        customPayload: null,
-                        forwardTonAmount: 1,
-                        forwardPayload: beginCell()
-                                        .storeUint(0, 32)
-                                        .storeSlice("Error. Code ")
-                                        .storeNumber10(e)
-                                    .endCell()
-                    }
-                }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-                
-                commitContractDataAndActions();
-                throw e;
+                returnJettonsToSender(in.senderAddress, msg, e);
             }
         }
         

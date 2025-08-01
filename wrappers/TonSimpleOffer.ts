@@ -58,16 +58,12 @@ export class TonSimpleOffer extends DefaultContract {
     }
 
     static deployPayload(price: bigint, validUntil: number, sellerAddress: Address, domainName: string, notifySeller: boolean = true) {
-        let domainZone = domainName.slice(domainName.indexOf('.')); 
-        let isTgUsername = domainZone == ".t.me";
-        let domainNameWithoutZone = domainName.slice(0, domainName.indexOf('.'));
         return beginCell()
-                    .storeBit(isTgUsername)
                     .storeCoins(price)
                     .storeUint(validUntil, 32)
                     .storeAddress(sellerAddress)
                     .storeBit(notifySeller)
-                    .storeStringRefTail(domainNameWithoutZone)
+                    .storeStringRefTail(domainName)
                 .endCell();
     }
 

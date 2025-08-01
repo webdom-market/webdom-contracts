@@ -4,7 +4,7 @@ import "../messages";
 
 type AllowedMessage = (
     FillUpBalanceMessage
-    | NftOwnershipAssignedMessage<cell>
+    | NftOwnershipAssignedMessage<SerializableSlice>
     | DnsBalanceReleaseMessage
     | ChangePriceMessage
     | RenewDomainMessage

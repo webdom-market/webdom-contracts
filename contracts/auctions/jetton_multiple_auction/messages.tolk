@@ -4,7 +4,7 @@ import "../messages";
 
 type AllowedMessage = (
     DeployAndSetWalletMessage
-    | NftOwnershipAssignedMessage<cell>
+    | NftOwnershipAssignedMessage<SerializableSlice>
     | JettonsTransferNotificationMessage<SerializableSlice>
     | RenewDomainMessage
     | MakeHotMessage

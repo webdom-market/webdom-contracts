@@ -3,14 +3,9 @@ fun deployFunctionCell(): cell
     asm """<{
     DECLPROC builder.storeStrFloat()
       DECLPROC builder.storeStrJettons()
-      DECLPROC calculateWeb3WalletAddress()
       DECLPROC calculateUsdtWalletAddress()
       DECLPROC forceSameWorkchain()
       DECLPROC getPayoutNotificationBody()
-      DECLPROC domainNameToAddress()
-      DECLPROC tgUsernameToAddress()
-      DECLPROC Storage.load()
-      DECLPROC Storage.save()
       builder.storeStrFloat() PROCINLINE:<{	//  self number tenPowDecimals
         TUCK                    	//  self tenPowDecimals number tenPowDecimals
         DIVMOD                  	//  self tenPowDecimals intPart decPart
@@ -121,41 +116,12 @@ fun deployFunctionCell(): cell
         s1 s2 XCHG              	//  self symbol '6
         STSLICE                 	//  self '6
       }>
-      calculateWeb3WalletAddress() PROCINLINE:<{	//  ownerAddress web3WalletCode
-        NEWC                    	//  ownerAddress web3WalletCode '3
-        x{0} STSLICECONST       	//  ownerAddress web3WalletCode '3
-        s1 s2 XCHG              	//  web3WalletCode ownerAddress '3
-        STB                     	//  web3WalletCode '3
-        x{800DAE17C1207C7BA7C4A480F975A3B953AD3F6CCA249D4E97E33A88F2EF1E5DB17_} PUSHSLICE	//  web3WalletCode '3 '7
-        STSLICER                	//  web3WalletCode '3
-        OVER                    	//  web3WalletCode '3 web3WalletCode
-        STREFR                  	//  web3WalletCode '3
-        ENDC                    	//  web3WalletCode data
-            DUP2            // code data code data
-            HASHCU
-            SWAP
-            HASHCU          // code data dataHash codeHash
-            SWAP2           // dataHash codeHash code data
-            CDEPTH
-            SWAP
-            CDEPTH          // dataHash codeHash dataDepth codeDepth
-            NEWC
-            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
-            16 STU                 // store codeDepth
-            16 STU                 // store dataDepth
-            256 STU                // store codeHash
-            256 STU                // store dataHash
-            ONE HASHEXT_SHA256  	//  '21
-        NEWC                    	//  '21 '20
-        b{10000000000} STSLICECONST	//  '21 '20
-        256 STU                 	//  '20
-      }>
       calculateUsdtWalletAddress() PROCINLINE:<{	//  ownerAddress usdtWalletCode
         NEWC                    	//  ownerAddress usdtWalletCode '4
         x{00} STSLICECONST      	//  ownerAddress usdtWalletCode '4
         s1 s2 XCHG              	//  usdtWalletCode ownerAddress '4
         STB                     	//  usdtWalletCode '4
-        x{801622753296A04942CE33ED2272651D6EB2B2D87144BEB2051628DFD9B86C43BFD_} PUSHSLICE	//  usdtWalletCode '4 '10
+        x{8014D1EFF27038AD5F4C11D80A60DDB3D9C5485BA4E2826E9EA6BAA56FBBFF4119B_} PUSHSLICE	//  usdtWalletCode '4 '8
         STSLICER                	//  usdtWalletCode '4
         ENDC                    	//  usdtWalletCode data
             DUP2            // code data code data
@@ -172,10 +138,10 @@ fun deployFunctionCell(): cell
             16 STU                 // store dataDepth
             256 STU                // store codeHash
             256 STU                // store dataHash
-            ONE HASHEXT_SHA256  	//  '23
-        NEWC                    	//  '23 '22
-        b{10000000000} STSLICECONST	//  '23 '22
-        256 STU                 	//  '22
+            ONE HASHEXT_SHA256  	//  '21
+        NEWC                    	//  '21 '20
+        b{10000000000} STSLICECONST	//  '21 '20
+        256 STU                 	//  '20
       }>
       forceSameWorkchain() PROCINLINE:<{	//  addr
         REWRITESTDADDR
@@ -191,175 +157,47 @@ fun deployFunctionCell(): cell
         STREF                   	//  '2
         ENDC                    	//  '8
       }>
-      domainNameToAddress() PROCINLINE:<{	//  domainName domainCode
-        SWAP                    	//  domainCode domainName
-        HASHSU                  	//  domainCode domainIndex
-        NEWC                    	//  domainCode domainIndex '5
-        256 STU                 	//  domainCode '5
-        x{8016EE9B2BD640A87E30D80D66E357115AE09EFC4AC26195F2C3126D14FA196D99F_} PUSHSLICE	//  domainCode '5 '8
-        STSLICER                	//  domainCode '5
-        ENDC                    	//  domainCode data
-            DUP2            // code data code data
-            HASHCU
-            SWAP
-            HASHCU          // code data dataHash codeHash
-            SWAP2           // dataHash codeHash code data
-            CDEPTH
-            SWAP
-            CDEPTH          // dataHash codeHash dataDepth codeDepth
-            NEWC
-            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
-            16 STU                 // store codeDepth
-            16 STU                 // store dataDepth
-            256 STU                // store codeHash
-            256 STU                // store dataHash
-            ONE HASHEXT_SHA256  	//  '21
-        NEWC                    	//  '21 '20
-        b{10000000000} STSLICECONST	//  '21 '20
-        256 STU                 	//  '20
-      }>
-      tgUsernameToAddress() PROCINLINE:<{	//  tgUsername tgUsernameCode
-        SWAP                    	//  tgUsernameCode tgUsername
-        SHA256U                 	//  tgUsernameCode usernameIndex
-        NEWC                    	//  tgUsernameCode usernameIndex '5
-        SWAP
-        NEWC                    	//  tgUsernameCode '5 usernameIndex '6
-        256 STU                 	//  tgUsernameCode '5 '6
-        x{80101AF146BF2AB4296CF3F5510FFE99AB7F81E876949DD454FCD24FE6E0364E785_} PUSHSLICE	//  tgUsernameCode '5 '6 '9
-        STSLICER                	//  tgUsernameCode '5 '6
-        ENDC                    	//  tgUsernameCode '5 '11
-        STREFR                  	//  tgUsernameCode '5
-        b{0} STSLICECONST       	//  tgUsernameCode '5
-        ENDC                    	//  tgUsernameCode data
-            DUP2            // code data code data
-            HASHCU
-            SWAP
-            HASHCU          // code data dataHash codeHash
-            SWAP2           // dataHash codeHash code data
-            CDEPTH
-            SWAP
-            CDEPTH          // dataHash codeHash dataDepth codeDepth
-            NEWC
-            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
-            16 STU                 // store codeDepth
-            16 STU                 // store dataDepth
-            256 STU                // store codeHash
-            256 STU                // store dataHash
-            ONE HASHEXT_SHA256  	//  '27
-        NEWC                    	//  '27 '26
-        b{10000000000} STSLICECONST	//  '27 '26
-        256 STU                 	//  '26
-      }>
-      Storage.load() PROC:<{      	// 
-        c4 PUSH                 	//  '0
-        CTOS                    	//  s
-        LDMSGADDR               	//  '4 s
-        LDMSGADDR               	//  '4 '5 s
-        LDGRAMS                 	//  '4 '5 '6 s
-        2 LDU                   	//  '4 '5 '6 '8 s
-        LDGRAMS                 	//  '4 '5 '6 '8 '9 s
-        32 LDU                  	//  '4 '5 '6 '8 '9 '11 s
-        32 LDU                  	//  '4 '5 '6 '8 '9 '11 '13 s
-        32 LDU                  	//  '4 '5 '6 '8 '9 '11 '13 '15 s
-        LDOPTREF                	//  '4 '5 '6 '8 '9 '11 '13 '15 '16 s
-        LDREF                   	//  '4 '5 '6 '8 '9 '11 '13 '15 '16 '17 s
-        32 LDU                  	//  '4 '5 '6 '8 '9 '11 '13 '15 '16 '17 '19 s
-        32 LDU                  	//  '4 '5 '6 '8 '9 '11 '13 '15 '16 '17 '19 '21 s
-        ENDS                    	//  '4 '5 '6 '8 '9 '11 '13 '15 '16 '17 '19 '21
-      }>
-      Storage.save() PROCINLINE:<{	//  self.domainAddress self.sellerAddress self.price self.state self.commission self.createdAt self.lastRenewalTime self.validUntil self.buyerAddressCell self.domainNameCell self.hotUntil self.coloredUntil
-        s0 s11 XCHG
-        NEWC                    	//  self.coloredUntil self.sellerAddress self.price self.state self.commission self.createdAt self.lastRenewalTime self.validUntil self.buyerAddressCell self.domainNameCell self.hotUntil self.domainAddress b
-        STSLICE                 	//  self.coloredUntil self.sellerAddress self.price self.state self.commission self.createdAt self.lastRenewalTime self.validUntil self.buyerAddressCell self.domainNameCell self.hotUntil b
-        s1 s10 XCHG             	//  self.coloredUntil self.hotUntil self.price self.state self.commission self.createdAt self.lastRenewalTime self.validUntil self.buyerAddressCell self.domainNameCell self.sellerAddress b
-        STSLICE                 	//  self.coloredUntil self.hotUntil self.price self.state self.commission self.createdAt self.lastRenewalTime self.validUntil self.buyerAddressCell self.domainNameCell b
-        s0 s8 XCHG2             	//  self.coloredUntil self.hotUntil self.domainNameCell self.state self.commission self.createdAt self.lastRenewalTime self.validUntil self.buyerAddressCell b self.price
-        STGRAMS                 	//  self.coloredUntil self.hotUntil self.domainNameCell self.state self.commission self.createdAt self.lastRenewalTime self.validUntil self.buyerAddressCell b
-        s1 s6 XCHG              	//  self.coloredUntil self.hotUntil self.domainNameCell self.buyerAddressCell self.commission self.createdAt self.lastRenewalTime self.validUntil self.state b
-        2 STU                   	//  self.coloredUntil self.hotUntil self.domainNameCell self.buyerAddressCell self.commission self.createdAt self.lastRenewalTime self.validUntil b
-        s0 s4 XCHG2             	//  self.coloredUntil self.hotUntil self.domainNameCell self.buyerAddressCell self.validUntil self.createdAt self.lastRenewalTime b self.commission
-        STGRAMS                 	//  self.coloredUntil self.hotUntil self.domainNameCell self.buyerAddressCell self.validUntil self.createdAt self.lastRenewalTime b
-        s1 s2 XCHG              	//  self.coloredUntil self.hotUntil self.domainNameCell self.buyerAddressCell self.validUntil self.lastRenewalTime self.createdAt b
-        32 STU                  	//  self.coloredUntil self.hotUntil self.domainNameCell self.buyerAddressCell self.validUntil self.lastRenewalTime b
-        32 STU                  	//  self.coloredUntil self.hotUntil self.domainNameCell self.buyerAddressCell self.validUntil b
-        32 STU                  	//  self.coloredUntil self.hotUntil self.domainNameCell self.buyerAddressCell b
-        STOPTREF                	//  self.coloredUntil self.hotUntil self.domainNameCell b
-        STREF                   	//  self.coloredUntil self.hotUntil b
-        32 STU                  	//  self.coloredUntil b
-        32 STU                  	//  b
-        ENDC                    	//  '20
-        c4 POP                  	// 
-      }>
 
     // Main deploy function content:
-	//  args.commonArgs.fromAddress args.commonArgs.payloadSlice args.commonArgs.deployInfoSlice args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.commonArgs.publicKey args.commonArgs.contractCodes args.domainAddress args.domainNameCell
-    2 2 BLKDROP2            	//  args.commonArgs.fromAddress args.commonArgs.payloadSlice s args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress args.domainNameCell
-    s0 s5 XCHG              	//  args.commonArgs.fromAddress args.commonArgs.payloadSlice args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress s
-    LDGRAMS                 	//  args.commonArgs.fromAddress args.commonArgs.payloadSlice args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress '17 s
-    16 LDU                  	//  args.commonArgs.fromAddress args.commonArgs.payloadSlice args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress '17 '19 s
-    LDGRAMS                 	//  args.commonArgs.fromAddress args.commonArgs.payloadSlice args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress '17 '19 '20 s
-    32 LDU                  	//  args.commonArgs.fromAddress args.commonArgs.payloadSlice args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress '17 '19 '20 '22 s
-    ENDS                    	//  args.commonArgs.fromAddress s args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration
-    s0 s9 XCHG              	//  args.commonArgs.fromAddress deployInfo.minDuration args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission s
-    LDGRAMS                 	//  args.commonArgs.fromAddress deployInfo.minDuration args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission '28 s
-    32 LDU                  	//  args.commonArgs.fromAddress deployInfo.minDuration args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission '28 '30 s
-    ENDS                    	//  args.commonArgs.fromAddress deployInfo.minDuration args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission payload.price payload.validUntil
-    s1 s4 PUXC              	//  args.commonArgs.fromAddress deployInfo.minDuration args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission payload.price payload.price deployInfo.minPrice
-    GEQ                     	//  args.commonArgs.fromAddress deployInfo.minDuration args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission payload.price '32
-    70 THROWIFNOT           	//  args.commonArgs.fromAddress deployInfo.minDuration args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission payload.price
-    NOW                     	//  args.commonArgs.fromAddress deployInfo.minDuration args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission payload.price '35
-    s0 s10 XCHG2            	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '35 deployInfo.minDuration
-    ADD                     	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '36
-    s3 PUSH                 	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '36 payload.validUntil
-    LEQ                     	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '37
-    IF:<{                   	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission
-      NOW                   	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '39
-      31622400 PUSHINT      	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '39 '46
-      ADD                   	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '47
-      86400 PUSHINT         	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '47 '52
-      SUB                   	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '53
-      s3 PUSH               	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '53 payload.validUntil
-      GEQ                   	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '54
-      0 NEQINT              	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '38
-    }>ELSE<{                	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission
-      0 PUSHINT             	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission '38=0
+	//  args.fromAddress args.payloadSlice args.deployInfoSlice args.code args.commissionDiscount args.queryId args.publicKey args.contractCodes
+//  args.fromAddress args.payloadSlice s args.code args.commissionDiscount args.queryId args.publicKey args.contractCodes
+    s0 s5 XCHG              	//  args.fromAddress args.payloadSlice args.contractCodes args.code args.commissionDiscount args.queryId args.publicKey s
+    16 LDU                  	//  args.fromAddress args.payloadSlice args.contractCodes args.code args.commissionDiscount args.queryId args.publicKey '14 s
+    16 LDU                  	//  args.fromAddress args.payloadSlice args.contractCodes args.code args.commissionDiscount args.queryId args.publicKey '14 '16 s
+    ENDS                    	//  args.fromAddress args.payloadSlice args.contractCodes args.code args.commissionDiscount args.queryId args.publicKey deployInfo.commissionFactor deployInfo.web3CommissionFactor
+    s4 PUSH                 	//  args.fromAddress args.payloadSlice args.contractCodes args.code args.commissionDiscount args.queryId args.publicKey deployInfo.commissionFactor deployInfo.web3CommissionFactor args.commissionDiscount
+    IF:<{                   	//  args.fromAddress args.payloadSlice args.contractCodes args.code args.commissionDiscount args.queryId args.publicKey deployInfo.commissionFactor deployInfo.web3CommissionFactor
+      DROP                  	//  args.fromAddress args.payloadSlice args.contractCodes args.code args.commissionDiscount args.queryId args.publicKey deployInfo.commissionFactor
+      0 PUSHINT             	//  args.fromAddress args.payloadSlice args.contractCodes args.code args.commissionDiscount args.queryId args.publicKey deployInfo.commissionFactor deployInfo.web3CommissionFactor=0
+      10000 PUSHINT         	//  args.fromAddress args.payloadSlice args.contractCodes args.code args.commissionDiscount args.queryId args.publicKey deployInfo.commissionFactor deployInfo.web3CommissionFactor=0 '18=10000
+      s0 s5 XCHG2           	//  args.fromAddress args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor=0 args.queryId args.publicKey deployInfo.commissionFactor '18=10000 args.commissionDiscount
+      SUB                   	//  args.fromAddress args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor=0 args.queryId args.publicKey deployInfo.commissionFactor '19
+      10000 PUSHINT         	//  args.fromAddress args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor=0 args.queryId args.publicKey deployInfo.commissionFactor '19 '20=10000
+      MULDIV                	//  args.fromAddress args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor=0 args.queryId args.publicKey deployInfo.commissionFactor
+    }>ELSE<{
+      s4 POP                	//  args.fromAddress args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor args.queryId args.publicKey deployInfo.commissionFactor
     }>
-    49 THROWIFNOT           	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.commissionFactor deployInfo.maxCommission
-    s8 s1 PUXC
-    10000 PUSHINT           	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.maxCommission payload.price deployInfo.commissionFactor '60=10000
-    MULDIV                  	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil deployInfo.maxCommission '61
-    MIN                     	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil '62
-    10000 PUSHINT           	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.validUntil '62 '63=10000
-    s0 s5 XCHG2             	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code '62 args.commonArgs.queryId args.domainAddress payload.validUntil '63=10000 args.commonArgs.commissionDiscount
-    SUB                     	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code '62 args.commonArgs.queryId args.domainAddress payload.validUntil '64
-    s1 s4 XCHG
-    10000 PUSHINT           	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress '62 '64 '65=10000
-    MULDIV                  	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission
-    NOW                     	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69
-    NOW                     	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69 '70
-    PUSHNULL                	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69 '70 '71
-    s4 PUSH
-    NEWC                    	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69 '70 '71 args.domainAddress b
-    STSLICE                 	//  args.commonArgs.fromAddress payload.price args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69 '70 '71 b
-    s1 s11 XCHG             	//  '71 payload.price args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69 '70 args.commonArgs.fromAddress b
-    STSLICE                 	//  '71 payload.price args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69 '70 b
-    s0 s9 XCHG2             	//  '71 '70 args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69 b payload.price
-    STGRAMS                 	//  '71 '70 args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69 b
-    b{00} STSLICECONST      	//  '71 '70 args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress commission '69 b
-    ROT                     	//  '71 '70 args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress '69 b commission
-    STGRAMS                 	//  '71 '70 args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress '69 b
-    32 STU                  	//  '71 '70 args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId args.domainAddress b
-    s1 s6 XCHG              	//  '71 args.domainAddress args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId '70 b
-    32 STU                  	//  '71 args.domainAddress args.domainNameCell args.commonArgs.code payload.validUntil args.commonArgs.queryId b
-    s1 s2 XCHG              	//  '71 args.domainAddress args.domainNameCell args.commonArgs.code args.commonArgs.queryId payload.validUntil b
-    32 STU                  	//  '71 args.domainAddress args.domainNameCell args.commonArgs.code args.commonArgs.queryId b
-    s1 s5 XCHG              	//  args.commonArgs.queryId args.domainAddress args.domainNameCell args.commonArgs.code '71 b
-    STOPTREF                	//  args.commonArgs.queryId args.domainAddress args.domainNameCell args.commonArgs.code b
-    s1 s2 XCHG              	//  args.commonArgs.queryId args.domainAddress args.commonArgs.code args.domainNameCell b
-    STREF                   	//  args.commonArgs.queryId args.domainAddress args.commonArgs.code b
+    s0 s7 XCHG
+    NEWC                    	//  deployInfo.commissionFactor args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor args.queryId args.publicKey args.fromAddress '23
+    STSLICE                 	//  deployInfo.commissionFactor args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor args.queryId args.publicKey '23
     0 PUSHINT
-    64 STUR                 	//  args.commonArgs.queryId args.domainAddress args.commonArgs.code b
-    ENDC                    	//  args.commonArgs.queryId args.domainAddress args.commonArgs.code data
+    256 STUR                	//  deployInfo.commissionFactor args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor args.queryId args.publicKey '23
+    SWAP
+    NEWC                    	//  deployInfo.commissionFactor args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor args.queryId '23 args.publicKey b
+    256 STU                 	//  deployInfo.commissionFactor args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor args.queryId '23 b
+    ENDC                    	//  deployInfo.commissionFactor args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor args.queryId '23 '31
+    STREFR                  	//  deployInfo.commissionFactor args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor args.queryId '23
+    0 PUSHINT
+    36 STUR                 	//  deployInfo.commissionFactor args.payloadSlice args.contractCodes args.code deployInfo.web3CommissionFactor args.queryId '23
+    ENDC                    	//  deployInfo.commissionFactor args.payloadSlice args.contractCodes offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId offerAddress.stateInit.USlot2
+    s0 s4 XCHG              	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId args.contractCodes
+    CTOS                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId lazyS
+    LDREF                   	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId '57 lazyS
+    NIP                     	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId lazyS
+    LDREF                   	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId '58 lazyS
+    NIP                     	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId lazyS
+    PLDREF                  	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode
+    s3 s4 PUSH2             	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2
                      // code data
         DUP2            // code data code data
         HASHCU
@@ -375,53 +213,91 @@ fun deployFunctionCell(): cell
         16 STU                 // store dataDepth
         256 STU                // store codeHash
         256 STU                // store dataHash
-        ONE HASHEXT_SHA256  	//  args.commonArgs.queryId args.domainAddress '94
-    NEWC                    	//  args.commonArgs.queryId args.domainAddress '94 '93
-    b{10000000000} STSLICECONST	//  args.commonArgs.queryId args.domainAddress '94 '93
-    256 STU                 	//  args.commonArgs.queryId args.domainAddress saleAddress
-    30000000 PUSHINT        	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000
-    b{00} PUSHSLICE         	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '125
-    PUSHNULL                	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '125 '126
-    PUSHNULL                	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '125 '126 '128
-    NEWC                    	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '125 '126 '128 refb
-    x{5fcc3d140000000000000000} STSLICECONST	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '125 '126 '128 refb
-    s5 PUSH                 	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '125 '126 '128 refb saleAddress
-    STBR                    	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '125 '126 '128 refb
-    s1 s3 XCHG              	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '128 '126 '125 refb
-    STSLICE                 	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '128 '126 refb
-    STOPTREF                	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '128 refb
-    x{0} STSLICECONST       	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '128 refb
-    STOPTREF                	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 refb
-    ENDC                    	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '145
-    NEWC                    	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '145 b
-    b{010000} STSLICECONST  	//  args.commonArgs.queryId args.domainAddress saleAddress '114=30000000 '145 b
-    s1 s4 XCHG              	//  args.commonArgs.queryId '145 saleAddress '114=30000000 args.domainAddress b
-    STSLICE                 	//  args.commonArgs.queryId '145 saleAddress '114=30000000 b
-    SWAP                    	//  args.commonArgs.queryId '145 saleAddress b '114=30000000
-    STGRAMS                 	//  args.commonArgs.queryId '145 saleAddress b
-    1 PUSHINT
-    107 STUR                	//  args.commonArgs.queryId '145 saleAddress b
-    s1 s2 XCHG              	//  args.commonArgs.queryId saleAddress '145 b
-    STREF                   	//  args.commonArgs.queryId saleAddress b
-    ENDC                    	//  args.commonArgs.queryId saleAddress '182
-    0 PUSHINT               	//  args.commonArgs.queryId saleAddress '182 '183=0
-    SENDRAWMSG              	//  args.commonArgs.queryId saleAddress
-    65000000 PUSHINT        	//  args.commonArgs.queryId saleAddress '192
-    NEWC                    	//  args.commonArgs.queryId saleAddress '192 b
-    b{010000} STSLICECONST  	//  args.commonArgs.queryId saleAddress '192 b
-    s1 s2 XCHG              	//  args.commonArgs.queryId '192 saleAddress b
-    STB                     	//  args.commonArgs.queryId '192 b
-    SWAP                    	//  args.commonArgs.queryId b '192
-    STGRAMS                 	//  args.commonArgs.queryId b
-    101311611 PUSHINT
-    139 STUR                	//  args.commonArgs.queryId b
-    64 STU                  	//  b
+        ONE HASHEXT_SHA256  	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '66
+    NEWC                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '66 '65
+    b{10000000000} STSLICECONST	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '66 '65
+    256 STU                 	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '65
+    NEWC                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '65 '87
+    x{0} STSLICECONST       	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '65 '87
+    STB                     	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '87
+    x{800BCFB13B3494CA795F167E94C52640B273E64B78229A15DB992A844E26F351AE9_} PUSHSLICE	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '87 '91
+    STSLICER                	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '87
+    OVER                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '87 contractCodes.web3WalletCode
+    STREFR                  	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode '87
+    ENDC                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId contractCodes.web3WalletCode data
+                     // code data
+        DUP2            // code data code data
+        HASHCU
+        SWAP
+        HASHCU          // code data dataHash codeHash
+        SWAP2           // dataHash codeHash code data
+        CDEPTH
+        SWAP
+        CDEPTH          // dataHash codeHash dataDepth codeDepth
+        NEWC
+        x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
+        16 STU                 // store codeDepth
+        16 STU                 // store dataDepth
+        256 STU                // store codeHash
+        256 STU                // store dataHash
+        ONE HASHEXT_SHA256  	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId '105
+    NEWC                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId '105 '104
+    b{10000000000} STSLICECONST	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId '105 '104
+    256 STU                 	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress
+    DUP                     	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress web3OfferAddress
+    ENDC                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress '124
+    CTOS                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress s
+    LDMSGADDR               	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress '128 s
+    ENDS                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress '128
+    x{80171F09B12257F917EE9B975D1572D95D337BF7750DAFFC51F0D8028FD3BA27381_} PUSHSLICE	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress '128 '129
+    SDEQ                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress '130
+    s0 DUMP DROP            	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress
+    50000000 PUSHINT        	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress '133=50000000
+    NEWC                    	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress '133=50000000 '138
+    x{0609e47b} STSLICECONST	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor args.queryId web3OfferAddress '133=50000000 '138
+    s1 s3 XCHG              	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor '133=50000000 web3OfferAddress args.queryId '138
+    64 STU                  	//  deployInfo.commissionFactor args.payloadSlice offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor '133=50000000 web3OfferAddress '138
+    s1 s6 XCHG              	//  deployInfo.commissionFactor web3OfferAddress offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor '133=50000000 args.payloadSlice '138
+    STSLICE                 	//  deployInfo.commissionFactor web3OfferAddress offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor '133=50000000 '138
+    s1 s6 XCHG              	//  '133=50000000 web3OfferAddress offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor deployInfo.commissionFactor '138
+    16 STU                  	//  '133=50000000 web3OfferAddress offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 deployInfo.web3CommissionFactor '138
+    16 STU                  	//  '133=50000000 web3OfferAddress offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 '138
+    s1 s3 XCHG              	//  '133=50000000 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 web3OfferAddress '138
+    STB                     	//  '133=50000000 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 '138
+    ENDC                    	//  '133=50000000 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 '149
+    NEWC                    	//  '133=50000000 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 '149 b
+    b{01000010000000000} STSLICECONST	//  '133=50000000 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 '149 b
+    2OVER                   	//  '133=50000000 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 '149 b offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2
+                     // code data
+        DUP2            // code data code data
+        HASHCU
+        SWAP
+        HASHCU          // code data dataHash codeHash
+        SWAP2           // dataHash codeHash code data
+        CDEPTH
+        SWAP
+        CDEPTH          // dataHash codeHash dataDepth codeDepth
+        NEWC
+        x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
+        16 STU                 // store codeDepth
+        16 STU                 // store dataDepth
+        256 STU                // store codeHash
+        256 STU                // store dataHash
+        ONE HASHEXT_SHA256  	//  '133=50000000 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 '149 b '171
+    256 STUR                	//  '133=50000000 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 '149 b
+    s0 s4 XCHG2             	//  '149 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 b '133=50000000
+    STGRAMS                 	//  '149 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 b
+    141 PUSHINT
+    113 STUR                	//  '149 offerAddress.stateInit.USlot1 offerAddress.stateInit.USlot2 b
+    s1 s2 XCHG              	//  '149 offerAddress.stateInit.USlot2 offerAddress.stateInit.USlot1 b
+    STREF                   	//  '149 offerAddress.stateInit.USlot2 b
+    STREF                   	//  '149 b
+    STREF                   	//  b
     ENDC                    	//  msg
-    95000000 PUSHINT        	//  msg '262
-    SWAP
-    1 PUSHINT               	//  '262 msg '263=1
-    SENDMSG                 	//  '262 '264
-    ADD                     	//  '265
+    1 PUSHINT               	//  msg '199=1
+    SENDMSG                 	//  '200
+    50000000 PUSHINT        	//  '200 '201=50000000
+    ADD                     	//  '202
 }>c PUSHREF""";
  
 

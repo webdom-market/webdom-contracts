@@ -11,10 +11,12 @@ const CONTRACT_PATHS: Record<string, string> = {
     'JettonMultipleAuction': 'auctions/jetton_multiple_auction',
     'TonSimpleAuction': 'auctions/ton_simple_auction',
     'TonMultipleAuction': 'auctions/ton_multiple_auction',
+
     'JettonSimpleSale': 'fix_price_sales/jetton_simple_sale',
     'JettonMultipleSale': 'fix_price_sales/jetton_multiple_sale',
     'TonSimpleSale': 'fix_price_sales/ton_simple_sale',
     'TonMultipleSale': 'fix_price_sales/ton_multiple_sale',
+    
     'JettonSimpleOffer': 'purchase_offers/jetton_simple_offer',
     'TonSimpleOffer': 'purchase_offers/ton_simple_offer',
     'MultipleOffer': 'purchase_offers/multiple_offer'

@@ -1,4 +1,5 @@
 import "constants.tolk";
+import "messages"
 
 fun beginParseExotic(c: cell): (slice, int)
     asm "XCTOS"
@@ -95,8 +96,7 @@ fun calculateWeb3WalletAddress(ownerAddress: builder, web3WalletCode: cell): bui
 @inline
 fun calculateUsdtWalletAddress(ownerAddress: builder, usdtWalletCode: cell): builder {
     var data: cell = beginCell()
-                    .storeUint(0, 4)
-                    .storeCoins(0)
+                    .storeUint(0, 8)
                     .storeBuilder(ownerAddress)
                     .storeAddress(USDT_ADDRESS)
                 .endCell();
@@ -123,4 +123,52 @@ fun getPayoutNotificationBody(domainNameCell: cell): cell {
             .storeSlice("Your domain was sold on webdom.market: ")
             .storeRef(domainNameCell)
         .endCell()
+}
+
+@inline
+fun returnJettonsToSender<T>(jettonWalletAddress: address, msg: JettonsTransferNotificationMessage<T>, errorCode: int): void {
+    createMessage({
+        bounce: true,
+        value: 0,
+        dest: jettonWalletAddress,
+        body: SendJettonsMessage<cell> {
+            queryId: msg.queryId,
+            jettonAmount: msg.transferredJettons,
+            toAddress: msg.fromAddress,
+            responseAddress: msg.fromAddress,
+            customPayload: null,
+            forwardTonAmount: 1,
+            forwardPayload: beginCell()
+                            .storeUint(0, 32)
+                            .storeSlice("Error. Code ")
+                            .storeNumber10(errorCode)
+                        .endCell()
+        }
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    
+    commitContractDataAndActions();
+    throw errorCode;
+}
+
+@inline
+fun returnNftToSender<T>(nftAddress: address, msg: NftOwnershipAssignedMessage<T>, errorCode: int): void {
+    createMessage({
+        bounce: false,
+        value: 0,
+        dest: nftAddress,
+        body: NftTransferMessage<cell> {
+            queryId: 0,
+            toAddress: msg.fromAddress,
+            responseAddress: msg.fromAddress,
+            forwardTonAmount: 1,
+            forwardPayload: beginCell()
+                .storeUint(0, 32)
+                .storeSlice("Error, code ")
+                .storeNumber10(errorCode)
+            .endCell()
+        }
+    }).send(SEND_MODE_CARRY_ALL_BALANCE);
+    
+    commitContractDataAndActions();
+    throw errorCode;
 }

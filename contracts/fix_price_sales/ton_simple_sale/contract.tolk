@@ -38,7 +38,7 @@ fun cancelDeal(mutate storage: Storage, queryId: uint64) {
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
     
-    // var storage = lazy Storage.load();
+    var storage = lazy Storage.load();
 
     handleAdminMessage(in.senderAddress, in.body, Permissions {
         allowChangeCode: storage.state != STATE_ACTIVE,

@@ -3,7 +3,8 @@ import "../../imports/utils";
 import "../../imports/constants";
 import "messages";
 import "../../imports/dns";
-import "../../marketplace/deploy_contracts";
+import "../../marketplace/types";
+import "../../marketplace/constants";
 import "../../imports/types";
 import "storage";
 import "../../imports/messages"
@@ -17,7 +18,6 @@ struct TonSimpleOfferDeploInfo {
 }
 
 struct TonSimpleOfferDeployPayload {
-    isTgUsername: bool;
     price: coins;
     validUntil: uint32;
     sellerAddress: address;
@@ -32,24 +32,21 @@ const TONS_DEPLOY_TON_OFFER = TONS_TON_SIMPLE_OFFER_RESERVE + ton("0.015");
 fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
     var deployInfo = TonSimpleOfferDeploInfo.fromSlice(args.deployInfoSlice);
     var payload = TonSimpleOfferDeployPayload.fromSlice(args.payloadSlice);
-    var domainAddressBuilder: builder;
 
     var contractCodes = lazy args.contractCodes.load();
-    if (payload.isTgUsername) {
-        domainAddressBuilder = tgUsernameToAddress(payload.domainNameCell.load().removeLastBits(5 * 8), contractCodes.tgUsernameCode);
-    } else {
-        domainAddressBuilder = domainNameToAddress(payload.domainNameCell.load().removeLastBits(4 * 8), contractCodes.domainCode);
-    }
+    var domainNameSlice = payload.domainNameCell.load();
+    val isTgUsername = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+    val domainAddressBuilder: builder = domainNameToAddress(domainNameSlice.removeLastBits(isTgUsername ? 5 * 8 : 4 * 8), contractCodes.domainCode);
 
     assert(payload.price >= deployInfo.minPrice) throw(EXC_PRICE_TOO_LOW);
-    assert(payload.validUntil >= blockchain.now() + deployInfo.minDuration) throw(EXC_INCORRECT_TIME_RANGE);
+    assert(payload.validUntil >= blockchain.now() + deployInfo.minDuration) throw(EXC_INCORRECT_VALID_UNTIL);
 
     var requiredGas = 0;
     if (payload.notifySeller) {
         assert(payload.sellerAddress != createAddressNone()) throw(EXC_INCORRECT_SELLER_ADDRESS);
         val msg = createMessage<cell>({
             bounce: false,
-            value: 0,
+            value: TONS_OFFER_NOTIFICATION,
             dest: payload.sellerAddress,
             body: beginCell()
                      .storeUint(0, 32)
@@ -78,8 +75,9 @@ fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
                 .storeBuilder(domainAddressBuilder)
                 .storeAddress(args.fromAddress)
                 .storeRef(payload.domainNameCell)
-                .storeRef(args.publicKey.toCell())
+                .storeMaybeRef(args.publicKey.toCell())
             .endCell();
+
     val offerAddress = AutoDeployAddress {
         stateInit: ContractState {
             code: args.code,

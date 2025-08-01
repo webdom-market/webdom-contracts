@@ -7,6 +7,7 @@ import "messages";
 import "../constants";
 import "@stdlib/gas-payments";
 import "../../imports/admin_message"
+import "../../imports/types"
 
 
 @inline
@@ -184,24 +185,11 @@ fun onInternalMessage(in: InMessage) {
                 storage.save();
             }
             catch (e, _) {
-                createMessage({
-                    bounce: false,
-                    value: 0,
-                    dest: in.senderAddress,
-                    body: NftTransferMessage<cell> { 
-                        queryId: msg.queryId,
-                        toAddress: msg.fromAddress,
-                        responseAddress: msg.fromAddress,
-                        forwardTonAmount: 1,
-                        forwardPayload: beginCell()
-                                            .storeUint(0, 32)
-                                            .storeSlice("Error, code: ")
-                                            .storeNumber10(e)
-                                        .endCell()
-                    }
-                }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-                commitContractDataAndActions();
-                throw e;
+                returnNftToSender(in.senderAddress, NftOwnershipAssignedMessage<bool> {
+                    queryId: msg.queryId,
+                    fromAddress: msg.fromAddress,
+                    forwardPayload: false
+                }, e);
             }
 
         }

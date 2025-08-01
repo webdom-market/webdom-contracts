@@ -172,29 +172,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.save();
                 return;
             } catch (e, _) {
-                if (storage.state == STATE_ACTIVE) {
-                    reserveToncoinsOnBalance(storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
-                }
-                
-                createMessage({
-                    bounce: false,
-                    value: 0,
-                    dest: in.senderAddress,
-                    body: NftTransferMessage<cell> {
-                        queryId: msg.queryId,
-                        toAddress: msg.fromAddress,
-                        responseAddress: msg.fromAddress,
-                        forwardTonAmount: 0,
-                        forwardPayload: beginCell()
-                                        .storeUint(0, 32)
-                                        .storeSlice("Error, code ")
-                                        .storeNumber10(e)
-                                    .endCell()
-                    }
-                }).send(SEND_MODE_CARRY_ALL_BALANCE);
-                
-                commitContractDataAndActions();
-                throw e;
+                returnNftToSender(in.senderAddress, msg, e);
             }
         }
         

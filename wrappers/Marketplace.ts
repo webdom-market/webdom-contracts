@@ -3,6 +3,7 @@ import { Addresses, ONE_DAY, OpCodes } from './helpers/constants';
 import { Maybe } from '@ton/core/dist/utils/maybe';
 import { DefaultContract } from './helpers/DefaultContract';
 import { sign } from '@ton/crypto';
+import { CONTRACT_CODES } from './helpers/codes';
 
 export class DeployData {
     raw: Cell;
@@ -17,21 +18,25 @@ export class DeployData {
 }
 
 export type DeployInfoValue = {
-    code: Cell;
+    deployType: number;
     deployFee: bigint;
+    dealCode: Cell;
+    deployFunctionCode: Cell;
     otherData: DeployData;
 };
 
 export function deployInfoValueParser(): DictionaryValue<DeployInfoValue> {
     return {
         serialize: (src, buidler) => {
-            buidler.storeRef(src.code).storeCoins(src.deployFee).storeSlice(src.otherData.raw.beginParse()).endCell();
+            buidler.storeUint(src.deployType, 2).storeCoins(src.deployFee).storeRef(src.dealCode).storeRef(src.deployFunctionCode).storeSlice(src.otherData.raw.beginParse()).endCell();
         },
         parse: (src) => {
-            const code = src.loadRef();
+            const deployType = src.loadUint(2);
             const deployFee = src.loadCoins();
+            const dealCode = src.loadRef();
+            const deployFunctionCode = src.loadRef();
             const otherData = new DeployData(src);
-            return {code, deployFee, otherData};
+            return {deployType, deployFee, dealCode, deployFunctionCode, otherData};
         }
     }
 }
@@ -66,12 +71,12 @@ export function subscriptionInfoValueParser(): DictionaryValue<Dictionary<number
 }
 
 
-export type HotPricesValue = {
+export type PromotionPricesValue = {
     hotPrice: bigint;
     coloredPrice: bigint;
 };
 
-export function hotPricesValueParser(): DictionaryValue<HotPricesValue> {
+export function promotionPricesValueParser(): DictionaryValue<PromotionPricesValue> {
     return {
         serialize: (src, buidler) => {
             buidler.storeUint(src.hotPrice, 64).storeUint(src.coloredPrice, 64).endCell();
@@ -87,44 +92,46 @@ export function hotPricesValueParser(): DictionaryValue<HotPricesValue> {
 export type MarketplaceConfig = {
     ownerAddress: Address;
     publicKey: bigint;
-    deployInfos: Dictionary<number, DeployInfoValue>;
-    
-    userSubscriptions?: Dictionary<Address, UserSubscriptionValue>;
-    subscriptionsInfo?: Dictionary<number, Dictionary<number, bigint>>;
-    
+
     moveUpSalePrice: bigint;
     currentTopSale: Address;
-    
-    usdtWalletAddress: Address;
-    web3WalletAddress: Address;
-
     collectedFeesTon: bigint;
-    collectedFeesUsdt: bigint;
-    collectedFeesWeb3: bigint;
+    collectedFeesDict: Dictionary<Address, bigint>;
 
-    hotPrices: Dictionary<number, HotPricesValue>;
+    deployInfos: Dictionary<number, DeployInfoValue>;
+    
+    web3WalletAddress: Address;
+    promotionPrices: Dictionary<number, PromotionPricesValue>;
+    userSubscriptions?: Dictionary<Address, UserSubscriptionValue>;
+    subscriptionsInfo?: Dictionary<number, Dictionary<number, bigint>>;
 };
 
-export function marketplaceConfigToCell(config: MarketplaceConfig): Cell {
+export function marketplaceConfigToCell(config: MarketplaceConfig, isTest: boolean): Cell {
+    const codeType = isTest ? "TESTS" : "PROD";
     return beginCell()
         .storeAddress(config.ownerAddress)
         .storeUint(config.publicKey, 256)
-        .storeDict(config.deployInfos, Dictionary.Keys.Uint(32), deployInfoValueParser())
-        
-        .storeDict(config.userSubscriptions, Dictionary.Keys.Address(), userSubscriptionValueParser())
-        .storeDict(config.subscriptionsInfo, Dictionary.Keys.Uint(8), subscriptionInfoValueParser())
-        
+
         .storeCoins(config.moveUpSalePrice)
         .storeAddress(config.currentTopSale)
+        .storeUint(config.collectedFeesTon, 64)
+        .storeDict(config.collectedFeesDict, Dictionary.Keys.Address(), Dictionary.Values.BigVarUint(4))
         
+        .storeDict(config.deployInfos, Dictionary.Keys.Uint(32), deployInfoValueParser())
         .storeRef(
             beginCell()
-                .storeAddress(config.usdtWalletAddress)
+                .storeRef(CONTRACT_CODES.DOMAIN[codeType])
+                .storeRef(CONTRACT_CODES.TG_USERNAME[codeType])
+                .storeRef(CONTRACT_CODES.WEB3_WALLET[codeType])
+                .storeRef(CONTRACT_CODES.USDT_WALLET[codeType])
+            .endCell()
+        )
+        .storeRef(
+            beginCell()
                 .storeAddress(config.web3WalletAddress)
-                .storeCoins(config.collectedFeesTon)
-                .storeCoins(config.collectedFeesUsdt)
-                .storeCoins(config.collectedFeesWeb3)
-                .storeDict(config.hotPrices, Dictionary.Keys.Uint(32), hotPricesValueParser())
+                .storeDict(config.promotionPrices, Dictionary.Keys.Uint(32), promotionPricesValueParser())
+                .storeDict(config.userSubscriptions, Dictionary.Keys.Address(), userSubscriptionValueParser())
+                .storeDict(config.subscriptionsInfo, Dictionary.Keys.Uint(8), subscriptionInfoValueParser())
             .endCell()
         )
     .endCell();
@@ -132,7 +139,7 @@ export function marketplaceConfigToCell(config: MarketplaceConfig): Cell {
 
 export class Marketplace extends DefaultContract {
     static readonly DeployOpCodes = {
-        TON_FIX_PRICE_SALE: 0x763e023f & 0x0fffffff,
+        TON_SIMPLE_SALE: 0x763e023f & 0x0fffffff,
         TON_MULTIPLE_SALE: 0xbee2b108 & 0x0fffffff,
         MULTIPLE_DOMAINS_SWAP: 0xc29adb98 & 0x0fffffff,
         TON_SIMPLE_AUCTION: 0x48615374 & 0x0fffffff,
@@ -145,13 +152,18 @@ export class Marketplace extends DefaultContract {
         TON_MULTIPLE_AUCTION: 0x54363e21 & 0x0fffffff,
         JETTON_MULTIPLE_AUCTION: 0x3630619a & 0x0fffffff,
     };
+    static readonly DeployTypes = {
+        SIMPLE: 0,
+        NFT_TRANSFER: 1,
+        JETTON_TRANSFER: 2,
+    };
     
     static createFromAddress(address: Address) {
         return new Marketplace(address);
     }
 
-    static createFromConfig(config: MarketplaceConfig, code: Cell, workchain = 0) {
-        const data = marketplaceConfigToCell(config);
+    static createFromConfig(config: MarketplaceConfig, code: Cell, isTest: boolean, workchain = 0) {
+        const data = marketplaceConfigToCell(config, isTest);
         const init = { code, data };
         return new Marketplace(contractAddress(workchain, init), init);
     }
@@ -179,10 +191,7 @@ export class Marketplace extends DefaultContract {
             let signature = sign(tmp2.endCell().hash(), secretKey!!);
             discountCell = tmp2.storeRef(beginCell().storeBuffer(signature).endCell()).endCell();
         }
-        let domainZone = domainName.slice(domainName.indexOf('.'));
-        let isTgUsername = domainZone == ".t.me";
-        domainName = domainName.slice(0, domainName.indexOf('.'));
-        return beginCell().storeUint(opCode, 32).storeBit(isTgUsername).storeStringRefTail(domainName).storeMaybeRef(discountCell).storeSlice(deployPayload.beginParse()).endCell();
+        return beginCell().storeUint(opCode, 32).storeStringRefTail(domainName).storeMaybeRef(discountCell).storeSlice(deployPayload.beginParse()).endCell();
     }
 
     async sendDeployDeal(provider: ContractProvider, via: Sender, value: bigint, opCode: number, deployPayload: Cell, 
@@ -244,14 +253,12 @@ export class Marketplace extends DefaultContract {
             moveUpSalePrice: stack.readBigNumber(),
             currentTopSale: stack.readAddress(),
 
-            usdtWalletAddress: stack.readAddress(), 
             web3WalletAddress: stack.readAddress(),
 
             collectedFeesTon: stack.readBigNumber(),
-            collectedFeesUsdt: stack.readBigNumber(),
-            collectedFeesWeb3: stack.readBigNumber(),
+            collectedFeesDict: stack.readCell().beginParse().loadDictDirect(Dictionary.Keys.Address(), Dictionary.Values.BigVarUint(4)),
 
-            hotPrices: stack.readCell().beginParse().loadDictDirect(Dictionary.Keys.Uint(32), hotPricesValueParser()),
+            promotionPrices: stack.readCell().beginParse().loadDictDirect(Dictionary.Keys.Uint(32), promotionPricesValueParser()),
         };
     }
 }

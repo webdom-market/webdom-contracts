@@ -66,11 +66,7 @@ export class JettonSimpleOffer extends DefaultContract {
     }
 
     static deployPayload(validUntil: number, sellerAddress: Address, domainName: string, notifySeller: boolean = true) {
-        let domainZone = domainName.slice(domainName.indexOf('.'));
-        let isTgUsername = domainZone == ".t.me";
-        domainName = domainName.slice(0, domainName.indexOf('.'));
         return beginCell()
-                    .storeBit(isTgUsername)
                     .storeUint(validUntil, 32)
                     .storeAddress(sellerAddress)
                     .storeBit(notifySeller)

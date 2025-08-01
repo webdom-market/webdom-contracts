@@ -161,27 +161,7 @@ fun onInternalMessage(in: InMessage) {
 
                 return;
             } catch (e, _) {
-                createMessage({
-                    bounce: false,
-                    value: 0,
-                    dest: in.senderAddress,
-                    body: SendJettonsMessage<cell> {
-                        queryId: msg.queryId,
-                        jettonAmount: msg.transferredJettons,
-                        toAddress: msg.fromAddress,
-                        responseAddress: msg.fromAddress,
-                        customPayload: null,
-                        forwardTonAmount: 1,
-                        forwardPayload: beginCell()
-                                        .storeUint(0, 32)
-                                        .storeSlice("Error. Code ")
-                                        .storeNumber10(e)
-                                    .endCell()
-                    }
-                }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-                
-                commitContractDataAndActions();
-                throw e;
+                returnJettonsToSender(in.senderAddress, msg, e);
             }
         }
 

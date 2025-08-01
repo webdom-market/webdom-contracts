@@ -1,22 +1,18 @@
 import "../imports/types"
 
-const EXC_PRICE_TOO_LOW            = 70;
-const EXC_EMPTY_DICT               = 71;
-const EXC_INCORRECT_TIME_RANGE     = 72;
-const EXC_INCORRECT_BID_INCREMENT  = 73;
-const EXC_INCORRECT_TIME_INCREMENT = 74;
-
-struct DeployInfo<T> {
-    dealCode: cell;
-    deployFee: coins;
-    specificInfo: T;
-}
-
 struct ContractCodes {
     domainCode: cell;
     tgUsernameCode: cell;
     web3WalletCode: cell;
     usdtWalletCode: cell;
+}
+
+struct DeployInfo<T> {
+    deployType: uint2;
+    deployFee: coins;
+    dealCode: cell;
+    deployFunctionCode: cell;
+    specificInfo: T;
 }
 
 struct SimpleDeployArgs {
@@ -39,10 +35,6 @@ struct DeployWithNftTransferArgs {
 struct DeployWithJettonTransferArgs {
     commonArgs: SimpleDeployArgs;
     jettonWalletAddress: address;
+    transferredJettons: coins;
     isWeb3: bool;
 }
-
-fun executeSimpleDeploy<T>(c: continuation, args: T): void 
-    asm (args c) "EXECUTE";
-
-
