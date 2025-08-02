@@ -76,7 +76,8 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
             code: args.commonArgs.code,
             data: data,
         }
-    }.buildAddress();
+    };
+    val saleAddressBuilder = saleAddress.buildAddress();
 
     // Transfer NFT to the sale contract
     createMessage({
@@ -85,7 +86,7 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
         dest: args.domainAddress,
         body: NftTransferMessageBuilder<cell> {
             queryId: 0,
-            toAddress: saleAddress,
+            toAddress: saleAddressBuilder,
             responseAddress: createAddressNone(),
             forwardTonAmount: 0,
             forwardPayload: null
@@ -103,8 +104,8 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
                 .storeUint(args.commonArgs.queryId, 64)
                 .storeBuilder(
                     payload.isWeb3 ?
-                        calculateWeb3WalletAddress(saleAddress, contractCodes.web3WalletCode) : 
-                        calculateUsdtWalletAddress(saleAddress, contractCodes.usdtWalletCode))
+                        calculateWeb3WalletAddress(saleAddressBuilder, contractCodes.web3WalletCode) : 
+                        calculateUsdtWalletAddress(saleAddressBuilder, contractCodes.usdtWalletCode))
                 .endCell()
     }); 
 

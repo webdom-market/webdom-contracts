@@ -57,7 +57,7 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
             code: args.commonArgs.code,
             data: data,
         }
-    }.buildAddress();
+    };
 
     // Transfer NFT to the sale contract
     createMessage({
@@ -66,7 +66,7 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
         dest: args.domainAddress,
         body: NftTransferMessageBuilder<cell> {
             queryId: 0,
-            toAddress: saleAddress,
+            toAddress: saleAddress.buildAddress(),
             responseAddress: createAddressNone(),
             forwardTonAmount: 0,
             forwardPayload: null

@@ -30,7 +30,7 @@ struct JettonMultipleSaleDeployPayload {
     validUntil: uint32;
 }
 
-const TONS_DEPLOY_JETTON_MULTIPLE_SALE: coins = ton("0.05");
+const TONS_DEPLOY_JETTON_MULTIPLE_SALE: coins = ton("0.045");
 
 
 fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
@@ -87,7 +87,8 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
             code: args.code,
             data: data,
         },
-    }).buildAddress();
+    });
+    val saleAddressBuilder = saleAddress.buildAddress();
 
     val contractCodes = lazy args.contractCodes.load();
     val msg = createMessage({
@@ -99,8 +100,8 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
                 .storeUint(args.queryId, 64)
                 .storeBuilder(
                     payload.isWeb3 ?
-                        calculateWeb3WalletAddress(saleAddress, contractCodes.web3WalletCode) : 
-                        calculateUsdtWalletAddress(saleAddress, contractCodes.usdtWalletCode))
+                        calculateWeb3WalletAddress(saleAddressBuilder, contractCodes.web3WalletCode) : 
+                        calculateUsdtWalletAddress(saleAddressBuilder, contractCodes.usdtWalletCode))
                 .endCell()
     }); 
 

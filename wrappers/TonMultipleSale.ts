@@ -67,12 +67,10 @@ export class TonMultipleSale extends DefaultContract {
         return new TonMultipleSale(contractAddress(workchain, init), init);
     }
 
-    static deployPayload(domainsList: Array<string>, price: bigint, validUntil: number) {
-        let domainsDict = Dictionary.empty(Dictionary.Keys.Uint(8), domainInListValueParser());
-        for (let i = 0; i < domainsList.length; i++) {
-            let domain = domainsList[i];
-            let isTg = domain.includes(".t.me");
-            domainsDict.set(i, {isTg, domain: domain.slice(0, domain.indexOf('.'))});
+    static deployPayload(domainsList: Array<Address>, price: bigint, validUntil: number) {
+        let domainsDict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool());
+        for (let domainAddress of domainsList) {
+            domainsDict.set(domainAddress, false);
         }
         return beginCell()
             .storeDict(domainsDict)

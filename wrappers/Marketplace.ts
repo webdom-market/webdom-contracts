@@ -175,7 +175,7 @@ export class Marketplace extends DefaultContract {
                     .storeUint(signTime ?? Math.floor(Date.now() / 1000), 32)
                     .storeAddress(senderAddress)
                     .storeUint(commissionDiscount, 16)
-            let signature = sign(tmp2.endCell().hash(), secretKey!!);
+            let signature = sign(tmp2.endCell().hash(), secretKey!);
             discountCell = tmp2.storeRef(beginCell().storeBuffer(signature).endCell()).endCell();
         }
         return beginCell().storeUint(opCode, 32).storeMaybeRef(discountCell).storeSlice(deployPayload.beginParse()).endCell();
@@ -188,7 +188,7 @@ export class Marketplace extends DefaultContract {
                     .storeUint(signTime ?? Math.floor(Date.now() / 1000), 32)
                     .storeAddress(senderAddress)
                     .storeUint(commissionDiscount, 16)
-            let signature = sign(tmp2.endCell().hash(), secretKey!!);
+            let signature = sign(tmp2.endCell().hash(), secretKey!);
             discountCell = tmp2.storeRef(beginCell().storeBuffer(signature).endCell()).endCell();
         }
         return beginCell().storeUint(opCode, 32).storeStringRefTail(domainName).storeMaybeRef(discountCell).storeSlice(deployPayload.beginParse()).endCell();
@@ -200,9 +200,9 @@ export class Marketplace extends DefaultContract {
         if (commissionDiscount > 0) {
             let tmp = beginCell()
                 .storeUint(signTime ?? Math.floor(Date.now() / 1000), 32)
-                .storeAddress(via.address!!)
+                .storeAddress(via.address!)
                 .storeUint(commissionDiscount, 16)
-            let signature = sign(tmp.endCell().hash(), secretKey!!);
+            let signature = sign(tmp.endCell().hash(), secretKey!);
             discountCell = tmp.storeRef(beginCell().storeBuffer(signature).endCell()).endCell();
         }
         await provider.internal(via, {

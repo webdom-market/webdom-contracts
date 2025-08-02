@@ -86,12 +86,10 @@ export class JettonMultipleSale extends DefaultContract {
         return new JettonMultipleSale(contractAddress(workchain, init), init);
     }
 
-    static deployPayload(isWeb3: boolean, domainsList: Array<string>, price: bigint, validUntil: number) {
-        let domainsDict = Dictionary.empty(Dictionary.Keys.Uint(8), domainInListValueParser());
-        for (let i = 0; i < domainsList.length; i++) {
-            let domain = domainsList[i];
-            let isTg = domain.includes(".t.me");
-            domainsDict.set(i, {isTg, domain: domain.slice(0, domain.indexOf('.'))});
+    static deployPayload(isWeb3: boolean, domainsList: Array<Address>, price: bigint, validUntil: number) {
+        let domainsDict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool());
+        for (let domainAddress of domainsList) {
+            domainsDict.set(domainAddress, false);
         }
         return beginCell()
             .storeBit(isWeb3)

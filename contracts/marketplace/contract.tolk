@@ -46,44 +46,86 @@ fun handleSimpleDeploy(
 }
 
 @inline
-fun handleOwnershipAssigned(
+fun handleNftOwnershipAssigned(
     storage: MarketplaceStorage,
     msgValue: coins,
     queryId: uint64,
     inMsgBody: slice,
-    senderAddress: address
+    nftAddress: address
 ): void {
-    // val fromAddress = inMsgBody.loadAddress();
-    
-    // val payload = inMsgBody.loadBool() ? inMsgBody.loadRef().beginParse() : inMsgBody;
-    // val innerOp = payload.loadUint(32);
-    
-    // if (innerOp < 0x0fffffff) {  // Deploy op-codes
-    //     val isTgUsername = payload.loadBool();
-    //     val domainName = payload.loadRef();
+    val fromAddress = inMsgBody.loadAddress();
+
+    try {
+        var payload = inMsgBody.loadBool() ? inMsgBody.loadRef().beginParse() : inMsgBody;
+        val innerOp: int = payload.loadUint(32);
+        if (innerOp < 0x0fffffff) {
+            val domainNameCell: cell = payload.loadRef();
+            val domainNameSlice: slice = domainNameCell.beginParse();
+            val isTgUsername = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+            val contractCodes = lazy storage.contractCodes.load();
+            var domainAddressBuilder: builder;
+            if (isTgUsername) {
+                domainAddressBuilder = tgUsernameToAddress(domainNameSlice.getFirstBits(domainNameSlice.remainingBitsCount() - 5 * 8), contractCodes.tgUsernameCode);
+            } else {
+                domainAddressBuilder = domainNameToAddress(domainNameSlice.getFirstBits(domainNameSlice.remainingBitsCount() - 4 * 8), contractCodes.domainCode);
+            }
+            val domainAddress = domainAddressBuilder.endCell().beginParse() as address;
+            assert(domainAddress == nftAddress) throw EXC_INCORRECT_SENDER;
+            
+            val ds2 = lazy storage.ds2.load();
+            var deployInfo: DeployInfo<SerializableSlice> = parseDeployInfo(storage, innerOp, DEPLOY_WITH_NFT_TRANSFER);
+            var commissionDiscount = getCommissionDiscount(payload.loadMaybeRef(), fromAddress, storage.publicKey);
+           
+            // arguments for deploy function
+            val args = DeployWithNftTransferArgs {
+                commonArgs: SimpleDeployArgs {
+                    fromAddress: fromAddress,
+                    payloadSlice: payload,
+                    deployInfoSlice: deployInfo.specificInfo,
+                    code: deployInfo.dealCode,
+                    commissionDiscount: commissionDiscount,
+                    queryId: queryId,
+                    publicKey: storage.publicKey,
+                    contractCodes: storage.contractCodes
+                },
+                domainAddress: domainAddress,
+                domainNameCell: domainNameCell as Cell<SerializableSlice>
+            };
+
+            // deploy function continuation
+            val deployFunctionContinuation: continuation = transformSliceToContinuation(deployInfo.deployFunctionCode.beginParse());
+            val requiredGas: coins = deployInfo.deployFee + executeDeployWithNftTransfer(deployFunctionContinuation, args);
+            checkEnoughGas(msgValue, requiredGas, fromAddress, queryId);
+
+            storage.collectedFeesTon += deployInfo.deployFee;
+            storage.save();
+            
+            return;
+        }
         
-    //     // Проверяем что sender - это правильный домен
-    //     val expectedAddress = isTgUsername ? 
-    //         tgUsernameToAddress(domainName.beginParse(), storage.contractCodes.load().tgUsernameCode) :
-    //         domainNameToAddress(domainName.beginParse(), storage.contractCodes.load().domainCode);
-        
-    //     assert(senderAddress.bitsEqual(expectedAddress)) throw EXC_INCORRECT_DOMAIN;
-        
-    //     val requiredGas = deployWithNftTransfer(
-    //         storage,
-    //         innerOp,
-    //         queryId,
-    //         payload,
-    //         fromAddress,
-    //         senderAddress,
-    //         domainName,
-    //         msgValue
-    //     );
-        
-    //     checkEnoughGas(msgValue, requiredGas, fromAddress, queryId);
-    // } else {
-    //     throw EXC_UNSUPPORTED_OP;
-    // }
+        throw EXC_UNSUPPORTED_OP;
+    } catch (e, _) {
+        createMessage({
+            bounce: false,
+            value: 0,
+            dest: nftAddress,
+            body: NftTransferMessage<cell> {
+                queryId: 0,
+                toAddress: fromAddress,
+                responseAddress: fromAddress,
+                forwardTonAmount: 1,
+                forwardPayload: beginCell()
+                    .storeUint(0, 32)
+                    .storeSlice("Error, code ")
+                    .storeNumber10(e)
+                .endCell()
+            }
+        }).send(SEND_MODE_CARRY_ALL_BALANCE);
+            
+        commitContractDataAndActions();
+        throw e;
+    }
+
 }
 
 @inline
@@ -92,18 +134,18 @@ fun handleJettonsTransferNotification(
     msgValue: coins,
     queryId: uint64,
     inMsgBody: slice,
-    senderAddress: address
+    jettonWalletAddress: address
 ): void {
     val transferredJettons = inMsgBody.loadCoins();
     val fromAddress = inMsgBody.loadAddress();
 
     try {
         var payload = inMsgBody.loadBool() ? inMsgBody.loadRef().beginParse() : inMsgBody;
-        val innerOp = payload.loadUint(32);
+        val innerOp: int = payload.loadUint(32);
         
         // Обработка комиссии маркетплейса
         if (payload.bitsEqual("Marketplace commission")) {
-            storage.collectedFeesDict = addCollectedFees(storage.collectedFeesDict, senderAddress, transferredJettons);
+            storage.collectedFeesDict = addCollectedFees(storage.collectedFeesDict, jettonWalletAddress, transferredJettons);
             storage.save();
             return;
         }
@@ -111,8 +153,8 @@ fun handleJettonsTransferNotification(
         // Обработка Make Hot/Colored
         if ((innerOp == OP_MAKE_HOT) || (innerOp == OP_MAKE_COLORED)) {
             val ds2 = lazy storage.ds2.load();
-            assert(senderAddress == ds2.web3WalletAddress) throw EXC_INCORRECT_SENDER;
-            storage.collectedFeesDict = addCollectedFees(storage.collectedFeesDict, senderAddress, transferredJettons);
+            assert(jettonWalletAddress == ds2.web3WalletAddress) throw EXC_INCORRECT_SENDER;
+            storage.collectedFeesDict = addCollectedFees(storage.collectedFeesDict, jettonWalletAddress, transferredJettons);
             
             val saleAddress = payload.loadAddress();
             val period = payload.loadUint(32);
@@ -161,8 +203,8 @@ fun handleJettonsTransferNotification(
                     contractCodes: storage.contractCodes
                 },
                 transferredJettons: transferredJettons,
-                jettonWalletAddress: senderAddress,
-                isWeb3: senderAddress == ds2.web3WalletAddress
+                jettonWalletAddress: jettonWalletAddress,
+                isWeb3: jettonWalletAddress == ds2.web3WalletAddress
             };
 
             // deploy function continuation
@@ -181,7 +223,7 @@ fun handleJettonsTransferNotification(
         createMessage({
             bounce: true,
             value: 0,
-            dest: senderAddress,
+            dest: jettonWalletAddress,
             body: SendJettonsMessage<cell> {
                 queryId: queryId,
                 jettonAmount: transferredJettons,
@@ -227,7 +269,7 @@ fun onInternalMessage(in: InMessage): void {
     }
     
     if (op == OP_OWNERSHIP_ASSIGNED) {
-        handleOwnershipAssigned(storage, in.valueCoins, queryId, in.body, in.senderAddress);
+        handleNftOwnershipAssigned(storage, in.valueCoins, queryId, in.body, in.senderAddress);
         return;
     }
     
