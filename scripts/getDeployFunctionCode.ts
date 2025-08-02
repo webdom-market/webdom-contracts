@@ -19,7 +19,9 @@ const CONTRACT_PATHS: Record<string, string> = {
     
     'JettonSimpleOffer': 'purchase_offers/jetton_simple_offer',
     'TonSimpleOffer': 'purchase_offers/ton_simple_offer',
-    'MultipleOffer': 'purchase_offers/multiple_offer'
+    'MultipleOffer': 'purchase_offers/multiple_offer',
+
+    'DomainSwap': 'domain_swap',
 };
 
 /**

@@ -141,7 +141,7 @@ export class Marketplace extends DefaultContract {
     static readonly DeployOpCodes = {
         TON_SIMPLE_SALE: 0x763e023f & 0x0fffffff,
         TON_MULTIPLE_SALE: 0xbee2b108 & 0x0fffffff,
-        MULTIPLE_DOMAINS_SWAP: 0xc29adb98 & 0x0fffffff,
+        DOMAIN_SWAP: 0xc29adb98 & 0x0fffffff,
         TON_SIMPLE_AUCTION: 0x48615374 & 0x0fffffff,
         TON_SIMPLE_OFFER: 0x1572efe4 & 0x0fffffff,
         JETTON_SIMPLE_OFFER: 0x08be756f & 0x0fffffff,

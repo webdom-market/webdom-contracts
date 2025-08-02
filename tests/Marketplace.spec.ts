@@ -17,7 +17,7 @@ import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
 import { Addresses, COMMISSION_DIVIDER, Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../wrappers/helpers/constants';
 import { TonMultipleSale, TonMultipleSaleDeployData } from '../wrappers/TonMultipleSale';
 import { TonSimpleOffer, TonSimpleOfferDeployData } from '../wrappers/TonSimpleOffer';
-// import { MultipleDomainsSwap, MultipleDomainsSwapDeployData } from '../wrappers/MultipleDomainsSwap';
+import { DomainSwap, DomainsSwapDeployData } from '../wrappers/DomainSwap';
 import { stringValueParser } from '../wrappers/helpers/DefaultContract';
 import { JettonSimpleOffer, JettonSimpleOfferDeployData } from '../wrappers/JettonSimpleOffer';
 import { JettonMultipleSale, JettonMultipleSaleDeployData } from '../wrappers/JettonMultipleSale';
@@ -39,7 +39,7 @@ describe('Marketplace', () => {
 
     let marketplaceCode: Cell;
     let jettonSimpleSaleCode: Cell;
-    // let multipleDomainsSwapCode: Cell;
+    let DomainSwapCode: Cell;
     let dnsCollectionCode: Cell;
     let domainCode: Cell;
     // let tonShoppingCartCode: Cell;
@@ -83,7 +83,7 @@ describe('Marketplace', () => {
         jettonMultipleAuctionCode = await compile('JettonMultipleAuction');
         
         // tonShoppingCartCode = await compile('TonShoppingCart');
-        // multipleDomainsSwapCode = await compile('MultipleDomainsSwap');
+        DomainSwapCode = await compile('DomainSwap');
     }, 10000);
 
     let blockchain: Blockchain;
@@ -366,15 +366,16 @@ describe('Marketplace', () => {
             ),
         });
 
-
-        // deployInfos.set(Marketplace.DeployOpCodes.MULTIPLE_DOMAINS_SWAP, {
-        //     code: multipleDomainsSwapCode,
-        //     deployFee: toNano('0.05'),
-        //     otherData: MultipleDomainsSwapDeployData.fromConfig(
-        //         toNano('0.5'),   // completionCommission
-        //         600             // minDuration (5 minutes)
-        //     ),
-        // });
+        deployInfos.set(Marketplace.DeployOpCodes.DOMAIN_SWAP, {
+            dealCode: DomainSwapCode,
+            deployFunctionCode: getDeployFunctionCode('DomainSwap'),
+            deployType: Marketplace.DeployTypes.SIMPLE,
+            deployFee: toNano('0.05'),
+            otherData: DomainsSwapDeployData.fromConfig(
+                toNano('0.5'),   // completionCommission
+                600             // minDuration (5 minutes)
+            ),
+        });
         
 
         let subscriptionsInfo = Dictionary.empty(Dictionary.Keys.Uint(8), Dictionary.Values.Dictionary(Dictionary.Keys.Uint(32), Dictionary.Values.BigUint(64)));
@@ -1617,4 +1618,46 @@ describe('Marketplace', () => {
         expect(marketplaceConfig.collectedFeesDict!.get(usdtMarketplaceWallet.address)!).toEqual(100n);
         expect(marketplaceConfig.collectedFeesDict!.get(web3MarketplaceWallet.address)!).toEqual(200n);
     });
+
+
+    it ('should deploy multiple domains swap', async () => {
+        let deployData = marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.DOMAIN_SWAP)!.otherData as DomainsSwapDeployData;
+        let leftPaymentTotal = toNano('1000');
+        let rightOwnerAddress = buyer.address;
+        let rightPaymentTotal = 0n;
+        let validUntil = blockchain.now!! + 600;
+        let needsAlert = true;
+
+        transactionRes = await marketplace.sendDeployDeal(
+            buyer.getSender(), 
+            deployData.completionCommission + toNano('0.05') + toNano("0.17"),  // 0.162 + completionCommission + deployFee required
+            Marketplace.DeployOpCodes.DOMAIN_SWAP, 
+            DomainSwap.deployPayload(domains.slice(0, 2).map(d => d.address), leftPaymentTotal, rightOwnerAddress, domains.slice(2).map(d => d.address), rightPaymentTotal, validUntil, needsAlert)
+        );
+
+        expect(transactionRes.transactions).not.toHaveTransaction({ 
+            exitCode(x) { return Boolean(x) }
+        });
+        expect(transactionRes.transactions).not.toHaveTransaction({
+            actionResultCode(x) { return Boolean(x) }
+        });
+        
+        let DomainSwapAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address;
+        let domainSwap = blockchain.openContract(DomainSwap.createFromAddress(DomainSwapAddress));
+        let domainSwapConfig = await domainSwap.getStorageData();
+        expect(domainSwapConfig.leftOwnerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainSwapConfig.rightOwnerAddress!!.toString()).toEqual(rightOwnerAddress.toString());
+        expect(domainSwapConfig.leftPaymentTotal).toEqual(leftPaymentTotal);
+        expect(domainSwapConfig.rightPaymentTotal).toEqual(rightPaymentTotal);
+        expect(domainSwapConfig.state).toEqual(DomainSwap.STATE_WAITING_FOR_LEFT);
+        expect(domainSwapConfig.leftDomainsReceived).toEqual(0);
+        expect(domainSwapConfig.rightDomainsReceived).toEqual(0);
+        expect(domainSwapConfig.createdAt).toEqual(blockchain.now!!);
+        expect(domainSwapConfig.lastActionTime).toEqual(0);
+        expect(domainSwapConfig.commission).toEqual(deployData.completionCommission);
+        expect(domainSwapConfig.rightPaymentReceived).toEqual(0n);
+        expect(domainSwapConfig.validUntil).toEqual(validUntil);
+        expect(domainSwapConfig.needsAlert).toEqual(needsAlert);
+    });
+
 });

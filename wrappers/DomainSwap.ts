@@ -4,7 +4,7 @@ import { DefaultContract } from './helpers/DefaultContract';
 import { DeployData } from './Marketplace';
 import { domainInListValueParser } from './JettonMultipleSale';
 
-export class MultipleDomainsSwapDeployData extends DeployData {
+export class DomainsSwapDeployData extends DeployData {
     completionCommission: bigint; 
     minDuration: number;
 
@@ -14,12 +14,12 @@ export class MultipleDomainsSwapDeployData extends DeployData {
         this.minDuration = data.loadUint(32);
     }
 
-    static fromConfig(completionCommission: bigint, minDuration: number): MultipleDomainsSwapDeployData {
-        return new MultipleDomainsSwapDeployData(beginCell().storeCoins(completionCommission).storeUint(minDuration, 32).endCell().beginParse());
+    static fromConfig(completionCommission: bigint, minDuration: number): DomainsSwapDeployData {
+        return new DomainsSwapDeployData(beginCell().storeCoins(completionCommission).storeUint(minDuration, 32).endCell().beginParse());
     }
 }
 
-export type MultipleDomainsSwapConfig = {
+export type DomainsSwapConfig = {
     leftOwnerAddress: Address;
     leftDomainsTotal: number;
     leftDomainsReceived: number;
@@ -43,7 +43,7 @@ export type MultipleDomainsSwapConfig = {
     cancelledByLeft?: boolean;
 };
 
-export function multipleDomainsSwapConfigToCell(config: MultipleDomainsSwapConfig): Cell {
+export function domainSwapConfigToCell(config: DomainsSwapConfig): Cell {
     return beginCell()
             .storeRef(
                 beginCell()
@@ -75,7 +75,7 @@ export function multipleDomainsSwapConfigToCell(config: MultipleDomainsSwapConfi
         .endCell();
 }
 
-export class MultipleDomainsSwap extends DefaultContract {
+export class DomainSwap extends DefaultContract {
     static STATE_WAITING_FOR_LEFT = 0;
     static STATE_WAITING_FOR_RIGHT = 1;
     static STATE_COMPLETED = 2;
@@ -83,27 +83,23 @@ export class MultipleDomainsSwap extends DefaultContract {
     static ADD_DOMAIN_TONS = toNano('0.045');
 
     static createFromAddress(address: Address) {
-        return new MultipleDomainsSwap(address);
+        return new DomainSwap(address);
     }
 
-    static createFromConfig(config: MultipleDomainsSwapConfig, code: Cell, workchain = 0) {
-        const data = multipleDomainsSwapConfigToCell(config);
+    static createFromConfig(config: DomainsSwapConfig, code: Cell, workchain = 0) {
+        const data = domainSwapConfigToCell(config);
         const init = { code, data };
-        return new MultipleDomainsSwap(contractAddress(workchain, init), init);
+        return new DomainSwap(contractAddress(workchain, init), init);
     }
 
-    static deployPayload(leftDomainsList: Array<string>, leftPaymentTotal: bigint, rightOwnerAddress: Address, rightDomainsList: Array<string>, rightPaymentTotal: bigint, validUntil: number, needsAlert: boolean) {
-        let leftDomainsDict = Dictionary.empty(Dictionary.Keys.Uint(8), domainInListValueParser());
-        for (let i = 0; i < leftDomainsList.length; i++) {
-            let domain = leftDomainsList[i];
-            let isTg = domain.includes(".t.me");
-            leftDomainsDict.set(i, {isTg, domain: domain.slice(0, domain.indexOf('.'))});
+    static deployPayload(leftDomainsList: Array<Address>, leftPaymentTotal: bigint, rightOwnerAddress: Address, rightDomainsList: Array<Address>, rightPaymentTotal: bigint, validUntil: number, needsAlert: boolean) {
+        let leftDomainsDict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool());
+        for (let addr of leftDomainsList) {
+            leftDomainsDict.set(addr, false);
         }
-        let rightDomainsDict = Dictionary.empty(Dictionary.Keys.Uint(8), domainInListValueParser());
-        for (let i = 0; i < rightDomainsList.length; i++) {
-            let domain = rightDomainsList[i];
-            let isTg = domain.includes(".t.me");
-            rightDomainsDict.set(i, {isTg, domain: domain.slice(0, domain.indexOf('.'))});
+        let rightDomainsDict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool());
+        for (let addr of rightDomainsList) {
+            rightDomainsDict.set(addr, false);
         }
         return beginCell()
             .storeDict(leftDomainsDict)
@@ -137,7 +133,7 @@ export class MultipleDomainsSwap extends DefaultContract {
         });
     }
 
-    async getStorageData(provider: ContractProvider): Promise<MultipleDomainsSwapConfig> {
+    async getStorageData(provider: ContractProvider): Promise<DomainsSwapConfig> {
         const { stack } = await provider.get('get_storage_data', []);
         return {
             leftOwnerAddress: stack.readAddress(),
