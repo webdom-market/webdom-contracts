@@ -74,7 +74,7 @@ describe('TonSimpleAuction', () => {
         });
 
         transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), DOMAIN_NAME);
-        const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+        const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
         expect(transactionRes.transactions).toHaveTransaction({
             from: dnsCollection.address,
             to: domainAddress,
@@ -121,7 +121,7 @@ describe('TonSimpleAuction', () => {
         });
         
         // minimum bid - 1rejected
-        blockchain.now!! += 10;
+        blockchain.now! += 10;
         transactionRes = await tonSimpleAuction.sendPlaceBid(buyer.getSender(), tonSimpleAuctionConfig.minBidValue - 1n);
         expect(transactionRes.transactions).toHaveTransaction({
             from: buyer.address,
@@ -141,10 +141,10 @@ describe('TonSimpleAuction', () => {
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.lastBidValue).toEqual(bid);
         expect(tonSimpleAuctionConfig.lastBidTime).toEqual(blockchain.now);
-        expect(tonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(tonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(buyer.address.toString());
 
         // minimum increased - 1 bid rejected
-        blockchain.now!! += 60 * 5;
+        blockchain.now! += 60 * 5;
         transactionRes = await tonSimpleAuction.sendPlaceBid(buyer.getSender(), (bid * BigInt(tonSimpleAuctionConfig.minBidIncrement)) / BigInt(1000));
         expect(transactionRes.transactions).toHaveTransaction({
             from: buyer.address,
@@ -153,7 +153,7 @@ describe('TonSimpleAuction', () => {
         });
 
         // minimum increased bid accepted
-        blockchain.now!! += 60 * 5;
+        blockchain.now! += 60 * 5;
         bid += Tons.MIN_BID_INCREMENT;
         transactionRes = await tonSimpleAuction.sendPlaceBid(buyer.getSender(), bid);
         expect(transactionRes.transactions).toHaveTransaction({
@@ -164,8 +164,8 @@ describe('TonSimpleAuction', () => {
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.lastBidValue).toEqual(bid);
         expect(tonSimpleAuctionConfig.lastBidTime).toEqual(blockchain.now);
-        expect(tonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(buyer.address.toString());
-        expect(tonSimpleAuctionConfig.endTime).toEqual(blockchain.now!! + tonSimpleAuctionConfig.timeIncrement);
+        expect(tonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(buyer.address.toString());
+        expect(tonSimpleAuctionConfig.endTime).toEqual(blockchain.now! + tonSimpleAuctionConfig.timeIncrement);
         
         // bid accepted (+ outbid notification message)
         bid = toNano('5');
@@ -184,7 +184,7 @@ describe('TonSimpleAuction', () => {
         });
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.lastBidValue).toEqual(bid);
-        expect(tonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(admin.address.toString());
+        expect(tonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(admin.address.toString());
 
         // minimum increased - 1 bid rejected
         bid = (bid * BigInt(tonSimpleAuctionConfig.minBidIncrement)) / BigInt(1000);
@@ -205,8 +205,8 @@ describe('TonSimpleAuction', () => {
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.lastBidValue).toEqual(bid);
         expect(tonSimpleAuctionConfig.lastBidTime).toEqual(blockchain.now);
-        expect(tonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(buyer.address.toString());
-        expect(tonSimpleAuctionConfig.endTime).toEqual(blockchain.now!! + tonSimpleAuctionConfig.timeIncrement);
+        expect(tonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(buyer.address.toString());
+        expect(tonSimpleAuctionConfig.endTime).toEqual(blockchain.now! + tonSimpleAuctionConfig.timeIncrement);
         
         // reject cancelling auction
         transactionRes = await tonSimpleAuction.sendStopAuction(seller.getSender());
@@ -217,7 +217,7 @@ describe('TonSimpleAuction', () => {
         });
 
         // bid after auction end time rejected
-        blockchain.now!! = tonSimpleAuctionConfig.endTime;
+        blockchain.now! = tonSimpleAuctionConfig.endTime;
         transactionRes = await tonSimpleAuction.sendPlaceBid(buyer.getSender(), tonSimpleAuctionConfig.maxBidValue + 1n);
         expect(transactionRes.transactions).toHaveTransaction({
             from: buyer.address,
@@ -232,26 +232,26 @@ describe('TonSimpleAuction', () => {
             from: tonSimpleAuction.address,
             to: marketplace.address,
             value(x) {
-                return x!! > commission - toNano('0.005');
+                return x! > commission - toNano('0.005');
             },
         });
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonSimpleAuction.address,
             to: seller.address,
             value(x) {
-                return x!! > tonSimpleAuctionConfig.lastBidValue -commission - toNano('0.005');
+                return x! > tonSimpleAuctionConfig.lastBidValue -commission - toNano('0.005');
             },
         });
         expect((await blockchain.getContract(tonSimpleAuction.address)).balance).toEqual(0n);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.state).toEqual(TonSimpleAuction.STATE_COMPLETED);
         
     });
 
     it('should sell the domain after max bid value', async () => {
-        blockchain.now!! = tonSimpleAuctionConfig.startTime;
+        blockchain.now! = tonSimpleAuctionConfig.startTime;
         let bid = toNano('5');
         transactionRes = await tonSimpleAuction.sendPlaceBid(admin.getSender(), bid);
 
@@ -268,31 +268,31 @@ describe('TonSimpleAuction', () => {
             from: tonSimpleAuction.address,
             to: marketplace.address,
             value(x) {
-                return x!! > commission - toNano('0.005');
+                return x! > commission - toNano('0.005');
             },
         });
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonSimpleAuction.address,
             to: seller.address,
             value(x) {
-                return x!! > tonSimpleAuctionConfig.lastBidValue -commission - toNano('0.005');
+                return x! > tonSimpleAuctionConfig.lastBidValue -commission - toNano('0.005');
             },
         });
         expect((await blockchain.getContract(tonSimpleAuction.address)).balance).toEqual(0n);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.lastBidValue).toEqual(bid);
-        expect(tonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(buyer.address.toString());
-        expect(tonSimpleAuctionConfig.endTime).toEqual(blockchain.now!!);
+        expect(tonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(buyer.address.toString());
+        expect(tonSimpleAuctionConfig.endTime).toEqual(blockchain.now!);
         expect(tonSimpleAuctionConfig.state).toEqual(TonSimpleAuction.STATE_COMPLETED);
     });
 
     it('should trigger auction finish by external (success)', async () => {
-        blockchain.now!! = tonSimpleAuctionConfig.startTime;
+        blockchain.now! = tonSimpleAuctionConfig.startTime;
         let bid = toNano('5');
         transactionRes = await tonSimpleAuction.sendPlaceBid(buyer.getSender(), bid);
-        blockchain.now!! = tonSimpleAuctionConfig.endTime;
+        blockchain.now! = tonSimpleAuctionConfig.endTime;
 
         transactionRes = await tonSimpleAuction.sendExternalCancel();
         const commission = tonSimpleAuctionConfig.lastBidValue * BigInt(tonSimpleAuctionConfig.commissionFactor) / 10000n;
@@ -300,43 +300,43 @@ describe('TonSimpleAuction', () => {
             from: tonSimpleAuction.address,
             to: marketplace.address,
             value(x) {
-                return x!! > commission - toNano('0.005');
+                return x! > commission - toNano('0.005');
             },
         });
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonSimpleAuction.address,
             to: seller.address,
             value(x) {
-                return x!! > tonSimpleAuctionConfig.lastBidValue -commission - toNano('0.005');
+                return x! > tonSimpleAuctionConfig.lastBidValue -commission - toNano('0.005');
             },
         });
         expect((await blockchain.getContract(tonSimpleAuction.address)).balance).toEqual(0n);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.state).toEqual(TonSimpleAuction.STATE_COMPLETED);
     });
 
     it('should trigger auction finish by external (no bids)', async () => {
-        blockchain.now!! = tonSimpleAuctionConfig.endTime;
+        blockchain.now! = tonSimpleAuctionConfig.endTime;
         transactionRes = await tonSimpleAuction.sendExternalCancel();
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.state).toEqual(TonSimpleAuction.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
     it('should cancel auction', async () => {
-        blockchain.now!! = tonSimpleAuctionConfig.startTime + 40;
+        blockchain.now! = tonSimpleAuctionConfig.startTime + 40;
         transactionRes = await tonSimpleAuction.sendStopAuction(seller.getSender());
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.state).toEqual(TonSimpleAuction.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
     it('should renew domain', async () => {
-        blockchain.now!! = tonSimpleAuctionConfig.startTime;
+        blockchain.now! = tonSimpleAuctionConfig.startTime;
         transactionRes = await tonSimpleAuction.sendRenewDomain(seller.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonSimpleAuction.address,
@@ -344,26 +344,26 @@ describe('TonSimpleAuction', () => {
             op: OpCodes.EXCESSES
         });
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
-        expect(tonSimpleAuctionConfig.lastDomainRenewalTime).toEqual(blockchain.now!!);
+        expect(tonSimpleAuctionConfig.lastDomainRenewalTime).toEqual(blockchain.now!);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!!);
+        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
     });
 
     it('should run deferred auction', async () => {
         tonSimpleAuctionConfig.isDeferred = true;
         let auctionDuration = tonSimpleAuctionConfig.endTime - tonSimpleAuctionConfig.startTime;
-        tonSimpleAuctionConfig.startTime = blockchain.now!! + 360 * 24 * 60 * 60;
+        tonSimpleAuctionConfig.startTime = blockchain.now! + 360 * 24 * 60 * 60;
         tonSimpleAuctionConfig.endTime = tonSimpleAuctionConfig.startTime + auctionDuration;
         await deployTonSimpleAuction();
 
-        blockchain.now!! += 350 * 24 * 60 * 60;
+        blockchain.now! += 350 * 24 * 60 * 60;
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.isDeferred).toEqual(true);
         
         transactionRes = await tonSimpleAuction.sendPlaceBid(buyer.getSender(), tonSimpleAuctionConfig.minBidValue);
         tonSimpleAuctionConfig = await tonSimpleAuction.getStorageData();
         expect(tonSimpleAuctionConfig.isDeferred).toEqual(false);
-        expect(tonSimpleAuctionConfig.startTime).toEqual(blockchain.now!!);
-        expect(tonSimpleAuctionConfig.endTime).toEqual(blockchain.now!! + auctionDuration);
+        expect(tonSimpleAuctionConfig.startTime).toEqual(blockchain.now!);
+        expect(tonSimpleAuctionConfig.endTime).toEqual(blockchain.now! + auctionDuration);
     });
 });

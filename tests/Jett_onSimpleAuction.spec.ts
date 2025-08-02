@@ -106,7 +106,7 @@ describe('JettonSimpleAuction', () => {
         });
 
         transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), DOMAIN_NAME);
-        const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+        const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
         expect(transactionRes.transactions).toHaveTransaction({
             from: dnsCollection.address,
             to: domainAddress,
@@ -155,7 +155,7 @@ describe('JettonSimpleAuction', () => {
         })
         
         // minimum bid - 1 rejected
-        blockchain.now!! += 10;
+        blockchain.now! += 10;
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleAuctionConfig.minBidValue - 1n, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
@@ -176,10 +176,10 @@ describe('JettonSimpleAuction', () => {
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.lastBidValue).toEqual(bid);
         expect(jettonSimpleAuctionConfig.lastBidTime).toEqual(blockchain.now);
-        expect(jettonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(jettonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(buyer.address.toString());
 
         // minimum increased - 1 bid rejected
-        blockchain.now!! += 60 * 5;
+        blockchain.now! += 60 * 5;
         bid = (bid * BigInt(jettonSimpleAuctionConfig.minBidIncrement)) / BigInt(1000);
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid - 1n, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
@@ -190,7 +190,7 @@ describe('JettonSimpleAuction', () => {
         });
 
         // minimum increased bid accepted
-        blockchain.now!! += 60 * 5;
+        blockchain.now! += 60 * 5;
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: jettonSimpleAuction.address,
@@ -200,8 +200,8 @@ describe('JettonSimpleAuction', () => {
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.lastBidValue).toEqual(bid);
         expect(jettonSimpleAuctionConfig.lastBidTime).toEqual(blockchain.now);
-        expect(jettonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(buyer.address.toString());
-        expect(jettonSimpleAuctionConfig.endTime).toEqual(blockchain.now!! + jettonSimpleAuctionConfig.timeIncrement);
+        expect(jettonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(buyer.address.toString());
+        expect(jettonSimpleAuctionConfig.endTime).toEqual(blockchain.now! + jettonSimpleAuctionConfig.timeIncrement);
         
         // bid accepted (+ outbid notification message)
         let prevBid = bid;
@@ -220,7 +220,7 @@ describe('JettonSimpleAuction', () => {
         });
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.lastBidValue).toEqual(bid);
-        expect(jettonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(admin.address.toString());
+        expect(jettonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(admin.address.toString());
 
         // minimum increased - 1 bid rejected
         prevBid = bid;
@@ -248,8 +248,8 @@ describe('JettonSimpleAuction', () => {
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.lastBidValue).toEqual(bid);
         expect(jettonSimpleAuctionConfig.lastBidTime).toEqual(blockchain.now);
-        expect(jettonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(buyer.address.toString());
-        expect(jettonSimpleAuctionConfig.endTime).toEqual(blockchain.now!! + jettonSimpleAuctionConfig.timeIncrement);
+        expect(jettonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(buyer.address.toString());
+        expect(jettonSimpleAuctionConfig.endTime).toEqual(blockchain.now! + jettonSimpleAuctionConfig.timeIncrement);
         
         // reject cancelling auction
         transactionRes = await jettonSimpleAuction.sendStopAuction(seller.getSender());
@@ -260,7 +260,7 @@ describe('JettonSimpleAuction', () => {
         });
 
         // bid after auction end time rejected
-        blockchain.now!! = jettonSimpleAuctionConfig.endTime;
+        blockchain.now! = jettonSimpleAuctionConfig.endTime;
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleAuctionConfig.maxBidValue + 1n, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
@@ -288,14 +288,14 @@ describe('JettonSimpleAuction', () => {
         })
         expect((await blockchain.getContract(jettonSimpleAuction.address)).balance).toEqual(0n);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.state).toEqual(JettonSimpleAuction.STATE_COMPLETED);
         
     });
 
     it('should sell the domain after max bid value', async () => {
-        blockchain.now!! = jettonSimpleAuctionConfig.startTime;
+        blockchain.now! = jettonSimpleAuctionConfig.startTime;
         let bid = toNano('5');
         transactionRes = await usdtAdminWallet.sendTransfer(admin.getSender(), bid, jettonSimpleAuction.address, admin.address, toNano("0.26"));
 
@@ -332,19 +332,19 @@ describe('JettonSimpleAuction', () => {
         });
         expect((await blockchain.getContract(jettonSimpleAuction.address)).balance).toEqual(0n);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.lastBidValue).toEqual(jettonSimpleAuctionConfig.maxBidValue);
-        expect(jettonSimpleAuctionConfig.lastBidderAddress!!.toString()).toEqual(buyer.address.toString());
-        expect(jettonSimpleAuctionConfig.endTime).toEqual(blockchain.now!!);
+        expect(jettonSimpleAuctionConfig.lastBidderAddress!.toString()).toEqual(buyer.address.toString());
+        expect(jettonSimpleAuctionConfig.endTime).toEqual(blockchain.now!);
         expect(jettonSimpleAuctionConfig.state).toEqual(JettonSimpleAuction.STATE_COMPLETED);
     });
 
     it('should trigger auction finish by external (success)', async () => {
-        blockchain.now!! = jettonSimpleAuctionConfig.startTime;
+        blockchain.now! = jettonSimpleAuctionConfig.startTime;
         let bid = toNano('5');
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), bid, jettonSimpleAuction.address, buyer.address, toNano("0.26"));
-        blockchain.now!! = jettonSimpleAuctionConfig.endTime;
+        blockchain.now! = jettonSimpleAuctionConfig.endTime;
         
         transactionRes = await jettonSimpleAuction.sendExternalCancel();
         const commission = bid * BigInt(jettonSimpleAuctionConfig.commissionFactor) / 10000n;
@@ -364,31 +364,31 @@ describe('JettonSimpleAuction', () => {
         })
         expect((await blockchain.getContract(jettonSimpleAuction.address)).balance).toEqual(0n);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.state).toEqual(JettonSimpleAuction.STATE_COMPLETED);
     });
 
     it('should trigger auction finish by external (no bids)', async () => {
-        blockchain.now!! = jettonSimpleAuctionConfig.endTime;
+        blockchain.now! = jettonSimpleAuctionConfig.endTime;
         transactionRes = await jettonSimpleAuction.sendExternalCancel();
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.state).toEqual(JettonSimpleAuction.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
     it('should cancel auction', async () => {
-        blockchain.now!! = jettonSimpleAuctionConfig.startTime + 40;
+        blockchain.now! = jettonSimpleAuctionConfig.startTime + 40;
         transactionRes = await jettonSimpleAuction.sendStopAuction(seller.getSender());
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
         expect(jettonSimpleAuctionConfig.state).toEqual(JettonSimpleAuction.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
     it('should renew domain', async () => {
-        blockchain.now!! = jettonSimpleAuctionConfig.startTime;
+        blockchain.now! = jettonSimpleAuctionConfig.startTime;
         transactionRes = await jettonSimpleAuction.sendRenewDomain(seller.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             from: jettonSimpleAuction.address,
@@ -396,9 +396,9 @@ describe('JettonSimpleAuction', () => {
             op: OpCodes.EXCESSES
         });
         jettonSimpleAuctionConfig = await jettonSimpleAuction.getStorageData();
-        expect(jettonSimpleAuctionConfig.lastDomainRenewalTime).toEqual(blockchain.now!!);
+        expect(jettonSimpleAuctionConfig.lastDomainRenewalTime).toEqual(blockchain.now!);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!!);
+        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
     });
 
     it('should run deferred auction', async () => {

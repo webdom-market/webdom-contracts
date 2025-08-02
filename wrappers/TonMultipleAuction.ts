@@ -91,18 +91,16 @@ export class TonMultipleAuction extends DefaultContract {
         return new TonMultipleAuction(contractAddress(workchain, init), init);
     }
 
-    static deployPayload(domainsList: Array<string>, startTime: number, endTime: number, minBidValue: bigint, maxBidValue: bigint, minBidIncrement: number, timeIncrement: number, isDeferred: boolean) {
-        let domainsDict = Dictionary.empty(Dictionary.Keys.Uint(8), domainInListValueParser());
-        for (let i = 0; i < domainsList.length; i++) {
-            let domain = domainsList[i];
-            let isTg = domain.includes(".t.me");
-            domainsDict.set(i, {isTg, domain: domain.slice(0, domain.indexOf('.'))});
+    static deployPayload(domainsList: Array<Address>, startTime: number, endTime: number, minBidValue: bigint, maxBidValue: bigint, minBidIncrement: number, timeIncrement: number, isDeferred: boolean) {
+        let domainsDict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool());
+        for (let domainAddress of domainsList) {
+            domainsDict.set(domainAddress, false);
         }
         return beginCell()
-                .storeDict(domainsDict)
                 .storeBit(isDeferred)
                 .storeUint(startTime, 32)
                 .storeUint(endTime, 32)
+                .storeDict(domainsDict)
                 .storeCoins(minBidValue)
                 .storeCoins(maxBidValue)
                 .storeUint(minBidIncrement, 12)

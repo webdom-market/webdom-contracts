@@ -52,8 +52,7 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
     
     payload.startTime = max(blockchain.now() + 30, payload.startTime);
 
-    assert((payload.endTime >= payload.startTime + deployInfo.minTimeIncrement) && 
-           (payload.endTime <= blockchain.now() + ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_TIME_RANGE;
+    assert((payload.endTime >= payload.startTime + payload.timeIncrement) && (payload.endTime <= blockchain.now() + ONE_YEAR - ONE_DAY)) throw(EXC_INCORRECT_TIME_RANGE);
     assert((payload.minBidValue >= deployInfo.minPrice) && (payload.maxBidValue > payload.minBidValue)) throw EXC_PRICE_TOO_LOW;
     assert(payload.minBidIncrement > 1000) throw EXC_INCORRECT_BID_INCREMENT;
     assert(payload.timeIncrement >= deployInfo.minTimeIncrement) throw EXC_INCORRECT_TIME_INCREMENT;
@@ -109,7 +108,8 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
             code: args.code,
             data: data,
         },
-    }).buildAddress();
+    });
+    val auctionAddressBuilder = auctionAddress.buildAddress();
 
     val contractCodes = lazy args.contractCodes.load();
     val msg = createMessage({
@@ -121,8 +121,8 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
                 .storeUint(args.queryId, 64)
                 .storeBuilder(
                     payload.isWeb3 ?
-                        calculateWeb3WalletAddress(auctionAddress, contractCodes.web3WalletCode) : 
-                        calculateUsdtWalletAddress(auctionAddress, contractCodes.usdtWalletCode))
+                        calculateWeb3WalletAddress(auctionAddressBuilder, contractCodes.web3WalletCode) : 
+                        calculateUsdtWalletAddress(auctionAddressBuilder, contractCodes.usdtWalletCode))
                 .endCell()
     });
 

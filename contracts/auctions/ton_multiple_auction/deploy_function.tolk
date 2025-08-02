@@ -38,8 +38,7 @@ fun deployTonMultipleAuction(args: SimpleDeployArgs): int {
     
     payload.startTime = max(blockchain.now() + 30, payload.startTime);
 
-    assert((payload.endTime >= payload.startTime + deployInfo.minTimeIncrement) && 
-           (payload.endTime <= blockchain.now() + ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_TIME_RANGE;
+    assert((payload.endTime >= payload.startTime + payload.timeIncrement) && (payload.endTime <= blockchain.now() + ONE_YEAR - ONE_DAY)) throw(EXC_INCORRECT_TIME_RANGE);
     assert((payload.minBidValue >= deployInfo.minPrice) && (payload.maxBidValue > payload.minBidValue)) throw EXC_PRICE_TOO_LOW;
     assert(payload.minBidIncrement > 1000) throw EXC_INCORRECT_BID_INCREMENT;
     assert(payload.timeIncrement >= deployInfo.minTimeIncrement) throw EXC_INCORRECT_TIME_INCREMENT;
@@ -93,7 +92,7 @@ fun deployTonMultipleAuction(args: SimpleDeployArgs): int {
             code: args.code,
             data: data,
         },
-    }).buildAddress();
+    });
 
     val msg = createMessage({
         bounce: false,

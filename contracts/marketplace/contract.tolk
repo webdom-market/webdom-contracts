@@ -125,7 +125,6 @@ fun handleNftOwnershipAssigned(
         commitContractDataAndActions();
         throw e;
     }
-
 }
 
 @inline
@@ -143,14 +142,12 @@ fun handleJettonsTransferNotification(
         var payload = inMsgBody.loadBool() ? inMsgBody.loadRef().beginParse() : inMsgBody;
         val innerOp: int = payload.loadUint(32);
         
-        // Обработка комиссии маркетплейса
         if (payload.bitsEqual("Marketplace commission")) {
             storage.collectedFeesDict = addCollectedFees(storage.collectedFeesDict, jettonWalletAddress, transferredJettons);
             storage.save();
             return;
         }
         
-        // Обработка Make Hot/Colored
         if ((innerOp == OP_MAKE_HOT) || (innerOp == OP_MAKE_COLORED)) {
             val ds2 = lazy storage.ds2.load();
             assert(jettonWalletAddress == ds2.web3WalletAddress) throw EXC_INCORRECT_SENDER;
@@ -183,8 +180,27 @@ fun handleJettonsTransferNotification(
             storage.save();
             return;
         }
+
+        if (innerOp == OP_MOVE_UP_SALE) {
+            val ds2 = lazy storage.ds2.load();
+            assert(jettonWalletAddress == ds2.web3WalletAddress) throw EXC_INCORRECT_SENDER;
+            assert(transferredJettons == storage.moveUpSalePrice) throw EXC_NOT_ENOUGH_JETTONS;
+
+            storage.collectedFeesDict = addCollectedFees(storage.collectedFeesDict, jettonWalletAddress, transferredJettons);
+            storage.currentTopSale = payload.loadAddress();
+            storage.save();
+
+            createMessage({
+                bounce: false,
+                value: 0,
+                dest: fromAddress,
+                body: ExcessesMessage {queryId: queryId}
+            }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+            return;
+        }
         
-        // Обработка deploy операций для jetton
+        // deploy with jetton transfer
         if (innerOp < 0x0fffffff) {
             val ds2 = lazy storage.ds2.load();
             var deployInfo: DeployInfo<SerializableSlice> = parseDeployInfo(storage, innerOp, DEPLOY_WITH_JETTON_TRANSFER);
@@ -244,9 +260,62 @@ fun handleJettonsTransferNotification(
     }
 }
 
+
+fun handleBuySubscription(storage: MarketplaceStorage, msgBody: slice, msgValue: coins, senderAddress: address): void {
+    val subscriptionLevel = msgBody.loadUint(8);
+    val subscriptionPeriod = msgBody.loadUint(32);
+
+    var ds2 = lazy storage.ds2.load();
+    var (subscriptionInfoSlice, found) = ds2.subscriptionsInfo.uDictGet(8, subscriptionLevel);
+    assert(found) throw EXC_INCORRECT_SUBSCRIPTION_LEVEL;
+
+    val subscriptionInfoCell = subscriptionInfoSlice!.loadDict();
+    var (subscriptionPriceSlice, found2) = subscriptionInfoCell.uDictGet(32, subscriptionPeriod);
+    assert(found2) throw EXC_INCORRECT_SUBSCRIPTION_PERIOD;
+    val subscriptionPrice = subscriptionPriceSlice!.loadUint(64);
+    assert(subscriptionPrice <= msgValue) throw EXC_OUT_OF_GAS;
+
+    var (userSubscriptionSlice, found3) = ds2.userSubscriptions.sDictGet(267, senderAddress as slice);
+    var userSubscriptionEndTime = 0;
+    if (found3 && userSubscriptionSlice!.loadUint(8) == subscriptionLevel) {
+        userSubscriptionEndTime = max(userSubscriptionSlice!.loadUint(32), blockchain.now()) + subscriptionPeriod;
+    }
+    else {
+        userSubscriptionEndTime = blockchain.now() + subscriptionPeriod;
+    }
+    
+    ds2.userSubscriptions.sDictSetBuilder(267, senderAddress as slice, beginCell().storeUint(subscriptionLevel, 8).storeUint(userSubscriptionEndTime, 32));
+    storage.ds2 = ds2.toCell();
+    storage.collectedFeesTon += subscriptionPrice;
+    storage.save();
+    return;
+}
+
+
+fun handleRenewalFee(storage: MarketplaceStorage, msgBody: slice, msgValue: coins, queryId: uint64): void {
+    var excess: coins = msgValue - TONS_RENEW_REQUEST;
+    if (excess > TONS_MIN_EXCESS) {
+        val ownerAddress = msgBody.loadAddress();
+        createMessage({
+            bounce: false,
+            value: 0,
+            dest: ownerAddress,
+            body: ExcessesMessage {queryId: queryId}
+        }).send(excess);
+    };
+    storage.collectedFeesTon += min(TONS_RENEW_REQUEST, msgValue) - ton("0.003");
+    storage.save();
+    return;
+}
+
+fun handleTonMarketplaceCommission(storage: MarketplaceStorage, msgBody: slice, msgValue: coins): void {
+    assert(msgBody.bitsEqual("Marketplace commission")) throw EXC_UNSUPPORTED_OP;
+    storage.collectedFeesTon += msgValue - 2000000;
+    storage.save();
+}
+
 fun onInternalMessage(in: InMessage): void {
     forceSameWorkchain(in.senderAddress);
-    // Обработка admin сообщений
     handleAdminMessage(in.senderAddress, in.body, Permissions {
         allowChangeCode: true,
         allowChangeData: true,
@@ -264,27 +333,31 @@ fun onInternalMessage(in: InMessage): void {
         
     var storage = lazy MarketplaceStorage.load();
 
-    if (op == OP_FILL_UP_BALANCE) {
-        return;
+    match (op) {
+        OP_FILL_UP_BALANCE => {
+            return;
+        }
+        OP_OWNERSHIP_ASSIGNED => {
+            handleNftOwnershipAssigned(storage, in.valueCoins, queryId, in.body, in.senderAddress);
+        }
+        OP_TRANSFER_NOTIFICATION => {
+            handleJettonsTransferNotification(storage, in.valueCoins, queryId, in.body, in.senderAddress);
+        }
+        OP_RENEWAL_FEE => {
+            handleRenewalFee(storage, in.body, in.valueCoins, queryId);
+        }
+        OP_COMMENT => {
+            handleTonMarketplaceCommission(storage, in.body, in.valueCoins);
+        }
+        OP_BUY_SUBSCRIPTION => {
+            handleBuySubscription(storage, in.body, in.valueCoins, in.senderAddress);
+        }
+        else => { // simple deploy
+            assert(op < 0x0fffffff) throw EXC_UNSUPPORTED_OP;
+            handleSimpleDeploy(storage, op, queryId, in.body, in.senderAddress, in.valueCoins);
+            return;
+        }
     }
-    
-    if (op == OP_OWNERSHIP_ASSIGNED) {
-        handleNftOwnershipAssigned(storage, in.valueCoins, queryId, in.body, in.senderAddress);
-        return;
-    }
-    
-    if (op == OP_TRANSFER_NOTIFICATION) {
-        handleJettonsTransferNotification(storage, in.valueCoins, queryId, in.body, in.senderAddress);
-        return;
-    }
-    
-    // Простые deploy операции (без NFT/Jetton transfer)
-    if (op < 0x0fffffff) {
-        handleSimpleDeploy(storage, op, queryId, in.body, in.senderAddress, in.valueCoins);
-        return;
-    }
-    
-    throw EXC_UNSUPPORTED_OP;
 }
 
 get fun get_deploy_info(op: int): (uint2, coins, cell, cell, slice) {

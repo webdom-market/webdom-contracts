@@ -89,7 +89,7 @@ describe('MultipleJettonSale', () => {
         let domainsDict: Dictionary<Address, number> = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Uint(1));
         for (let domainName of DOMAIN_NAMES) {  // deploy domains
             transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), domainName);
-            const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+            const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
             expect(transactionRes.transactions).toHaveTransaction({
                 from: dnsCollection.address,
                 to: domainAddress,
@@ -149,7 +149,7 @@ describe('MultipleJettonSale', () => {
             expect(jettonMultipleSaleConfig.domainsDict.get(domain.address)).toEqual(1);
         }
 
-        expect(usdtSaleWallet.address.toString()).toEqual(jettonMultipleSaleConfig.jettonWalletAddress!!.toString());
+        expect(usdtSaleWallet.address.toString()).toEqual(jettonMultipleSaleConfig.jettonWalletAddress!.toString());
     });
 
     // it('should deploy', async () => {
@@ -158,7 +158,7 @@ describe('MultipleJettonSale', () => {
 
     it('should sell domains', async () => {
         // reject if valid_until < now
-        blockchain.now!! = jettonMultipleSaleConfig.validUntil + 1;
+        blockchain.now! = jettonMultipleSaleConfig.validUntil + 1;
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonMultipleSaleConfig.price, jettonMultipleSale.address, buyer.address, toNano("0.555"));
         expect(transactionRes.transactions).toHaveTransaction({
             to: jettonMultipleSale.address,
@@ -166,7 +166,7 @@ describe('MultipleJettonSale', () => {
         })
 
         // accept 
-        transactionRes = await jettonMultipleSale.sendChangePrice(seller.getSender(), jettonMultipleSaleConfig.price, blockchain.now!! + 600);
+        transactionRes = await jettonMultipleSale.sendChangePrice(seller.getSender(), jettonMultipleSaleConfig.price, blockchain.now! + 600);
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonMultipleSaleConfig.price, jettonMultipleSale.address, buyer.address, toNano("0.555"));
 
         expect(transactionRes.transactions).toHaveTransaction({
@@ -187,7 +187,7 @@ describe('MultipleJettonSale', () => {
 
         for (let domain of domains) {
             let domainConfig = await domain.getStorageData();
-            expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+            expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         }
 
         // reject if already sold
@@ -204,24 +204,24 @@ describe('MultipleJettonSale', () => {
         for (let i = 0; i < 100; ++i) {
             let newPrice = BigInt(Math.ceil(Math.random() * 10 ** (i % 9 + 9)));
             let timeSpent = Math.ceil(ONE_DAY * Math.random() * 700 / checks);  
-            blockchain.now!! += timeSpent;
-            let newValidUntil = Math.ceil(blockchain.now!! + ONE_DAY * Math.random() * 700 / checks);
+            blockchain.now! += timeSpent;
+            let newValidUntil = Math.ceil(blockchain.now! + ONE_DAY * Math.random() * 700 / checks);
             transactionRes = await jettonMultipleSale.sendChangePrice(seller.getSender(), newPrice, newValidUntil);
-            if (jettonMultipleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now!! + 600, jettonMultipleSaleConfig.validUntil)) {
+            if (jettonMultipleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now! + 600, jettonMultipleSaleConfig.validUntil)) {
                 expect(transactionRes.transactions).toHaveTransaction({
                     from: seller.address,
                     to: jettonMultipleSale.address,
                     // success: false,
                     exitCode: Exceptions.INCORRECT_VALID_UNTIL
                 })
-                if (newValidUntil >= Math.max(blockchain.now!! + 600, jettonMultipleSaleConfig.lastRenewalTime)) break;
+                if (newValidUntil >= Math.max(blockchain.now! + 600, jettonMultipleSaleConfig.lastRenewalTime)) break;
             }
             else {
                 jettonMultipleSaleConfig = await jettonMultipleSale.getStorageData();
                 expect(jettonMultipleSaleConfig.price).toEqual(newPrice);
                 expect(jettonMultipleSaleConfig.validUntil).toEqual(newValidUntil);
                 
-                let notificationMessage = transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail();
+                let notificationMessage = transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail();
                 let priceString = notificationMessage.split(' ')[3];
                 let expectedPriceString = jettonsToString(Number(newPrice), 6);
                 expect(priceString).toEqual(expectedPriceString);
@@ -230,14 +230,14 @@ describe('MultipleJettonSale', () => {
     });
 
     it("should renew domain", async () => {
-        blockchain.now!! += ONE_DAY * 30;
+        blockchain.now! += ONE_DAY * 30;
         transactionRes = await jettonMultipleSale.sendRenewDomain(seller.getSender(), jettonMultipleSaleConfig.domainsTotal);
         for (let domain of domains) {
             let domainConfig = await domain.getStorageData();
-            expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!!);
+            expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
         }
         
-        blockchain.now!! += ONE_YEAR - ONE_DAY + 1;
+        blockchain.now! += ONE_YEAR - ONE_DAY + 1;
         transactionRes = await jettonMultipleSale.sendRenewDomain(seller.getSender(), jettonMultipleSaleConfig.domainsTotal);
         expect(transactionRes.transactions).toHaveTransaction({
             from: seller.address,
@@ -247,11 +247,11 @@ describe('MultipleJettonSale', () => {
     });
 
     it("should handle expiration notification", async () => {
-        blockchain.now!! += ONE_YEAR + 1;
+        blockchain.now! += ONE_YEAR + 1;
         transactionRes = await domains[0].sendStartAuction(admin.getSender(), DOMAIN_NAMES[0]);
         for (let i = 1; i < domains.length; ++i) {
             let domainConfig = await domains[i].getStorageData();
-            expect(domainConfig.ownerAddress!!.toString()).toEqual(jettonMultipleSaleConfig.sellerAddress.toString());
+            expect(domainConfig.ownerAddress!.toString()).toEqual(jettonMultipleSaleConfig.sellerAddress.toString());
         }
         expect((await blockchain.getContract(jettonMultipleSale.address)).balance).toEqual(0n);
         jettonMultipleSaleConfig = await jettonMultipleSale.getStorageData();
@@ -259,13 +259,13 @@ describe('MultipleJettonSale', () => {
     });
 
     it("should cancel by external message", async () => {
-        blockchain.now!! = jettonMultipleSaleConfig.validUntil;
+        blockchain.now! = jettonMultipleSaleConfig.validUntil;
         transactionRes = await jettonMultipleSale.sendExternalCancel();
         jettonMultipleSaleConfig = await jettonMultipleSale.getStorageData();
         expect(jettonMultipleSaleConfig.state).toEqual(JettonMultipleSale.STATE_CANCELLED);
         for (let domain of domains) {
             let domainConfig = await domain.getStorageData();
-            expect(domainConfig.ownerAddress!!.toString()).toEqual(jettonMultipleSaleConfig.sellerAddress.toString());
+            expect(domainConfig.ownerAddress!.toString()).toEqual(jettonMultipleSaleConfig.sellerAddress.toString());
         }
     });
 });

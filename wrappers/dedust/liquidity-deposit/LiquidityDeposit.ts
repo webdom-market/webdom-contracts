@@ -65,7 +65,7 @@ export class LiquidityDeposit implements Contract {
 
   async getIsProcessing(provider: ContractProvider): Promise<boolean> {
     const result = await provider.get('is_processing', []);
-    return !!result.stack.readNumber();
+    return !result.stack.readNumber();
   }
 
   async getMinimalLPAmount(provider: ContractProvider): Promise<bigint> {

@@ -68,7 +68,7 @@ describe('MultipleTonSale', () => {
         let domainsDict: Dictionary<Address, number> = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Uint(1));
         for (let domainName of DOMAIN_NAMES) {  // deploy domains
             transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), domainName);
-            const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+            const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
             expect(transactionRes.transactions).toHaveTransaction({
                 from: dnsCollection.address,
                 to: domainAddress,
@@ -117,7 +117,7 @@ describe('MultipleTonSale', () => {
             to: seller.address,
             body: beginCell().storeUint(0, 32).storeStringTail("Multiple sale on webdom.market is active").endCell(),
             // value(x) {
-            //     return x!! >= toNano('0.09') * BigInt(domains.length)
+            //     return x! >= toNano('0.09') * BigInt(domains.length)
             // },
         })
 
@@ -134,7 +134,7 @@ describe('MultipleTonSale', () => {
 
     it('should sell domains', async () => {
         // reject if valid_until < now
-        blockchain.now!! = tonMultipleSaleConfig.validUntil + 1;
+        blockchain.now! = tonMultipleSaleConfig.validUntil + 1;
         transactionRes = await tonMultipleSale.sendPurchase(buyer.getSender(), tonMultipleSaleConfig.price, domains.length);
         expect(transactionRes.transactions).toHaveTransaction({
             from: buyer.address,
@@ -143,14 +143,14 @@ describe('MultipleTonSale', () => {
         })
 
         // accept 
-        transactionRes = await tonMultipleSale.sendChangePrice(seller.getSender(), tonMultipleSaleConfig.price, blockchain.now!! + 600);
+        transactionRes = await tonMultipleSale.sendChangePrice(seller.getSender(), tonMultipleSaleConfig.price, blockchain.now! + 600);
         transactionRes = await tonMultipleSale.sendPurchase(buyer.getSender(), tonMultipleSaleConfig.price, domains.length);
         
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonMultipleSale.address,
             to: seller.address,
             value(x) {
-                return x!! > tonMultipleSaleConfig.price - tonMultipleSaleConfig.commission - toNano('0.01');
+                return x! > tonMultipleSaleConfig.price - tonMultipleSaleConfig.commission - toNano('0.01');
             },
             success: true
         });
@@ -158,13 +158,13 @@ describe('MultipleTonSale', () => {
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonMultipleSale.address,
             to: marketplace.address,
-            value(x) { return (x!! > tonMultipleSaleConfig.commission - toNano('0.001')) },
+            value(x) { return (x! > tonMultipleSaleConfig.commission - toNano('0.001')) },
             success: true
         });
 
         for (let domain of domains) {
             let domainConfig = await domain.getStorageData();
-            expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+            expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         }
 
 
@@ -183,24 +183,24 @@ describe('MultipleTonSale', () => {
         for (let i = 0; i < 100; ++i) {
             let newPrice = BigInt(Math.ceil(Math.random() * 10 ** (i % 9 + 9)));
             let timeSpent = Math.ceil(ONE_DAY * Math.random() * 700 / checks);  
-            blockchain.now!! += timeSpent;
-            let newValidUntil = Math.ceil(blockchain.now!! + ONE_DAY * Math.random() * 700 / checks);
+            blockchain.now! += timeSpent;
+            let newValidUntil = Math.ceil(blockchain.now! + ONE_DAY * Math.random() * 700 / checks);
             transactionRes = await tonMultipleSale.sendChangePrice(seller.getSender(), newPrice, newValidUntil);
-            if (tonMultipleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now!! + 600, tonMultipleSaleConfig.validUntil)) {
+            if (tonMultipleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now! + 600, tonMultipleSaleConfig.validUntil)) {
                 expect(transactionRes.transactions).toHaveTransaction({
                     from: seller.address,
                     to: tonMultipleSale.address,
                     // success: false,
                     exitCode: Exceptions.INCORRECT_VALID_UNTIL
                 })
-                if (newValidUntil >= Math.max(blockchain.now!! + 600, tonMultipleSaleConfig.lastRenewalTime)) break;
+                if (newValidUntil >= Math.max(blockchain.now! + 600, tonMultipleSaleConfig.lastRenewalTime)) break;
             }
             else {
                 tonMultipleSaleConfig = await tonMultipleSale.getStorageData();
                 expect(tonMultipleSaleConfig.price).toEqual(newPrice);
                 expect(tonMultipleSaleConfig.validUntil).toEqual(newValidUntil);
                 
-                let notificationMessage = transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail();
+                let notificationMessage = transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail();
                 let priceString = notificationMessage.split(' ')[3];
                 let expectedPriceString = jettonsToString(Number(newPrice), 9);
                 expect(priceString).toEqual(expectedPriceString);
@@ -209,14 +209,14 @@ describe('MultipleTonSale', () => {
     });
 
     it("should renew domain", async () => {
-        blockchain.now!! += ONE_DAY * 30;
+        blockchain.now! += ONE_DAY * 30;
         transactionRes = await tonMultipleSale.sendRenewDomain(seller.getSender(), tonMultipleSaleConfig.domainsTotal);
         for (let domain of domains) {
             let domainConfig = await domain.getStorageData();
-            expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!!);
+            expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
         }
         
-        blockchain.now!! += ONE_YEAR - ONE_DAY + 1;
+        blockchain.now! += ONE_YEAR - ONE_DAY + 1;
         transactionRes = await tonMultipleSale.sendRenewDomain(seller.getSender(), tonMultipleSaleConfig.domainsTotal);
         expect(transactionRes.transactions).toHaveTransaction({
             from: seller.address,
@@ -226,11 +226,11 @@ describe('MultipleTonSale', () => {
     });
 
     it("should handle expiration notification", async () => {
-        blockchain.now!! += ONE_YEAR + 1;
+        blockchain.now! += ONE_YEAR + 1;
         transactionRes = await domains[0].sendStartAuction(admin.getSender(), DOMAIN_NAMES[0]);
         for (let i = 1; i < domains.length; ++i) {
             let domainConfig = await domains[i].getStorageData();
-            expect(domainConfig.ownerAddress!!.toString()).toEqual(tonMultipleSaleConfig.sellerAddress.toString());
+            expect(domainConfig.ownerAddress!.toString()).toEqual(tonMultipleSaleConfig.sellerAddress.toString());
         }
         expect((await blockchain.getContract(tonMultipleSale.address)).balance).toEqual(0n);
         tonMultipleSaleConfig = await tonMultipleSale.getStorageData();
@@ -238,13 +238,13 @@ describe('MultipleTonSale', () => {
     });
 
     it("should cancel by external message", async () => {
-        blockchain.now!! = tonMultipleSaleConfig.validUntil;
+        blockchain.now! = tonMultipleSaleConfig.validUntil;
         transactionRes = await tonMultipleSale.sendExternalCancel();
         tonMultipleSaleConfig = await tonMultipleSale.getStorageData();
         expect(tonMultipleSaleConfig.state).toEqual(TonMultipleSale.STATE_CANCELLED);
         for (let domain of domains) {
             let domainConfig = await domain.getStorageData();
-            expect(domainConfig.ownerAddress!!.toString()).toEqual(tonMultipleSaleConfig.sellerAddress.toString());
+            expect(domainConfig.ownerAddress!.toString()).toEqual(tonMultipleSaleConfig.sellerAddress.toString());
         }
     });
 

@@ -65,7 +65,7 @@ describe('JettonMultipleAuction', () => {
 
         jettonMultipleAuctionConfig = await jettonMultipleAuction.getStorageData();
         expect(jettonMultipleAuctionConfig.state).toEqual(JettonMultipleAuction.STATE_ACTIVE);
-        expect(usdtAuctionWallet.address.toString()).toEqual(jettonMultipleAuctionConfig.jettonWalletAddress!!.toString());
+        expect(usdtAuctionWallet.address.toString()).toEqual(jettonMultipleAuctionConfig.jettonWalletAddress!.toString());
     }
 
     async function sendDomainsToAuction() {
@@ -120,7 +120,7 @@ describe('JettonMultipleAuction', () => {
         let domainsDict: Dictionary<Address, number> = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Uint(1));
         for (let domainName of DOMAIN_NAMES) {
             transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), domainName);
-            const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address;
+            const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address;
             let domain = blockchain.openContract(Domain.createFromAddress(domainAddress));
             
             blockchain.now! += 60 * 60 + 1;  // end of the auction
@@ -572,12 +572,12 @@ describe('JettonMultipleAuction', () => {
     it('should handle deferred auction completion', async () => {
         jettonMultipleAuctionConfig.isDeferred = true;
         let auctionDuration = jettonMultipleAuctionConfig.endTime - jettonMultipleAuctionConfig.startTime;
-        jettonMultipleAuctionConfig.startTime = blockchain.now!! + 360 * 24 * 60 * 60;
+        jettonMultipleAuctionConfig.startTime = blockchain.now! + 360 * 24 * 60 * 60;
         jettonMultipleAuctionConfig.endTime = jettonMultipleAuctionConfig.startTime + auctionDuration;
         await deployAuction();
         await sendDomainsToAuction();
 
-        blockchain.now!! += 350 * 24 * 60 * 60;
+        blockchain.now! += 350 * 24 * 60 * 60;
         jettonMultipleAuctionConfig = await jettonMultipleAuction.getStorageData();
         expect(jettonMultipleAuctionConfig.isDeferred).toEqual(true);
         
@@ -589,7 +589,7 @@ describe('JettonMultipleAuction', () => {
             buyer.address,
             JettonMultipleAuction.getTonsToEndAuction(domains.length) + toNano('0.05')
         );
-        blockchain.now!! += auctionDuration;
+        blockchain.now! += auctionDuration;
         transactionRes = await jettonMultipleAuction.sendExternalCancel();
         jettonMultipleAuctionConfig = await jettonMultipleAuction.getStorageData();
         expect(jettonMultipleAuctionConfig.isDeferred).toEqual(false);

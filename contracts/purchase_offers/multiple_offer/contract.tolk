@@ -316,5 +316,5 @@ get fun get_storage_data() {
         storage.soldNftsDict,
         storage.jettonBalancesDict,
         storage.web3WalletAddress
-    )
+    );
 }

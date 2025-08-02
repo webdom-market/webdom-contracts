@@ -96,7 +96,7 @@ export type MarketplaceConfig = {
     moveUpSalePrice: bigint;
     currentTopSale: Address;
     collectedFeesTon: bigint;
-    collectedFeesDict: Dictionary<Address, bigint>;
+    collectedFeesDict?: Dictionary<Address, bigint>;
 
     deployInfos: Dictionary<number, DeployInfoValue>;
     
@@ -256,7 +256,7 @@ export class Marketplace extends DefaultContract {
             web3WalletAddress: stack.readAddress(),
 
             collectedFeesTon: stack.readBigNumber(),
-            collectedFeesDict: stack.readCell().beginParse().loadDictDirect(Dictionary.Keys.Address(), Dictionary.Values.BigVarUint(4)),
+            collectedFeesDict: stack.readCellOpt()?.beginParse().loadDictDirect(Dictionary.Keys.Address(), Dictionary.Values.BigVarUint(4)),
 
             promotionPrices: stack.readCell().beginParse().loadDictDirect(Dictionary.Keys.Uint(32), promotionPricesValueParser()),
         };

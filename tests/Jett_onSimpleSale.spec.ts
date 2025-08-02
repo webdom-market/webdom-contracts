@@ -87,7 +87,7 @@ describe('JettonSimpleSale', () => {
         });
 
         transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), DOMAIN_NAME);
-        const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+        const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
         expect(transactionRes.transactions).toHaveTransaction({
             from: dnsCollection.address,
             to: domainAddress,
@@ -129,12 +129,12 @@ describe('JettonSimpleSale', () => {
 
         jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
         expect(jettonSimpleSaleConfig.state).toEqual(JettonSimpleSale.STATE_ACTIVE);
-        expect(usdtSaleWallet.address.toString()).toEqual(jettonSimpleSaleConfig.jettonWalletAddress!!.toString());
+        expect(usdtSaleWallet.address.toString()).toEqual(jettonSimpleSaleConfig.jettonWalletAddress!.toString());
     });
 
     it('should sell domain', async () => {
         // reject if valid_until < now
-        blockchain.now!! = jettonSimpleSaleConfig.validUntil + 1;
+        blockchain.now! = jettonSimpleSaleConfig.validUntil + 1;
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price, jettonSimpleSale.address, buyer.address, toNano("0.225"));
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtBuyerWallet.address,
@@ -143,7 +143,7 @@ describe('JettonSimpleSale', () => {
                  beginCell().storeUint(0, 32).storeStringTail(`Error. Code ${Exceptions.DEAL_NOT_ACTIVE}`).endCell()),
         })
 
-        await jettonSimpleSale.sendChangePrice(seller.getSender(), jettonSimpleSaleConfig.price, blockchain.now!! + 600);
+        await jettonSimpleSale.sendChangePrice(seller.getSender(), jettonSimpleSaleConfig.price, blockchain.now! + 600);
 
         // reject if not enough jettons
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price - 100n, jettonSimpleSale.address, buyer.address, toNano("0.235"));
@@ -188,7 +188,7 @@ describe('JettonSimpleSale', () => {
         })
 
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
 
         // reject if already sold
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price, jettonSimpleSale.address, buyer.address, toNano("0.235"));
@@ -215,24 +215,24 @@ describe('JettonSimpleSale', () => {
         for (let i = 0; i < 100; ++i) {
             let newPrice = BigInt(Math.ceil(Math.random() * 10 ** (i % 9 + 9)));
             let timeSpent = Math.ceil(ONE_DAY * Math.random() * 700 / checks);  
-            blockchain.now!! += timeSpent;
-            let newValidUntil = Math.ceil(blockchain.now!! + ONE_DAY * Math.random() * 700 / checks);
+            blockchain.now! += timeSpent;
+            let newValidUntil = Math.ceil(blockchain.now! + ONE_DAY * Math.random() * 700 / checks);
             transactionRes = await jettonSimpleSale.sendChangePrice(seller.getSender(), newPrice, newValidUntil);
-            if (jettonSimpleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now!! + 600, jettonSimpleSaleConfig.validUntil)) {
+            if (jettonSimpleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now! + 600, jettonSimpleSaleConfig.validUntil)) {
                 expect(transactionRes.transactions).toHaveTransaction({
                     from: seller.address,
                     to: jettonSimpleSale.address,
                     // success: false,
                     exitCode: Exceptions.INCORRECT_VALID_UNTIL
                 })
-                if (newValidUntil >= Math.max(blockchain.now!! + 600, jettonSimpleSaleConfig.lastRenewalTime)) break;
+                if (newValidUntil >= Math.max(blockchain.now! + 600, jettonSimpleSaleConfig.lastRenewalTime)) break;
             }
             else {
                 jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
                 expect(jettonSimpleSaleConfig.price).toEqual(newPrice);
                 expect(jettonSimpleSaleConfig.validUntil).toEqual(newValidUntil);
                 
-                let notificationMessage = transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail();
+                let notificationMessage = transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail();
                 let priceString = notificationMessage.split(' ')[3];
                 let expectedPriceString = jettonsToString(Number(newPrice), 6);
                 expect(priceString).toEqual(expectedPriceString);
@@ -241,12 +241,12 @@ describe('JettonSimpleSale', () => {
     });
 
     it("should renew domain", async () => {
-        blockchain.now!! += ONE_DAY * 30;
+        blockchain.now! += ONE_DAY * 30;
         transactionRes = await jettonSimpleSale.sendRenewDomain(seller.getSender());
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!!);
+        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
         
-        blockchain.now!! += ONE_YEAR - ONE_DAY + 1;
+        blockchain.now! += ONE_YEAR - ONE_DAY + 1;
         transactionRes = await jettonSimpleSale.sendRenewDomain(seller.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             from: seller.address,
@@ -256,30 +256,30 @@ describe('JettonSimpleSale', () => {
     });
 
     it("should cancel by external message", async () => {
-        blockchain.now!! = jettonSimpleSaleConfig.validUntil;
+        blockchain.now! = jettonSimpleSaleConfig.validUntil;
         // console.log((await blockchain.getContract(jettonSimpleSale.address)).balance);
         transactionRes = await jettonSimpleSale.sendExternalCancel();
         jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
         expect(jettonSimpleSaleConfig.state).toEqual(JettonSimpleSale.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(jettonSimpleSaleConfig.sellerAddress.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(jettonSimpleSaleConfig.sellerAddress.toString());
     });
 
     it("should cancel by internal message", async () => {
-        blockchain.now!! = jettonSimpleSaleConfig.validUntil;
+        blockchain.now! = jettonSimpleSaleConfig.validUntil;
         // console.log((await blockchain.getContract(jettonSimpleSale.address)).balance);
         transactionRes = await jettonSimpleSale.sendCancelSale(seller.getSender());
         jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
         expect(jettonSimpleSaleConfig.state).toEqual(JettonSimpleSale.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(jettonSimpleSaleConfig.sellerAddress.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(jettonSimpleSaleConfig.sellerAddress.toString());
     });
     
     it("should make hot", async () => {
-        transactionRes = await jettonSimpleSale.sendMakeHot(admin.getSender(), blockchain.now!! + ONE_DAY * 3 / 2);
-        transactionRes = await jettonSimpleSale.sendMakeColored(admin.getSender(), blockchain.now!! + ONE_DAY * 2);
+        transactionRes = await jettonSimpleSale.sendMakeHot(admin.getSender(), blockchain.now! + ONE_DAY * 3 / 2);
+        transactionRes = await jettonSimpleSale.sendMakeColored(admin.getSender(), blockchain.now! + ONE_DAY * 2);
         jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
-        expect(jettonSimpleSaleConfig.hotUntil).toEqual(blockchain.now!! + ONE_DAY * 3 / 2);
-        expect(jettonSimpleSaleConfig.coloredUntil).toEqual(blockchain.now!! + ONE_DAY * 2);
+        expect(jettonSimpleSaleConfig.hotUntil).toEqual(blockchain.now! + ONE_DAY * 3 / 2);
+        expect(jettonSimpleSaleConfig.coloredUntil).toEqual(blockchain.now! + ONE_DAY * 2);
     });
 });

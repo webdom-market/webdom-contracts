@@ -127,6 +127,7 @@ struct (0x96dc2804) MakeColoredMessage {
 
 struct (0x975f5690) RenewalFeeMessage {
     queryId: uint64;
+    ownerAddress: address;
 }
 
 struct (0x0609e47b) DeployAndSetWalletMessage {

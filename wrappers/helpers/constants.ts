@@ -37,6 +37,7 @@ export const OpCodes = {
     SET_CODE: 0xe2d2d211,
     WITHDRAW_TON: 0x37726bdb,
     WITHDRAW_JETTON: 0x11c09682,
+    WITHDRAW_NFT: 0x00dc315b,
 
     STOP_AUCTION: 0x793be3b5,
 

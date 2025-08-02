@@ -185,7 +185,7 @@ export class MultipleOffer extends DefaultContract {
         if (jettonBalancesCell) {
             res.jettonBalancesDict = jettonBalancesCell.beginParse().loadDictDirect(Dictionary.Keys.Address(), Dictionary.Values.BigVarUint(4));
         }
-        res.web3WalletAddress = stack.readAddress();
+        res.web3WalletAddress = stack.readAddressOpt() ?? undefined;
         return res;
     }
 }

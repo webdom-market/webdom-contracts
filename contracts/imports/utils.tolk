@@ -167,7 +167,7 @@ fun returnNftToSender<T>(nftAddress: address, msg: NftOwnershipAssignedMessage<T
                 .storeNumber10(errorCode)
             .endCell()
         }
-    }).send(SEND_MODE_CARRY_ALL_BALANCE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     
     commitContractDataAndActions();
     throw errorCode;

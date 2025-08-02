@@ -50,7 +50,7 @@ describe('MultipleDomainsSwap', () => {
                 to: rightOwner.address,
                 body: payoutNotification,
                 value(x) {
-                    return x!! > multipleDomainsSwapConfig.rightPaymentReceived - multipleDomainsSwapConfig.rightPaymentTotal + multipleDomainsSwapConfig.leftPaymentTotal - toNano('0.001');
+                    return x! > multipleDomainsSwapConfig.rightPaymentReceived - multipleDomainsSwapConfig.rightPaymentTotal + multipleDomainsSwapConfig.leftPaymentTotal - toNano('0.001');
                 }
             });
         }
@@ -60,7 +60,7 @@ describe('MultipleDomainsSwap', () => {
                 to: leftOwner.address,
                 body: payoutNotification,
                 value(x) {
-                    return x!! > multipleDomainsSwapConfig.rightPaymentTotal - toNano('0.001');
+                    return x! > multipleDomainsSwapConfig.rightPaymentTotal - toNano('0.001');
                 }
             });
         }
@@ -68,7 +68,7 @@ describe('MultipleDomainsSwap', () => {
             from: multipleDomainsSwap.address,
             to: marketplace.address,
             value(x) {
-                return x!! > multipleDomainsSwapConfig.commission - toNano('0.001');
+                return x! > multipleDomainsSwapConfig.commission - toNano('0.001');
             }
         });
         multipleDomainsSwapConfig = await multipleDomainsSwap.getStorageData();
@@ -91,7 +91,7 @@ describe('MultipleDomainsSwap', () => {
                 from: leftDomains[0].address,
                 to: leftOwner.address,
                 body(x) {
-                    return x!!.beginParse().loadRef().beginParse().skip(32).loadStringTail() == cancelNotification;
+                    return x!.beginParse().loadRef().beginParse().skip(32).loadStringTail() == cancelNotification;
                 }
             });
         }
@@ -100,7 +100,7 @@ describe('MultipleDomainsSwap', () => {
                 from: rightDomains[0].address,
                 to: rightOwner.address,
                 body(x) {
-                    return x!!.beginParse().loadRef().beginParse().skip(32).loadStringTail() == cancelNotification;
+                    return x!.beginParse().loadRef().beginParse().skip(32).loadStringTail() == cancelNotification;
                 }
             });
         }
@@ -110,7 +110,7 @@ describe('MultipleDomainsSwap', () => {
                 to: rightOwner.address,
                 op: OpCodes.EXCESSES,
                 value(x) {
-                    return x!! > multipleDomainsSwapConfig.rightPaymentReceived - toNano('0.001');
+                    return x! > multipleDomainsSwapConfig.rightPaymentReceived - toNano('0.001');
                 },
             });
         }
@@ -162,7 +162,7 @@ describe('MultipleDomainsSwap', () => {
         for (let i = 0; i < DOMAIN_NAMES.length; ++i) {  // deploy domains
             const domainName = DOMAIN_NAMES[i];
             transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), domainName);
-            const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+            const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
             expect(transactionRes.transactions).toHaveTransaction({
                 from: dnsCollection.address,
                 to: domainAddress,
@@ -232,7 +232,7 @@ describe('MultipleDomainsSwap', () => {
         expect(multipleDomainsSwapConfig.leftPaymentReceived).toBe(toNano('0.01'));
         expect(multipleDomainsSwapConfig.lastActionTime).toBe(blockchain.now);
 
-        blockchain.now!! += 10;
+        blockchain.now! += 10;
         transactionRes = await leftDomains[1].sendTransfer(leftOwner.getSender(), multipleDomainsSwap.address, null, null, MultipleDomainsSwap.ADD_DOMAIN_TONS + multipleDomainsSwapConfig.leftPaymentTotal);
         expect(transactionRes.transactions).toHaveTransaction({
             from: multipleDomainsSwap.address,
@@ -253,7 +253,7 @@ describe('MultipleDomainsSwap', () => {
         expect(multipleDomainsSwapConfig.lastActionTime).toBe(blockchain.now);
 
         for (let i = 0; i < rightDomains.length - 1; ++i) {
-            blockchain.now!! += 10;
+            blockchain.now! += 10;
             transactionRes = await rightDomains[i].sendTransfer(rightOwner.getSender(), multipleDomainsSwap.address, null, null, MultipleDomainsSwap.ADD_DOMAIN_TONS + toNano('0.1'));
             multipleDomainsSwapConfig = await multipleDomainsSwap.getStorageData();
             expect(multipleDomainsSwapConfig.rightDomainsReceived).toBe(i + 1);
@@ -274,7 +274,7 @@ describe('MultipleDomainsSwap', () => {
         expect(multipleDomainsSwapConfig.state).toBe(MultipleDomainsSwap.STATE_WAITING_FOR_LEFT);
 
         for (let i = 0; i < leftDomains.length; ++i) {
-            blockchain.now!! += 10;
+            blockchain.now! += 10;
             transactionRes = await leftDomains[i].sendTransfer(leftOwner.getSender(), multipleDomainsSwap.address, null, null, MultipleDomainsSwap.ADD_DOMAIN_TONS + toNano('0.01'));
             multipleDomainsSwapConfig = await multipleDomainsSwap.getStorageData();
             expect(multipleDomainsSwapConfig.leftDomainsReceived).toBe(i + 1);
@@ -305,7 +305,7 @@ describe('MultipleDomainsSwap', () => {
         expect(multipleDomainsSwapConfig.state).toBe(MultipleDomainsSwap.STATE_WAITING_FOR_RIGHT);
 
         for (let i = 0; i < rightDomains.length; ++i) {
-            blockchain.now!! += 10;
+            blockchain.now! += 10;
             transactionRes = await rightDomains[i].sendTransfer(rightOwner.getSender(), multipleDomainsSwap.address, null, null, MultipleDomainsSwap.ADD_DOMAIN_TONS + toNano('0.1'));
             multipleDomainsSwapConfig = await multipleDomainsSwap.getStorageData();
             expect(multipleDomainsSwapConfig.rightDomainsReceived).toBe(i + 1);
@@ -324,7 +324,7 @@ describe('MultipleDomainsSwap', () => {
         transactionRes = await multipleDomainsSwap.sendDeploy(admin.getSender(), toNano('0.215'));
 
         for (let i = 0; i < leftDomains.length; ++i) {
-            blockchain.now!! += 10;
+            blockchain.now! += 10;
             transactionRes = await leftDomains[i].sendTransfer(leftOwner.getSender(), multipleDomainsSwap.address, null, null, MultipleDomainsSwap.ADD_DOMAIN_TONS + toNano('0.01'));
         }
 
@@ -344,14 +344,14 @@ describe('MultipleDomainsSwap', () => {
         multipleDomainsSwap = blockchain.openContract(MultipleDomainsSwap.createFromConfig(multipleDomainsSwapConfig, multipleDomainsSwapCode));
         transactionRes = await multipleDomainsSwap.sendDeploy(admin.getSender(), toNano('0.215'));
         for (let i = 0; i < leftDomains.length; ++i) {
-            blockchain.now!! += 10;
+            blockchain.now! += 10;
             transactionRes = await leftDomains[i].sendTransfer(leftOwner.getSender(), multipleDomainsSwap.address, null, null, MultipleDomainsSwap.ADD_DOMAIN_TONS + toNano('0.01'));
         }
         multipleDomainsSwapConfig = await multipleDomainsSwap.getStorageData();
         expect(multipleDomainsSwapConfig.state).toBe(MultipleDomainsSwap.STATE_WAITING_FOR_RIGHT);
 
         // One hour didn't pass so cancellation by left owner is not possible
-        blockchain.now!! += 60 * 60 - 1;
+        blockchain.now! += 60 * 60 - 1;
         transactionRes = await multipleDomainsSwap.sendCancelDeal(leftOwner.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             from: leftOwner.address,
@@ -365,7 +365,7 @@ describe('MultipleDomainsSwap', () => {
         expect(multipleDomainsSwapConfig.rightDomainsReceived).toBe(1);
         
         // One hour passed, accept cancellation by left owner
-        blockchain.now!! += 60 * 60;
+        blockchain.now! += 60 * 60;
         transactionRes = await multipleDomainsSwap.sendCancelDeal(leftOwner.getSender());
         await checkSwapCancelled("The offer was cancelled by its creator");
     });
@@ -375,7 +375,7 @@ describe('MultipleDomainsSwap', () => {
         multipleDomainsSwap = blockchain.openContract(MultipleDomainsSwap.createFromConfig(multipleDomainsSwapConfig, multipleDomainsSwapCode));
         transactionRes = await multipleDomainsSwap.sendDeploy(admin.getSender(), toNano('0.215'));
         for (let i = 0; i < leftDomains.length; ++i) {
-            blockchain.now!! += 10;
+            blockchain.now! += 10;
             transactionRes = await leftDomains[i].sendTransfer(leftOwner.getSender(), multipleDomainsSwap.address, null, null, MultipleDomainsSwap.ADD_DOMAIN_TONS + toNano('0.01'));
         }
         multipleDomainsSwapConfig = await multipleDomainsSwap.getStorageData();
@@ -392,21 +392,21 @@ describe('MultipleDomainsSwap', () => {
         transactionRes = await multipleDomainsSwap.sendDeploy(admin.getSender(), toNano('0.215'));
 
         for (let i = 0; i < leftDomains.length; ++i) {
-            blockchain.now!! += 10;
+            blockchain.now! += 10;
             transactionRes = await leftDomains[i].sendTransfer(leftOwner.getSender(), multipleDomainsSwap.address, null, null, MultipleDomainsSwap.ADD_DOMAIN_TONS + toNano('0.01'));
         }
         await rightDomains[0].sendTransfer(rightOwner.getSender(), multipleDomainsSwap.address, null, null, MultipleDomainsSwap.ADD_DOMAIN_TONS + toNano('0.2'));
 
-        transactionRes = await multipleDomainsSwap.sendChangeValidUntil(leftOwner.getSender(), blockchain.now!! + 60 * 120 + 50);
+        transactionRes = await multipleDomainsSwap.sendChangeValidUntil(leftOwner.getSender(), blockchain.now! + 60 * 120 + 50);
         expect(transactionRes.transactions).toHaveTransaction({
             from: multipleDomainsSwap.address,
             to: leftOwner.address,
             op: OpCodes.EXCESSES,
         });
         multipleDomainsSwapConfig = await multipleDomainsSwap.getStorageData(); 
-        expect(multipleDomainsSwapConfig.validUntil).toBe(blockchain.now!! + 60 * 120 + 50);
+        expect(multipleDomainsSwapConfig.validUntil).toBe(blockchain.now! + 60 * 120 + 50);
 
-        blockchain.now!! = multipleDomainsSwapConfig.validUntil;
+        blockchain.now! = multipleDomainsSwapConfig.validUntil;
         transactionRes = await multipleDomainsSwap.sendExternalCancel()
         await checkSwapCancelled("The offer was cancelled by its creator");
     });

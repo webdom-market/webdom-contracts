@@ -3,12 +3,14 @@ import "../../imports/utils";
 import "../../imports/constants";
 import "messages";
 import "../../imports/dns";
+import "../../imports/utils";
 import "../../marketplace/types";
 import "../../marketplace/constants";
 import "../../imports/types";
 import "storage";
 import "../../imports/messages";
 import "../constants";
+
 
 struct DeployInfoForJetton {
     minPrice: coins;
@@ -47,7 +49,7 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
 
     payload.startTime = max(blockchain.now() + 30, payload.startTime);
 
-    assert((payload.endTime >= payload.startTime + deployInfo.minTimeIncrement) && (payload.endTime <= blockchain.now() + ONE_YEAR - ONE_DAY)) throw(EXC_INCORRECT_TIME_RANGE);
+    assert((payload.endTime >= payload.startTime + payload.timeIncrement) && (payload.endTime <= blockchain.now() + ONE_YEAR - ONE_DAY)) throw(EXC_INCORRECT_TIME_RANGE);
     assert((payload.minBidValue >= deployInfo.minPrice) && (payload.maxBidValue > payload.minBidValue)) throw(EXC_PRICE_TOO_LOW);
     assert(payload.minBidIncrement > 1000) throw(EXC_INCORRECT_BID_INCREMENT);
     assert(payload.timeIncrement >= deployInfo.minTimeIncrement) throw(EXC_INCORRECT_TIME_INCREMENT);
@@ -86,7 +88,8 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
             code: args.commonArgs.code,
             data: data,
         },
-    }).buildAddress();
+    });
+    val auctionAddressBuilder = auctionAddress.buildAddress();
 
     createMessage({
         bounce: false,
@@ -94,18 +97,27 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         dest: args.domainAddress,
         body: NftTransferMessageBuilder<cell> {
             queryId: 0,
-            toAddress: auctionAddress,
+            toAddress: auctionAddressBuilder,
             responseAddress: createAddressNone(),
             forwardTonAmount: 0,
             forwardPayload: null
         }
     }).send(SEND_MODE_REGULAR);
 
-    val msg = createMessage<FillUpBalanceMessage>({
+    val contractCodes = lazy args.commonArgs.contractCodes.load();
+    val msg = createMessage<cell>({
         bounce: false,
         value: TONS_DEPLOY_JETTON_SIMPLE_AUCTION,
         dest: auctionAddress,
-        body: FillUpBalanceMessage { queryId: args.commonArgs.queryId }
+        body: beginCell()
+                .storeUint(OP_FILL_UP_BALANCE, 32)
+                .storeUint(args.commonArgs.queryId, 64)
+                .storeBuilder(
+                    payload.isWeb3 ?
+                    calculateWeb3WalletAddress(auctionAddressBuilder, contractCodes.web3WalletCode) :
+                    calculateUsdtWalletAddress(auctionAddressBuilder, contractCodes.usdtWalletCode)
+                )
+                .endCell()
     });
 
     return TONS_DEPLOY_JETTON_SIMPLE_AUCTION + TONS_NFT_TRANSFER + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);

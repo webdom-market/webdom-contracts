@@ -52,7 +52,7 @@ describe('TonSimpleOffer', () => {
 
         transactionRes = await dnsCollection.sendDeploy(admin.getSender(), toNano('0.05'));
         transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), DOMAIN_NAME);
-        const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+        const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
         domain = blockchain.openContract(Domain.createFromAddress(domainAddress));
         blockchain.now += 60 * 60 + 1;  // end of the auction
         transactionRes = await domain.sendTransfer(admin.getSender(), seller.address, seller.address);
@@ -84,26 +84,26 @@ describe('TonSimpleOffer', () => {
         // console.log(`Seller address: ${seller.address}\nBuyer address: ${buyer.address}\nOffer address: ${offer.address}\n`);
 
         transactionRes = await domain.sendTransfer(seller.getSender(), offer.address, seller.address, null, toNano('0.02'));
-        expect(transactionRes.transactions[4].inMessage!!.body.beginParse().skip(32).loadStringTail()).toEqual("Marketplace commission");
+        expect(transactionRes.transactions[4].inMessage!.body.beginParse().skip(32).loadStringTail()).toEqual("Marketplace commission");
         expect(transactionRes.transactions).toHaveTransaction({
             from: offer.address,
             to: seller.address,
             success: true,
             value(x) {
-                return x!! > offerConfig.price;
+                return x! > offerConfig.price;
             },
         });
-        expect(transactionRes.transactions[5].inMessage!!.body.beginParse().skip(32).loadStringTail()).toEqual("Offer accepted");
+        expect(transactionRes.transactions[5].inMessage!.body.beginParse().skip(32).loadStringTail()).toEqual("Offer accepted");
         expect(transactionRes.transactions).toHaveTransaction({
             from: offer.address,
             to: marketplace.address,
             success: true,
             value(x) {
-                return x!! > offerConfig.commission - toNano('0.001');
+                return x! > offerConfig.commission - toNano('0.001');
             },
         });
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(TonSimpleOffer.STATE_COMPLETED);
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
@@ -111,26 +111,26 @@ describe('TonSimpleOffer', () => {
         // should return domain if the offer is already accepted
         transactionRes = await domain.sendTransfer(buyer.getSender(), offer.address, seller.address, null, toNano('0.04'));
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
     });
 
     it('should change price', async () => {
         // with notification
-        transactionRes = await offer.sendChangePrice(buyer.getSender(), offerConfig.price, offerConfig.commission, toNano('3'), blockchain.now!! + ONE_DAY * 4, true);
-        expect(transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("New offer on webdom.market!");
-        expect(transactionRes.transactions[3].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Price changed to");
+        transactionRes = await offer.sendChangePrice(buyer.getSender(), offerConfig.price, offerConfig.commission, toNano('3'), blockchain.now! + ONE_DAY * 4, true);
+        expect(transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("New offer on webdom.market!");
+        expect(transactionRes.transactions[3].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Price changed to");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.price).toEqual(toNano('3'));
-        expect(offerConfig.validUntil).toEqual(blockchain.now!! + ONE_DAY * 4);
+        expect(offerConfig.validUntil).toEqual(blockchain.now! + ONE_DAY * 4);
         expect(offerConfig.commission).toEqual(toNano('0.3'));
 
         // without notification
-        blockchain.now!! += ONE_DAY;
-        transactionRes = await offer.sendChangePrice(buyer.getSender(), offerConfig.price, offerConfig.commission, toNano('5'), blockchain.now!! + ONE_DAY * 3, false);
-        expect(transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Price changed to");
+        blockchain.now! += ONE_DAY;
+        transactionRes = await offer.sendChangePrice(buyer.getSender(), offerConfig.price, offerConfig.commission, toNano('5'), blockchain.now! + ONE_DAY * 3, false);
+        expect(transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Price changed to");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.price).toEqual(toNano('5'));
-        expect(offerConfig.validUntil).toEqual(blockchain.now!! + ONE_DAY * 3);
+        expect(offerConfig.validUntil).toEqual(blockchain.now! + ONE_DAY * 3);
         expect(offerConfig.commission).toEqual(toNano('0.5'));
 
         // counterpropose
@@ -139,17 +139,17 @@ describe('TonSimpleOffer', () => {
         //     from: offer.address,
         //     to: marketplace.address,
         //     value(x) {
-        //         return x!! > toNano('0.049') && x!! < toNano('0.05');
+        //         return x! > toNano('0.049') && x! < toNano('0.05');
         //     },
         // });
-        expect(transactionRes.transactions[4].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("You have received a counterproposal for your offer on webdom.market");
-        expect(transactionRes.transactions[5].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Counterproposal sent");
+        expect(transactionRes.transactions[4].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("You have received a counterproposal for your offer on webdom.market");
+        expect(transactionRes.transactions[5].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Counterproposal sent");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.sellerPrice).toEqual(toNano('6'));
 
         // change price
         transactionRes = await offer.sendChangePrice(buyer.getSender(), offerConfig.price, offerConfig.commission, toNano('5.5'), offerConfig.validUntil, false, 0, true);
-        expect(transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Marketplace commission");
+        expect(transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Marketplace commission");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.price).toEqual(toNano('5.5'));
         expect(offerConfig.commission).toEqual(toNano('0.55'));
@@ -165,11 +165,11 @@ describe('TonSimpleOffer', () => {
         expect(offerConfig.price).toEqual(offerConfig.sellerPrice);
         expect(offerConfig.commission).toEqual(toNano('0.65'));
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         
         // // reject invalid valid until
-        // blockchain.now!! += ONE_DAY * 3;
-        // transactionRes = await offer.sendChangePrice(buyer.getSender(), offerConfig.price, offerConfig.commission, toNano('6'), blockchain.now!! + 299, false);
+        // blockchain.now! += ONE_DAY * 3;
+        // transactionRes = await offer.sendChangePrice(buyer.getSender(), offerConfig.price, offerConfig.commission, toNano('6'), blockchain.now! + 299, false);
         // expect(transactionRes.transactions).toHaveTransaction({
         //     success: false,
         //     exitCode: Exceptions.INCORRECT_VALID_UNTIL,
@@ -185,12 +185,12 @@ describe('TonSimpleOffer', () => {
 
         // cancel
         transactionRes = await offer.sendCancelOffer(buyer.getSender());
-        expect(transactionRes.transactions[3].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Your offer on webdom.market was cancelled");
-        expect(transactionRes.transactions[4].inMessage!!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toContain("Your counterproposal was rejected");
+        expect(transactionRes.transactions[3].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Your offer on webdom.market was cancelled");
+        expect(transactionRes.transactions[4].inMessage!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toContain("Your counterproposal was rejected");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(TonSimpleOffer.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
     it("should be cancelable by the seller after counterproposal", async () => {
@@ -200,17 +200,17 @@ describe('TonSimpleOffer', () => {
         expect(offerConfig.sellerPrice).toEqual(toNano('6'));
         
         transactionRes = await offer.sendCancelOffer(seller.getSender(), "Test comment");
-        expect(transactionRes.transactions[3].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Test comment");
-        expect(transactionRes.transactions[4].inMessage!!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toContain("Your counterproposal was rejected");
+        expect(transactionRes.transactions[3].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Test comment");
+        expect(transactionRes.transactions[4].inMessage!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toContain("Your counterproposal was rejected");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(TonSimpleOffer.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
     it('should be cancelable by the buyer', async () => {
         // reject if not enough time passed
-        blockchain.now!! += 300;
+        blockchain.now! += 300;
         transactionRes = await offer.sendCancelOffer(buyer.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             success: false,
@@ -218,9 +218,9 @@ describe('TonSimpleOffer', () => {
         });
 
         // cancel
-        blockchain.now!! += 601;
+        blockchain.now! += 601;
         transactionRes = await offer.sendCancelOffer(buyer.getSender());
-        expect(transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Your offer on webdom.market was cancelled");
+        expect(transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Your offer on webdom.market was cancelled");
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(TonSimpleOffer.STATE_CANCELLED);
@@ -228,7 +228,7 @@ describe('TonSimpleOffer', () => {
         // should return domain if the offer is cancelled
         transactionRes = await domain.sendTransfer(seller.getSender(), offer.address, seller.address, null, toNano('0.02'));
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
     it('should be cancelable by the offer receiver', async () => {        
@@ -240,7 +240,7 @@ describe('TonSimpleOffer', () => {
             op: OpCodes.EXCESSES,
             value: toNano('0.01') + TonSimpleOffer.DECLINE_REWARD,
         });
-        expect(transactionRes.transactions[3].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Test comment");
+        expect(transactionRes.transactions[3].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Test comment");
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(TonSimpleOffer.STATE_CANCELLED);
@@ -255,25 +255,25 @@ describe('TonSimpleOffer', () => {
         //     exitCode: Exceptions.DEAL_NOT_ACTIVE,
         // });
 
-        blockchain.now!! = offerConfig.validUntil!! + 1;
+        blockchain.now! = offerConfig.validUntil! + 1;
         // should return domain if valid until is over
         transactionRes = await domain.sendTransfer(seller.getSender(), offer.address, seller.address, null, toNano('0.02'));
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
 
         // cancel
         transactionRes = await offer.sendExternalCancel();
         // printTransactionFees(transactionRes.transactions);
-        expect(transactionRes.transactions[1].inMessage!!.body.beginParse().skip(32).loadStringTail()).toEqual("Offer expired");
+        expect(transactionRes.transactions[1].inMessage!.body.beginParse().skip(32).loadStringTail()).toEqual("Offer expired");
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(TonSimpleOffer.STATE_CANCELLED);
     });
 
     it('should change valid until', async () => {
-        let newValidUntil = offerConfig.validUntil!! + ONE_DAY * 3;
+        let newValidUntil = offerConfig.validUntil! + ONE_DAY * 3;
         transactionRes = await offer.sendChangeValidUntil(buyer.getSender(), newValidUntil);
-        expect(transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail()).toEqual("Valid until time updated");
+        expect(transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail()).toEqual("Valid until time updated");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.validUntil).toEqual(newValidUntil)
     });

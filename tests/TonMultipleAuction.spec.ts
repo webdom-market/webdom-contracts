@@ -87,7 +87,7 @@ describe('TonMultipleAuction', () => {
         let domainsDict: Dictionary<Address, number> = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Uint(1));
         for (let domainName of DOMAIN_NAMES) {
             transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), domainName);
-            const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address;
+            const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address;
             let domain = blockchain.openContract(Domain.createFromAddress(domainAddress));
             
             blockchain.now! += 60 * 60 + 1;  // end of the auction
@@ -385,7 +385,7 @@ describe('TonMultipleAuction', () => {
             from: tonMultipleAuction.address,
             to: marketplace.address,
             value(v) {
-                return expectedCommission - v!! < toNano('0.005');
+                return expectedCommission - v! < toNano('0.005');
             }
         });
     });
@@ -420,7 +420,7 @@ describe('TonMultipleAuction', () => {
             from: tonMultipleAuction.address,
             to: buyer.address,
             value(v) {
-                return v!! >= firstBid;
+                return v! >= firstBid;
             }
         });
     });
@@ -610,20 +610,20 @@ describe('TonMultipleAuction', () => {
     it('should run deferred auction', async () => {
         tonMultipleAuctionConfig.isDeferred = true;
         let auctionDuration = tonMultipleAuctionConfig.endTime - tonMultipleAuctionConfig.startTime;
-        tonMultipleAuctionConfig.startTime = blockchain.now!! + 360 * 24 * 60 * 60;
+        tonMultipleAuctionConfig.startTime = blockchain.now! + 360 * 24 * 60 * 60;
         tonMultipleAuctionConfig.endTime = tonMultipleAuctionConfig.startTime + auctionDuration;
         await deployAuction();
         await sendDomainsToAuction();
 
-        blockchain.now!! += 350 * 24 * 60 * 60;
+        blockchain.now! += 350 * 24 * 60 * 60;
         tonMultipleAuctionConfig = await tonMultipleAuction.getStorageData();
         expect(tonMultipleAuctionConfig.isDeferred).toEqual(true);
         
         transactionRes = await tonMultipleAuction.sendPlaceBid(buyer.getSender(), tonMultipleAuctionConfig.minBidValue, domains.length);
         tonMultipleAuctionConfig = await tonMultipleAuction.getStorageData();
         expect(tonMultipleAuctionConfig.isDeferred).toEqual(false);
-        expect(tonMultipleAuctionConfig.startTime).toEqual(blockchain.now!!);
-        expect(tonMultipleAuctionConfig.endTime).toEqual(blockchain.now!! + auctionDuration);
+        expect(tonMultipleAuctionConfig.startTime).toEqual(blockchain.now!);
+        expect(tonMultipleAuctionConfig.endTime).toEqual(blockchain.now! + auctionDuration);
     });
 
 });

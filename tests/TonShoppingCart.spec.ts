@@ -111,7 +111,7 @@ describe('TonShoppingCart', () => {
         for (let i = 0; i < domainsCount; ++i) {  // deploy domains
             const domainName = DOMAIN_NAMES[i];
             transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), domainName);
-            const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+            const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
             expect(transactionRes.transactions).toHaveTransaction({
                 from: dnsCollection.address,
                 to: domainAddress,
@@ -182,7 +182,7 @@ describe('TonShoppingCart', () => {
                     commission: domainPrice / 10n,
                 }
                 saleContract = blockchain.openContract(JettonSimpleSale.createFromConfig(fixPriceSaleConfig, jettonSimpleSaleCode));
-                totalCost += swapInfo!!.swapAmount + swapInfo!!.requiredGas + TonShoppingCart.PURCHASE + toNano('0.11');
+                totalCost += swapInfo!.swapAmount + swapInfo!.requiredGas + TonShoppingCart.PURCHASE + toNano('0.11');
             }
             transactionRes = await saleContract.sendDeploy(admin.getSender(), toNano('0.04'));
             // printTransactionFees(transactionRes.transactions);
@@ -219,7 +219,7 @@ describe('TonShoppingCart', () => {
         })
         for (let domain of domains) {   
             let domainConfig = await domain.getStorageData();
-            expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address!!.toString());
+            expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address!.toString());
         }
         expect(transactionRes.transactions).not.toHaveTransaction({
             exitCode(x) {return Boolean(x) ;}

@@ -59,7 +59,7 @@ describe('TonSimpleSale', () => {
         });
 
         transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), DOMAIN_NAME);
-        const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+        const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
         expect(transactionRes.transactions).toHaveTransaction({
             from: dnsCollection.address,
             to: domainAddress,
@@ -99,7 +99,7 @@ describe('TonSimpleSale', () => {
 
     it('should sell domain', async () => {
         // reject if valid_until < now
-        blockchain.now!! = tonSimpleSaleConfig.validUntil + 1;
+        blockchain.now! = tonSimpleSaleConfig.validUntil + 1;
         transactionRes = await tonSimpleSale.sendPurchase(buyer.getSender(), tonSimpleSaleConfig.price);
         expect(transactionRes.transactions).toHaveTransaction({
             from: buyer.address,
@@ -108,23 +108,23 @@ describe('TonSimpleSale', () => {
         })
 
         // accept 
-        await tonSimpleSale.sendChangePrice(seller.getSender(), tonSimpleSaleConfig.price, blockchain.now!! + 600);
+        await tonSimpleSale.sendChangePrice(seller.getSender(), tonSimpleSaleConfig.price, blockchain.now! + 600);
         transactionRes = await tonSimpleSale.sendPurchase(buyer.getSender(), tonSimpleSaleConfig.price);
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonSimpleSale.address,
             to: seller.address,
-            value(x) { return x!! >= tonSimpleSaleConfig.price - tonSimpleSaleConfig.commission },
+            value(x) { return x! >= tonSimpleSaleConfig.price - tonSimpleSaleConfig.commission },
             success: true
         })
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonSimpleSale.address,
             to: marketplace.address,
-            value(x) { return (x!! > tonSimpleSaleConfig.commission - toNano('0.001')) },
+            value(x) { return (x! > tonSimpleSaleConfig.commission - toNano('0.001')) },
             success: true
         })
 
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
         expect(tonSimpleSaleConfig.buyerAddress!.toString()).toEqual(buyer.address.toString());
 
@@ -154,24 +154,24 @@ describe('TonSimpleSale', () => {
         for (let i = 0; i < 100; ++i) {
             let newPrice = BigInt(Math.ceil(Math.random() * 10 ** (i % 9 + 9)));
             let timeSpent = Math.ceil(ONE_DAY * Math.random() * 700 / checks);  
-            blockchain.now!! += timeSpent;
-            let newValidUntil = Math.ceil(blockchain.now!! + ONE_DAY * Math.random() * 700 / checks);
+            blockchain.now! += timeSpent;
+            let newValidUntil = Math.ceil(blockchain.now! + ONE_DAY * Math.random() * 700 / checks);
             transactionRes = await tonSimpleSale.sendChangePrice(seller.getSender(), newPrice, newValidUntil);
-            if (tonSimpleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now!! + 600, tonSimpleSaleConfig.validUntil)) {
+            if (tonSimpleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now! + 600, tonSimpleSaleConfig.validUntil)) {
                 expect(transactionRes.transactions).toHaveTransaction({
                     from: seller.address,
                     to: tonSimpleSale.address,
                     // success: false,
                     exitCode: Exceptions.INCORRECT_VALID_UNTIL
                 })
-                if (newValidUntil >= Math.max(blockchain.now!! + 600, tonSimpleSaleConfig.lastRenewalTime)) break;
+                if (newValidUntil >= Math.max(blockchain.now! + 600, tonSimpleSaleConfig.lastRenewalTime)) break;
             }
             else {
                 tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
                 expect(tonSimpleSaleConfig.price).toEqual(newPrice);
                 expect(tonSimpleSaleConfig.validUntil).toEqual(newValidUntil);
                 
-                let notificationMessage = transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail();
+                let notificationMessage = transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail();
                 let priceString = notificationMessage.split(' ')[3];
                 let expectedPriceString = jettonsToString(Number(newPrice), 9);
                 expect(priceString).toEqual(expectedPriceString);
@@ -180,13 +180,12 @@ describe('TonSimpleSale', () => {
     });
 
     it("should renew domain", async () => {
-        blockchain.now!! += ONE_DAY * 30;
+        blockchain.now! += ONE_DAY * 30;
         transactionRes = await tonSimpleSale.sendRenewDomain(seller.getSender());
-        printTransactionFees(transactionRes.transactions);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!!);
+        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
         
-        blockchain.now!! += ONE_YEAR - ONE_DAY + 1;
+        blockchain.now! += ONE_YEAR - ONE_DAY + 1;
         transactionRes = await tonSimpleSale.sendRenewDomain(seller.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             from: seller.address,
@@ -196,10 +195,8 @@ describe('TonSimpleSale', () => {
     });
 
     it("should cancel by external message", async () => {
-        blockchain.now!! += ONE_YEAR;
-        // console.log((await blockchain.getContract(tonFixPriceSale.address)).balance);
+        blockchain.now! += ONE_YEAR;
         transactionRes = await tonSimpleSale.sendExternalCancel();
-        printTransactionFees(transactionRes.transactions);
         tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
         expect(tonSimpleSaleConfig.state).toEqual(TonSimpleSale.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
@@ -207,7 +204,7 @@ describe('TonSimpleSale', () => {
     });
 
     it('should handle domain expiration', async () => {
-        blockchain.now!! += ONE_YEAR + ONE_DAY;
+        blockchain.now! += ONE_YEAR + ONE_DAY;
         transactionRes = await domain.sendStartAuction(buyer.getSender(), DOMAIN_NAME);
         expect(transactionRes.transactions).toHaveTransaction({
             from: tonSimpleSale.address,
@@ -218,20 +215,20 @@ describe('TonSimpleSale', () => {
     })
 
     it("should cancel by internal message", async () => {
-        blockchain.now!! = tonSimpleSaleConfig.validUntil;
+        blockchain.now! = tonSimpleSaleConfig.validUntil;
         // console.log((await blockchain.getContract(tonFixPriceSale.address)).balance);
         transactionRes = await tonSimpleSale.sendCancelSale(seller.getSender());
         tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
         expect(tonSimpleSaleConfig.state).toEqual(TonSimpleSale.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(tonSimpleSaleConfig.sellerAddress.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(tonSimpleSaleConfig.sellerAddress.toString());
     });
     
     it("should make hot", async () => {
-        transactionRes = await tonSimpleSale.sendMakeHot(admin.getSender(), blockchain.now!! + ONE_DAY * 3 / 2);
-        transactionRes = await tonSimpleSale.sendMakeColored(admin.getSender(), blockchain.now!! + ONE_DAY * 2);
+        transactionRes = await tonSimpleSale.sendMakeHot(admin.getSender(), blockchain.now! + ONE_DAY * 3 / 2);
+        transactionRes = await tonSimpleSale.sendMakeColored(admin.getSender(), blockchain.now! + ONE_DAY * 2);
         tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
-        expect(tonSimpleSaleConfig.hotUntil).toEqual(blockchain.now!! + ONE_DAY * 3 / 2);
-        expect(tonSimpleSaleConfig.coloredUntil).toEqual(blockchain.now!! + ONE_DAY * 2);
+        expect(tonSimpleSaleConfig.hotUntil).toEqual(blockchain.now! + ONE_DAY * 3 / 2);
+        expect(tonSimpleSaleConfig.coloredUntil).toEqual(blockchain.now! + ONE_DAY * 2);
     });
 });

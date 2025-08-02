@@ -72,7 +72,7 @@ describe('JettonSimpleOffer', () => {
 
         transactionRes = await dnsCollection.sendDeploy(admin.getSender(), toNano('0.05'));
         transactionRes = await dnsCollection.sendStartAuction(admin.getSender(), DOMAIN_NAME);
-        const domainAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address; 
+        const domainAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address; 
         domain = blockchain.openContract(Domain.createFromAddress(domainAddress));
         blockchain.now += 60 * 60 + 1;  // end of the auction
         transactionRes = await domain.sendTransfer(admin.getSender(), seller.address, seller.address);
@@ -102,7 +102,7 @@ describe('JettonSimpleOffer', () => {
         });
 
         offerConfig = await offer.getStorageData();
-        usdtOfferWallet = blockchain.openContract(JettonWallet.createFromAddress(offerConfig.jettonWalletAddress!!));
+        usdtOfferWallet = blockchain.openContract(JettonWallet.createFromAddress(offerConfig.jettonWalletAddress!));
         expect(usdtOfferWallet.address.toString()).toEqual(usdtOfferWalletAddress.toString());
 
         await usdtBuyerWallet.sendTransfer(buyer.getSender(), offerConfig.price + offerConfig.commission, offer.address, buyer.address, 0n);
@@ -121,7 +121,7 @@ describe('JettonSimpleOffer', () => {
 
         // check domain owner
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
 
         // check offer state
         offerConfig = await offer.getStorageData();
@@ -131,29 +131,29 @@ describe('JettonSimpleOffer', () => {
         // should return domain if the offer is already accepted
         transactionRes = await domain.sendTransfer(buyer.getSender(), offer.address, seller.address, null, toNano('0.02'));
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
     });
 
     it('should change price', async () => {
         // with notification
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), offerConfig.price + offerConfig.commission, offer.address, buyer.address, 
-                                                            toNano("0.125"), JettonSimpleOffer.changePricePayload(blockchain.now!! + ONE_DAY * 4, true));
+                                                            toNano("0.125"), JettonSimpleOffer.changePricePayload(blockchain.now! + ONE_DAY * 4, true));
 
-        expect(transactionRes.transactions[5].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("New offer on webdom.market! 4000 USDT for");
-        expect(transactionRes.transactions[6].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Price changed to 4000");
+        expect(transactionRes.transactions[5].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("New offer on webdom.market! 4000 USDT for");
+        expect(transactionRes.transactions[6].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Price changed to 4000");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.price).toEqual(toNano('4'));
-        expect(offerConfig.validUntil).toEqual(blockchain.now!! + ONE_DAY * 4);
+        expect(offerConfig.validUntil).toEqual(blockchain.now! + ONE_DAY * 4);
         expect(offerConfig.commission).toEqual(toNano('0.4'));
 
         // without notification
-        blockchain.now!! += ONE_DAY;
+        blockchain.now! += ONE_DAY;
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), toNano('0.11'), offer.address, buyer.address, 
-                                                            toNano("0.025"), JettonSimpleOffer.changePricePayload(blockchain.now!! + ONE_DAY * 5, false));
-        expect(transactionRes.transactions[5].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Price changed to");
+                                                            toNano("0.025"), JettonSimpleOffer.changePricePayload(blockchain.now! + ONE_DAY * 5, false));
+        expect(transactionRes.transactions[5].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Price changed to");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.price).toEqual(toNano('4.1'));
-        expect(offerConfig.validUntil).toEqual(blockchain.now!! + ONE_DAY * 5);
+        expect(offerConfig.validUntil).toEqual(blockchain.now! + ONE_DAY * 5);
         expect(offerConfig.commission).toEqual(toNano('0.41'));
         
         // counterpropose
@@ -162,17 +162,17 @@ describe('JettonSimpleOffer', () => {
         //     from: offer.address,
         //     to: marketplace.address,
         //     value(x) {
-        //         return x!! > toNano('0.049') && x!! < toNano('0.05');
+        //         return x! > toNano('0.049') && x! < toNano('0.05');
         //     },
         // });
-        expect(transactionRes.transactions[4].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("You have received a counterproposal for your offer on webdom.market");
-        expect(transactionRes.transactions[5].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Counterproposal sent");
+        expect(transactionRes.transactions[4].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("You have received a counterproposal for your offer on webdom.market");
+        expect(transactionRes.transactions[5].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Counterproposal sent");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.sellerPrice).toEqual(toNano('6'));
         
         // Change price after counterproposal
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), toNano("0.99"), offer.address, buyer.address, 
-                                toNano("0.075"), JettonSimpleOffer.changePricePayload(offerConfig.validUntil!!, false));
+                                toNano("0.075"), JettonSimpleOffer.changePricePayload(offerConfig.validUntil!, false));
         offerConfig = await offer.getStorageData();
         expect(offerConfig.price).toEqual(toNano('5'));
         expect(offerConfig.commission).toEqual(toNano('0.5'));
@@ -184,18 +184,18 @@ describe('JettonSimpleOffer', () => {
 
         // Accept counterproposal
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), toNano("0.55"), offer.address, buyer.address, 
-                                                            toNano("0.025"), JettonSimpleOffer.changePricePayload(blockchain.now!! + ONE_DAY * 4, false));
+                                                            toNano("0.025"), JettonSimpleOffer.changePricePayload(blockchain.now! + ONE_DAY * 4, false));
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(JettonSimpleOffer.STATE_COMPLETED);
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
 
         
         // // reject invalid valid until
-        // blockchain.now!! += ONE_DAY * 5;
+        // blockchain.now! += ONE_DAY * 5;
         // transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), toNano('0.1'), offer.address, buyer.address, 
-        //                                                     toNano("0.15"), JettonSimpleOffer.changePricePayload(blockchain.now!! + 299, false));
+        //                                                     toNano("0.15"), JettonSimpleOffer.changePricePayload(blockchain.now! + 299, false));
         // expect(transactionRes.transactions).toHaveTransaction({
         //     success: true,
         //     exitCode: Exceptions.INCORRECT_VALID_UNTIL,
@@ -214,7 +214,7 @@ describe('JettonSimpleOffer', () => {
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(JettonSimpleOffer.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
     it("should be cancelable by the seller after counterproposal", async () => {
@@ -224,18 +224,18 @@ describe('JettonSimpleOffer', () => {
         expect(offerConfig.sellerPrice).toEqual(toNano('6'));
         
         transactionRes = await offer.sendCancelOffer(seller.getSender(), "Test comment");
-        // console.log(transactionRes.transactions[3].inMessage!!.body.beginParse().skip(32).loadStringTail())
-        // expect(transactionRes.transactions[3].inMessage!!.body.beginParse().skip(32).loadStringTail()).toContain("Test comment");
+        // console.log(transactionRes.transactions[3].inMessage!.body.beginParse().skip(32).loadStringTail())
+        // expect(transactionRes.transactions[3].inMessage!.body.beginParse().skip(32).loadStringTail()).toContain("Test comment");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(JettonSimpleOffer.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
 
     it('should be cancelable by the buyer', async () => {
         // reject if not enough time passed
-        blockchain.now!! += 300;
+        blockchain.now! += 300;
         transactionRes = await offer.sendCancelOffer(buyer.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             success: false,
@@ -243,12 +243,12 @@ describe('JettonSimpleOffer', () => {
         });
 
         // cancel
-        blockchain.now!! += 601;
+        blockchain.now! += 601;
         transactionRes = await offer.sendCancelOffer(buyer.getSender());
         printTransactionFees(transactionRes.transactions);
         console.log(transactionRes.transactions[1].vmLogs);
         
-        expect(transactionRes.transactions[4].inMessage!!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toContain("Your offer on webdom.market was cancelled");
+        expect(transactionRes.transactions[4].inMessage!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toContain("Your offer on webdom.market was cancelled");
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         expect(await usdtOfferWallet.getJettonBalance()).toEqual(0n);
         expect(await usdtBuyerWallet.getJettonBalance()).toEqual(toNano('100'));
@@ -259,7 +259,7 @@ describe('JettonSimpleOffer', () => {
         // should return domain if the offer is cancelled
         transactionRes = await domain.sendTransfer(seller.getSender(), offer.address, seller.address, null, toNano('0.02'));
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
     });
 
     it('should be cancelable by the offer receiver', async () => {        
@@ -274,7 +274,7 @@ describe('JettonSimpleOffer', () => {
             value: toNano('0.01') + JettonSimpleOffer.DECLINE_REWARD,
         });
 
-        expect(transactionRes.transactions[4].inMessage!!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toContain("Test comment");
+        expect(transactionRes.transactions[4].inMessage!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toContain("Test comment");
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         expect(await usdtBuyerWallet.getJettonBalance()).toEqual(toNano('100'));
         offerConfig = await offer.getStorageData();
@@ -290,16 +290,16 @@ describe('JettonSimpleOffer', () => {
         //     exitCode: Exceptions.DEAL_NOT_ACTIVE,
         // });
 
-        blockchain.now!! = offerConfig.validUntil!! + 1;
+        blockchain.now! = offerConfig.validUntil! + 1;
         // should return domain if valid until is over
         transactionRes = await domain.sendTransfer(seller.getSender(), offer.address, seller.address, null, toNano('0.02'));
         domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!!.toString()).toEqual(seller.address.toString());
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
 
         // cancel
         transactionRes = await offer.sendExternalCancel();
         // printTransactionFees(transactionRes.transactions);
-        expect(transactionRes.transactions[3].inMessage!!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toEqual("Offer expired");
+        expect(transactionRes.transactions[3].inMessage!.body.beginParse().loadRef().beginParse().skip(32).loadStringTail()).toEqual("Offer expired");
         expect((await blockchain.getContract(offer.address)).balance).toEqual(0n);
         offerConfig = await offer.getStorageData();
         expect(offerConfig.state).toEqual(JettonSimpleOffer.STATE_CANCELLED);
@@ -307,9 +307,9 @@ describe('JettonSimpleOffer', () => {
     });
 
     it('should change valid until', async () => {
-        let newValidUntil = offerConfig.validUntil!! + ONE_DAY * 3;
+        let newValidUntil = offerConfig.validUntil! + ONE_DAY * 3;
         transactionRes = await offer.sendChangeValidUntil(buyer.getSender(), newValidUntil);
-        expect(transactionRes.transactions[2].inMessage!!.body.beginParse().skip(32).loadStringTail()).toEqual("Valid until time updated");
+        expect(transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail()).toEqual("Valid until time updated");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.validUntil).toEqual(newValidUntil)
     });

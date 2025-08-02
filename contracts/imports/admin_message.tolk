@@ -8,11 +8,13 @@ fun loadData(): void
 
 
 struct (0xe2d2d211) SetCodeAdminMessage {
+    queryId: uint64;
     code: cell?;
     data: cell?;
 }
 
 struct (0xa47d989c) SendAnyAdminMessage {
+    queryId: uint64;
     dest: address;
     payload: cell;
     stateInit: cell?;
@@ -20,15 +22,18 @@ struct (0xa47d989c) SendAnyAdminMessage {
 }
 
 struct (0x37726bdb) WithdrawTonAdminMessage {
+    queryId: uint64;
     tonsToReserve: coins;
 }
 
 struct (0x11c09682) WithdrawJettonAdminMessage {
+    queryId: uint64;
     jettonWalletAddress: address;
     jettonAmount: coins;
 }
 
 struct (0x00dc315b) WithdrawNftAdminMessage {
+    queryId: uint64;
     domainAddress: address;
 }
 
@@ -60,6 +65,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
                 assert(permissions.allowChangeData) throw EXC_UNSUPPORTED_OP;
                 contract.setData(msgBodyTyped.data);
             }
+            commitContractDataAndActions();
             
             createMessage<CommentMessage>({
                 bounce: false,
@@ -72,12 +78,23 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
         
         SendAnyAdminMessage => {
             assert(permissions.allowSendAnyMessage) throw EXC_UNSUPPORTED_OP;
-            createMessage<cell>({
-                bounce: false,
-                value: 0,
-                dest: msgBodyTyped.stateInit != null ? AutoDeployAddress { stateInit: msgBodyTyped.stateInit } : msgBodyTyped.dest,
-                body: msgBodyTyped.payload
-            }).send(msgBodyTyped.messageMode != null ? msgBodyTyped.messageMode : SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            val messageMode = msgBodyTyped.messageMode != null ? msgBodyTyped.messageMode : SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE as uint8;
+            if (msgBodyTyped.stateInit != null) {
+                createMessage<cell>({
+                    bounce: false,
+                    value: 0,
+                    dest: AutoDeployAddress { stateInit: msgBodyTyped.stateInit },
+                    body: msgBodyTyped.payload
+                }).send(messageMode);
+            } else {
+                createMessage<cell>({
+                    bounce: false,
+                    value: 0,
+                    dest: msgBodyTyped.dest,
+                    body: msgBodyTyped.payload
+                }).send(messageMode);
+            }
+            
             throw 0;
         }
 

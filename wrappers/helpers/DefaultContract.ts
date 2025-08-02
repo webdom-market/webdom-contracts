@@ -53,6 +53,18 @@ export class DefaultContract implements Contract {
         });
     }
 
+    static withdrawSomeTonMessage(queryId: number = 0, reserveAmount: bigint) {
+        return beginCell().storeUint(OpCodes.WITHDRAW_TON, 32).storeUint(queryId, 64).storeCoins(reserveAmount).endCell();
+    }
+    
+    async sendWithdrawSomeTon(provider: ContractProvider, via: Sender, queryId: number = 0, reserveAmount: bigint) {
+        await provider.internal(via, {
+            value: toNano("0.01"),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: DefaultContract.withdrawSomeTonMessage(queryId, reserveAmount),
+        });
+    }
+
     static withdrawTonMessage(queryId: number = 0) {
         return beginCell().storeUint(OpCodes.WITHDRAW_TON, 32).storeUint(queryId, 64).endCell();
     }
@@ -82,20 +94,48 @@ export class DefaultContract implements Contract {
         });
     }
 
-    static setCodeMessage(code: Cell, data: Maybe<Cell>, queryId: number = 0) {
-        return beginCell().storeUint(OpCodes.SET_CODE, 32).storeUint(queryId, 64).storeRef(code).storeMaybeRef(data).endCell();
+    static withdrawNftMessage(nftAddress: Address, queryId: number = 0) {
+        return beginCell()
+                    .storeUint(OpCodes.WITHDRAW_NFT, 32)
+                    .storeUint(queryId, 64)
+                    .storeAddress(nftAddress)
+                .endCell()
     }
-
-    async sendChangeCode(provider: ContractProvider, via: Sender, code: Cell, data: Maybe<Cell>, queryId: number = 0) {
+    
+    async sendWithdrawNft(provider: ContractProvider, via: Sender, nftAddress: Address, queryId: number = 0) {
         await provider.internal(via, {
             value: toNano("0.01"),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: DefaultContract.withdrawNftMessage(nftAddress, queryId),
+        });
+    }
+
+    static setCodeMessage(code: Maybe<Cell>, data: Maybe<Cell>, queryId: number = 0) {
+        return beginCell()
+                    .storeUint(OpCodes.SET_CODE, 32)
+                    .storeUint(queryId, 64)
+                    .storeMaybeRef(code)
+                    .storeMaybeRef(data)
+            .endCell();
+    }
+
+    async sendChangeCode(provider: ContractProvider, via: Sender, code: Maybe<Cell>, data: Maybe<Cell>, queryId: number = 0) {
+        await provider.internal(via, {
+            value: toNano("0.02"),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: DefaultContract.setCodeMessage(code, data, queryId),
         });
     }
 
     static sendAnyMessageMessage(toAddress: Address, payload: Cell, stateInit: Maybe<Cell> = null, queryId: number = 0, messageMode: number = 64) {
-        return beginCell().storeUint(OpCodes.SEND_ANY_MESSAGE, 32).storeUint(queryId ?? 0, 64).storeAddress(toAddress).storeMaybeRef(payload).storeMaybeRef(stateInit).storeUint(messageMode, 8).endCell();
+        let res = beginCell().storeUint(OpCodes.SEND_ANY_MESSAGE, 32).storeUint(queryId ?? 0, 64).storeAddress(toAddress).storeRef(payload ?? beginCell().endCell()).storeMaybeRef(stateInit);
+        if (messageMode) {
+            res.storeBit(true);
+            res.storeUint(messageMode, 8);
+        } else {
+            res.storeBit(false);
+        }
+        return res.endCell();
     }
 
     async sendSendAnyMessage(provider: ContractProvider, via: Sender, value: bigint, toAddress: Address, payload: Cell, stateInit: Maybe<Cell> = null, queryId: number = 0, messageMode: number = 64) {

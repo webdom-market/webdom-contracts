@@ -279,7 +279,7 @@ fun onInternalMessage(in: InMessage) {
                 bounce: false,
                 value: 0,
                 dest: MARKETPLACE_ADDRESS,
-                body: RenewalFeeMessage { queryId: msg.queryId }
+                body: RenewalFeeMessage { queryId: msg.queryId, ownerAddress: storage.sellerAddress }
             }).send(SEND_MODE_CARRY_ALL_BALANCE);
 
             var newValidUntil: uint32;
