@@ -8,7 +8,8 @@ import "../constants";
 import "@stdlib/gas-payments";
 import "../../imports/types";
 import "../messages";
-import "../../imports/admin_message"
+import "../../imports/admin_message";
+
 
 fun acceptOffer(mutate storage: Storage, sellerAddress: address, sellerMsgValue: coins, queryId: uint64) {    
     createMessage({
@@ -401,5 +402,51 @@ get fun get_storage_data() {
         storage.sellerPrice,
         BURN_ADDRESS,
         contract.getCode().hash()
+    );
+}
+
+
+// Legacy methods from https://github.com/getgems-io/nft-contracts/blob/main/packages/contracts/sources/nft-offer-v1r3.fc
+get fun get_offer_data() {
+    var storage = Storage.load();
+
+    var marketplaceFactor = mulDivFloor(storage.commission, ton("1"), storage.price);
+    var marketplaceBase = ton("1");
+
+    return (
+        0x4f46464552, // offer ("OFFER")
+        storage.state != STATE_ACTIVE,
+        storage.createdAt, storage.validUntil,
+        MARKETPLACE_ADDRESS,
+        storage.domainAddress,
+        storage.buyerAddress,
+        storage.price + storage.commission,
+        MARKETPLACE_ADDRESS,
+        marketplaceFactor, marketplaceBase,
+        BURN_ADDRESS,
+        0, 1,
+        storage.price
+    );
+}
+
+get fun get_offer_data_v2() {
+    var storage = Storage.load();
+
+    var marketplaceFactor = mulDivFloor(storage.commission, ton("1"), storage.price);
+    var marketplaceBase = ton("1");
+
+    return (
+        0x4f46464552, // offer ("OFFER")
+        storage.state != STATE_ACTIVE,
+        storage.createdAt, storage.validUntil, storage.state == STATE_COMPLETED ? storage.validUntil : (0 as uint32),
+        MARKETPLACE_ADDRESS,
+        storage.domainAddress,
+        storage.buyerAddress,
+        storage.price + storage.commission,
+        MARKETPLACE_ADDRESS,
+        marketplaceFactor, marketplaceBase,
+        BURN_ADDRESS,
+        0, 1,
+        storage.price
     );
 }

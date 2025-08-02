@@ -401,3 +401,43 @@ get fun get_storage_data() {
         contract.getCode().hash()
     );
 }
+
+
+// Legacy methods from https://github.com/getgems-io/nft-contracts/blob/main/packages/contracts/sources/nft-auction-v4r1.func
+get fun get_auction_data_v4() {
+    var storage = lazy Storage.load();
+    var storage2 = lazy storage.ds2.load();
+
+    var (domainAddress, _, _) = storage.domainsDict.sDictGetFirst(267);
+    if (storage.isDeferred && (blockchain.now() < storage.startTime)) {
+        storage.endTime = blockchain.now() + storage.endTime - storage.startTime;
+        storage.startTime = blockchain.now();
+    }
+
+    return (
+        storage.state != STATE_UNINIT,                 // Int1
+        storage.state > STATE_ACTIVE,                  // Int1
+        storage.endTime,                               // Uint32
+        MARKETPLACE_ADDRESS,                           // MsgAddressStd
+        domainAddress,                                 // MsgAddressStd
+        storage.sellerAddress,                         // MsgAddressStd
+        storage.lastBidValue,                          // Coins
+        storage.lastBidderAddress,                     // MsgAddressStd
+        (storage.minBidIncrement - 1000) / 10,         // Uint7
+        MARKETPLACE_ADDRESS,                           // MsgAddressStd
+        storage.commissionFactor, COMMISSION_DIVIDER,  // Uint16, Uint16
+        BURN_ADDRESS,                                  // MsgAddressStd
+        0, 1,                                          // Uint32, Uint32
+        storage2.maxBidValue,                          // Coins
+        storage.minBidValue,                           // Coins
+        storage.startTime,                             // Uint32
+        storage.lastBidTime,                           // Uint32
+        storage.state == STATE_CANCELLED,              // Int1
+        storage.timeIncrement,                         // Uint17
+        0,                                             // Uint64
+        null,                                          // MsgAddressStd
+        null,                                          // MsgAddressStd
+        0,                                             // Uint1
+        0                                              // Uint256
+    )
+}

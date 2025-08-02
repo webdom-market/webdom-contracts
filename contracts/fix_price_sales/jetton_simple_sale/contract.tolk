@@ -330,3 +330,26 @@ get fun get_storage_data() {
         contract.getCode().hash()
     );
 } 
+
+get fun get_fix_price_data_v4() {
+    var storage = lazy Storage.load();
+    var storage2 = lazy storage.ds2.load();
+    var jettonPriceDict = createEmptyDict();
+    jettonPriceDict.uDictSetBuilder(256, storage.jettonWalletAddress.getWorkchainAndHash().1, beginCell().storeCoins(storage.price));
+
+    return (
+        storage.state > STATE_ACTIVE,
+        storage.createdAt,
+        MARKETPLACE_ADDRESS,
+        storage2.domainAddress,
+        storage.sellerAddress,
+        0,
+        MARKETPLACE_ADDRESS,
+        mulDivFloor(storage.commission, COMMISSION_DIVIDER * 10, storage.price),
+        BURN_ADDRESS,
+        0,
+        ((storage.validUntil > blockchain.now()) | (storage.state != STATE_COMPLETED)) ? (0 as uint32) : storage.validUntil,
+        0,
+        jettonPriceDict
+    );
+}

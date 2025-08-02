@@ -288,3 +288,43 @@ get fun get_storage_data() {
         contract.getCode().hash()
     );
 } 
+
+// Legacy methods from https://github.com/getgems-io/nft-contracts/blob/main/packages/contracts/sources/nft-fixprice-sale-v3r3.fc
+get fun get_sale_data() {
+    var storage = Storage.load();
+
+    return (
+        0x46495850,
+        storage.state > STATE_ACTIVE, 
+        storage.createdAt,
+        MARKETPLACE_ADDRESS, 
+        storage.domainAddress,
+        storage.sellerAddress, 
+        storage.price, 
+        MARKETPLACE_ADDRESS, 
+        storage.commission, 
+        BURN_ADDRESS, 
+        0
+    );
+}
+
+get fun get_fix_price_data() {
+    var storage = Storage.load();
+
+    return (
+        storage.state > STATE_ACTIVE,
+        storage.createdAt,
+        MARKETPLACE_ADDRESS,
+        storage.domainAddress,
+        storage.sellerAddress,
+        storage.price,
+        MARKETPLACE_ADDRESS,
+        storage.commission,
+        BURN_ADDRESS,
+        0,
+        storage.validUntil > blockchain.now() ? (0 as uint32) : storage.validUntil,
+        0
+    );
+}
+
+//
