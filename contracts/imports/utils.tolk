@@ -172,3 +172,20 @@ fun returnNftToSender<T>(nftAddress: address, msg: NftOwnershipAssignedMessage<T
     commitContractDataAndActions();
     throw errorCode;
 }
+
+
+@inline
+fun loadOpAndQueryId(mutate inMsgBody: slice): (uint32, uint64) {
+    var op: uint32 = 0;
+    var queryId: uint64 = 0;
+    if (inMsgBody.remainingBitsCount() >= 32) {
+        op = inMsgBody.loadUint(32);
+        if (op == 0 && (inMsgBody.bitsEqual("cancel") || inMsgBody.bitsEqual("stop"))) {
+            op = OP_CANCEL_DEAL;
+        }
+        if (op == 0 && inMsgBody.remainingBitsCount() >= 64) {
+            queryId = inMsgBody.loadUint(64);
+        }
+    }
+    return (op, queryId);
+}

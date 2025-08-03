@@ -20,14 +20,14 @@ struct DomainSwapDeployInfo {
 struct DomainSwapDeployPayload {
     leftDomainsList: dict;
     leftPaymentTotal: coins;
-    rightOwnerAddress: address;
+    rightParticipantAddress: address;
     rightDomainsList: dict;
     rightPaymentTotal: coins;
     validUntil: uint32;
     needsAlert: bool;
 }
 
-const TONS_DEPLOY_DOMAIN_SWAP: coins = ton("0.03");
+const TONS_DEPLOY_DOMAIN_SWAP: coins = ton("0.04");
 
 
 fun deployDomainSwap(args: SimpleDeployArgs): int {
@@ -56,23 +56,25 @@ fun deployDomainSwap(args: SimpleDeployArgs): int {
     deployInfo.completionCommission = mulDivFloor(deployInfo.completionCommission, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
 
     var data = (Storage {
+        leftParticipantAddress: args.fromAddress,
         leftInfo: (OneSideInfo {
-            ownerAddress: args.fromAddress,
             domainsTotal: leftDomainsTotal,
             domainsReceived: 0,
             domainsDict: payload.leftDomainsList,
             paymentTotal: payload.leftPaymentTotal,
             paymentReceived: 0,
         }).toCell(),
+
+        rightParticipantAddress: payload.rightParticipantAddress,
         rightInfo: (OneSideInfo {
-            ownerAddress: payload.rightOwnerAddress,
             domainsTotal: rightDomainsTotal,
             domainsReceived: 0,
             domainsDict: payload.rightDomainsList,
             paymentTotal: payload.rightPaymentTotal,
             paymentReceived: 0,
         }).toCell(),
-        state: STATE_WAITING_FOR_LEFT,
+
+        state: STATE_CANCELLED,
         createdAt: blockchain.now(),
         validUntil: payload.validUntil,
         lastActionTime: 0,
@@ -88,12 +90,13 @@ fun deployDomainSwap(args: SimpleDeployArgs): int {
         },
     });
 
+    val msgValue = TONS_DEPLOY_DOMAIN_SWAP + (payload.needsAlert ? TONS_OFFER_NOTIFICATION : (0 as coins)) + deployInfo.completionCommission;
     val msg = createMessage({
         bounce: false,
-        value: TONS_DEPLOY_DOMAIN_SWAP,
+        value: msgValue,
         dest: domainSwapAddress,
         body: FillUpBalanceMessage { queryId: args.queryId }
     });
 
-    return TONS_DEPLOY_DOMAIN_SWAP + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
+    return msgValue + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 }

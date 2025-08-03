@@ -20,14 +20,14 @@ export class DomainsSwapDeployData extends DeployData {
 }
 
 export type DomainsSwapConfig = {
-    leftOwnerAddress: Address;
+    leftParticipantAddress: Address;
     leftDomainsTotal: number;
     leftDomainsReceived: number;
     leftDomainsDict: Dictionary<Address, boolean>;
     leftPaymentTotal: bigint;
     leftPaymentReceived: bigint;
 
-    rightOwnerAddress: Address;
+    rightParticipantAddress: Address;
     rightDomainsTotal: number;
     rightDomainsReceived: number;
     rightDomainsDict: Dictionary<Address, boolean>;
@@ -45,9 +45,9 @@ export type DomainsSwapConfig = {
 
 export function domainSwapConfigToCell(config: DomainsSwapConfig): Cell {
     return beginCell()
+            .storeAddress(config.leftParticipantAddress)
             .storeRef(
                 beginCell()
-                    .storeAddress(config.leftOwnerAddress)
                     .storeUint(config.leftDomainsTotal, 8)
                     .storeUint(config.leftDomainsReceived, 8)
                     .storeDict(config.leftDomainsDict)
@@ -55,9 +55,9 @@ export function domainSwapConfigToCell(config: DomainsSwapConfig): Cell {
                     .storeCoins(config.leftPaymentReceived)
                 .endCell()
             )
+            .storeAddress(config.rightParticipantAddress)
             .storeRef(
                 beginCell()
-                    .storeAddress(config.rightOwnerAddress)
                     .storeUint(config.rightDomainsTotal, 8)
                     .storeUint(config.rightDomainsReceived, 8)
                     .storeDict(config.rightDomainsDict)
@@ -80,7 +80,7 @@ export class DomainSwap extends DefaultContract {
     static STATE_WAITING_FOR_RIGHT = 1;
     static STATE_COMPLETED = 2;
     static STATE_CANCELLED = 3;
-    static ADD_DOMAIN_TONS = toNano('0.045');
+    static ADD_DOMAIN_TONS = toNano('0.05');
 
     static createFromAddress(address: Address) {
         return new DomainSwap(address);
@@ -92,7 +92,7 @@ export class DomainSwap extends DefaultContract {
         return new DomainSwap(contractAddress(workchain, init), init);
     }
 
-    static deployPayload(leftDomainsList: Array<Address>, leftPaymentTotal: bigint, rightOwnerAddress: Address, rightDomainsList: Array<Address>, rightPaymentTotal: bigint, validUntil: number, needsAlert: boolean) {
+    static deployPayload(leftDomainsList: Array<Address>, leftPaymentTotal: bigint, rightParticipantAddress: Address, rightDomainsList: Array<Address>, rightPaymentTotal: bigint, validUntil: number, needsAlert: boolean) {
         let leftDomainsDict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool());
         for (let addr of leftDomainsList) {
             leftDomainsDict.set(addr, false);
@@ -104,7 +104,7 @@ export class DomainSwap extends DefaultContract {
         return beginCell()
             .storeDict(leftDomainsDict)
             .storeCoins(leftPaymentTotal)
-            .storeAddress(rightOwnerAddress)
+            .storeAddress(rightParticipantAddress)
             .storeDict(rightDomainsDict)
             .storeCoins(rightPaymentTotal)
             .storeUint(validUntil, 32)
@@ -136,14 +136,14 @@ export class DomainSwap extends DefaultContract {
     async getStorageData(provider: ContractProvider): Promise<DomainsSwapConfig> {
         const { stack } = await provider.get('get_storage_data', []);
         return {
-            leftOwnerAddress: stack.readAddress(),
+            leftParticipantAddress: stack.readAddress(),
             leftDomainsDict: stack.readCell().beginParse().loadDictDirect(Dictionary.Keys.Address(), Dictionary.Values.Bool()),
             leftDomainsTotal: stack.readNumber(),
             leftDomainsReceived: stack.readNumber(),
             leftPaymentTotal: stack.readBigNumber(),
             leftPaymentReceived: stack.readBigNumber(),
             
-            rightOwnerAddress: stack.readAddress(),
+            rightParticipantAddress: stack.readAddress(),
             rightDomainsDict: stack.readCell().beginParse().loadDictDirect(Dictionary.Keys.Address(), Dictionary.Values.Bool()),
             rightDomainsTotal: stack.readNumber(),
             rightDomainsReceived: stack.readNumber(),

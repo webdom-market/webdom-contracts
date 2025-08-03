@@ -284,28 +284,15 @@ fun onInternalMessage(in: InMessage) {
         }
 
         else => {
-            var op: uint32 = 0;
-            var queryId: uint64 = 0;
+            var (op, queryId) = loadOpAndQueryId(mutate in.body);
             var senderAddress = in.senderAddress;
-            
-            if (in.body.remainingBitsCount() >= 32) {
-                op = in.body.loadUint(32);
-                if (in.body.remainingBitsCount() >= 64) {
-                    queryId = in.body.loadUint(64);
-                }
-            }
-            
-            if (op == OP_CANCEL_DEAL || (op == 0 && (in.body.bitsEqual("cancel") || in.body.bitsEqual("stop")))) {
-                op = OP_STOP_AUCTION;
-            }
-            
             // var storage = lazy Storage.load();
             var storage2 = lazy storage.ds2.load();
             
             try {
                 assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
                 
-                if (op == OP_STOP_AUCTION) {
+                if (op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
                     if (storage.lastBidValue == 0) {  // Cancel auction if it hasn't started yet
                         assert(senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
                         endAuctionFailed(mutate storage, storage2, queryId);

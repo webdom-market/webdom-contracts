@@ -3,7 +3,7 @@ import subprocess
 import typing
 
 
-CONTRACTS = ["TonSimpleSale", "JettonSimpleSale", "TonMultipleSale", "JettonMultipleSale", "MultipleDomainsSwap", "TonSimpleAuction", "JettonSimpleAuction", "TonMultipleAuction", "JettonMultipleAuction", "TonSimpleOffer", "JettonSimpleOffer", "Marketplace", "MultipleOffer"]
+CONTRACTS = ["TonSimpleSale", "Jett_onSimpleSale", "TonMultipleSale", "Jett_onMultipleSale", "DomainSwap", "TonSimpleAuction", "Jett_onSimpleAuction", "TonMultipleAuction", "Jett_onMultipleAuction", "TonSimpleOffer", "Jett_onSimpleOffer", "Marketplace", "MultipleOffer"]
 
 REPLACES_TESTS = [
     ('"MARKETPLACE_ADDRESS"', '"EQAX21A4fIw7hX1jmRjvJT0DX7H_FUItj2duCBWtK4ayEiC_"'), 
@@ -116,11 +116,12 @@ if action != "run":
         contracts = [target]
 
     for contract in contracts:
-        if contract.lower() == "marketplace" or contract.lower() == "testm":
+        if contract.lower() == "marketplace":
             replaces[0] = REPLACES_ONCHAIN_MAINNET[0] if action == "build" else ('"MARKETPLACE_ADDRESS"', '"EQDS7a_9kvBzUjikv_j2_JdU8q1_T21OlSbgpPFEWGG_WEB3"')
         if gas_report:
             args = ["npx", "blueprint", action,  "--gas-report", contract]
-        print(args)
+        else:
+            args[-1] = contract
         old_content = prepare_constants_file(replaces)
         output = subprocess.run(args)
         roll_back_constants_file(old_content)

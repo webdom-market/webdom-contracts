@@ -344,27 +344,25 @@ fun onInternalMessage(in: InMessage) {
         }
 
         else => {
-            if (in.body.remainingBitsCount() >= 32) {
-                var op = in.body.loadUint(32);
-                if ((op == 0 && (in.body.bitsEqual("cancel") || in.body.bitsEqual("stop"))) || op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
-                    if (storage.lastBidValue == 0) {  // Cancel auction if it hasn't started yet
-                        assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
-                        cancelAuction(mutate storage, 0, "Multiple auction on webdom.market was cancelled");
-                        return;
-                    } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
-                        var additionalTons: coins;
-                        if (in.senderAddress == storage.sellerAddress) {
-                            additionalTons = in.valueCoins;
-                        } else {
-                            assert(in.senderAddress == storage.lastBidderAddress) throw EXC_INCORRECT_SENDER;
-                            additionalTons = 0;
-                        }
-                        var storage2 = lazy storage.ds2.load();
-                        endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, 0, additionalTons);
-                        return;
+            var (op, queryId) = loadOpAndQueryId(mutate in.body);
+            if (op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
+                if (storage.lastBidValue == 0) {  // Cancel auction if it hasn't started yet
+                    assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
+                    cancelAuction(mutate storage, 0, "Multiple auction on webdom.market was cancelled");
+                    return;
+                } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
+                    var additionalTons: coins;
+                    if (in.senderAddress == storage.sellerAddress) {
+                        additionalTons = in.valueCoins;
                     } else {
-                        throw EXC_AUCTION_NOT_ENDED;
+                        assert(in.senderAddress == storage.lastBidderAddress) throw EXC_INCORRECT_SENDER;
+                        additionalTons = 0;
                     }
+                    var storage2 = lazy storage.ds2.load();
+                    endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, 0, additionalTons);
+                    return;
+                } else {
+                    throw EXC_AUCTION_NOT_ENDED;
                 }
             }
             throw EXC_UNSUPPORTED_OP;

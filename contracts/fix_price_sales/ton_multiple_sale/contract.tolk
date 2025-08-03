@@ -213,16 +213,8 @@ fun onInternalMessage(in: InMessage) {
         }
 
         else => {
-            var op: uint32 = 0;
-            var queryId: uint64 = 0;
+            var (op, queryId) = loadOpAndQueryId(mutate in.body);
             var senderAddress = in.senderAddress;
-            
-            if (in.body.remainingBitsCount() >= 32) {
-                op = in.body.loadUint(32);
-                if (in.body.remainingBitsCount() >= 64) {
-                    queryId = in.body.loadUint(64);
-                }
-            }
             
             if (op == OP_DEDUST_PAYOUT) {
                 op = 0;

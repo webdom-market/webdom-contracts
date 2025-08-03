@@ -96,8 +96,8 @@ describe('Marketplace', () => {
     let domainsDict: Dictionary<Address, number>;
     let seller: SandboxContract<TreasuryContract>;
     let buyer: SandboxContract<TreasuryContract>;
-    let leftOwner: SandboxContract<TreasuryContract>;
-    let rightOwner: SandboxContract<TreasuryContract>;
+    let leftParticipant: SandboxContract<TreasuryContract>;
+    let rightParticipant: SandboxContract<TreasuryContract>;
 
     let web3Minter: SandboxContract<JettonMinter>;
     let web3AdminWallet: SandboxContract<JettonWallet>;
@@ -131,8 +131,8 @@ describe('Marketplace', () => {
         admin = await blockchain.treasury('admin');
         seller = await blockchain.treasury('seller');
         buyer = await blockchain.treasury('buyer');
-        leftOwner = seller;
-        rightOwner = buyer;
+        leftParticipant = seller;
+        rightParticipant = buyer;
 
         web3Minter = blockchain.openContract(JettonMinter.createFromConfig({admin: admin.address, content: beginCell().storeStringTail("web3").endCell(), wallet_code: jettonWalletCode}, jettonMinterCode));
         await web3Minter.sendDeploy(admin.getSender(), toNano("0.05"));
@@ -197,10 +197,10 @@ describe('Marketplace', () => {
 
             domains.push(domain);
             if (i < 2) {
-                transactionRes = await domain.sendTransfer(admin.getSender(), leftOwner.address, admin.address);
+                transactionRes = await domain.sendTransfer(admin.getSender(), leftParticipant.address, admin.address);
                 leftDomainsDict.set(i, domainName);
             } else {
-                transactionRes = await domain.sendTransfer(admin.getSender(), rightOwner.address, admin.address);
+                transactionRes = await domain.sendTransfer(admin.getSender(), rightParticipant.address, admin.address);
                 rightDomainsDict.set(i - 2, domainName);
             }
         }
@@ -1623,7 +1623,7 @@ describe('Marketplace', () => {
     it ('should deploy multiple domains swap', async () => {
         let deployData = marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.DOMAIN_SWAP)!.otherData as DomainsSwapDeployData;
         let leftPaymentTotal = toNano('1000');
-        let rightOwnerAddress = buyer.address;
+        let rightParticipantAddress = buyer.address;
         let rightPaymentTotal = 0n;
         let validUntil = blockchain.now!! + 600;
         let needsAlert = true;
@@ -1632,7 +1632,7 @@ describe('Marketplace', () => {
             buyer.getSender(), 
             deployData.completionCommission + toNano('0.05') + toNano("0.17"),  // 0.162 + completionCommission + deployFee required
             Marketplace.DeployOpCodes.DOMAIN_SWAP, 
-            DomainSwap.deployPayload(domains.slice(0, 2).map(d => d.address), leftPaymentTotal, rightOwnerAddress, domains.slice(2).map(d => d.address), rightPaymentTotal, validUntil, needsAlert)
+            DomainSwap.deployPayload(domains.slice(0, 2).map(d => d.address), leftPaymentTotal, rightParticipantAddress, domains.slice(2).map(d => d.address), rightPaymentTotal, validUntil, needsAlert)
         );
 
         expect(transactionRes.transactions).not.toHaveTransaction({ 
@@ -1645,8 +1645,8 @@ describe('Marketplace', () => {
         let DomainSwapAddress = transactionRes.transactions[2].inMessage!!.info.dest!! as Address;
         let domainSwap = blockchain.openContract(DomainSwap.createFromAddress(DomainSwapAddress));
         let domainSwapConfig = await domainSwap.getStorageData();
-        expect(domainSwapConfig.leftOwnerAddress!!.toString()).toEqual(buyer.address.toString());
-        expect(domainSwapConfig.rightOwnerAddress!!.toString()).toEqual(rightOwnerAddress.toString());
+        expect(domainSwapConfig.leftParticipantAddress!!.toString()).toEqual(buyer.address.toString());
+        expect(domainSwapConfig.rightParticipantAddress!!.toString()).toEqual(rightParticipantAddress.toString());
         expect(domainSwapConfig.leftPaymentTotal).toEqual(leftPaymentTotal);
         expect(domainSwapConfig.rightPaymentTotal).toEqual(rightPaymentTotal);
         expect(domainSwapConfig.state).toEqual(DomainSwap.STATE_WAITING_FOR_LEFT);

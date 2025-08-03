@@ -1,5 +1,4 @@
 struct OneSideInfo {
-    ownerAddress: address;
     domainsTotal: uint8;
     domainsReceived: uint8;
     domainsDict: dict;
@@ -8,7 +7,10 @@ struct OneSideInfo {
 }
 
 struct Storage {
+    leftParticipantAddress: address;
     leftInfo: Cell<OneSideInfo>;
+
+    rightParticipantAddress: address;
     rightInfo: Cell<OneSideInfo>;
 
     state: uint2;

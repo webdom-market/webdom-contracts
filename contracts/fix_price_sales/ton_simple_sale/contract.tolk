@@ -161,17 +161,11 @@ fun onInternalMessage(in: InMessage) {
         }
 
         else => {
-            var op: uint32 = 0;
+            var (op, queryId) = loadOpAndQueryId(mutate in.body);
             var senderAddress = in.senderAddress;
-            if (in.body.remainingBitsCount() >= 32) {
-                op = in.body.loadUint(32);
-                if (op == 0 && in.body.bitsEqual("cancel")) {
-                    op = OP_CANCEL_DEAL;
-                }
-                else if (op == OP_DEDUST_PAYOUT) {
-                    senderAddress = in.body as address;
-                    op = 0;
-                }
+            if (op == OP_DEDUST_PAYOUT) {
+                senderAddress = in.body as address;
+                op = 0;
             }
             
             // var storage = lazy Storage.load();
@@ -238,6 +232,7 @@ fun onInternalMessage(in: InMessage) {
         }
     }
 }
+
 
 fun onExternalMessage(in: InMessage) {
     var storage = Storage.load();

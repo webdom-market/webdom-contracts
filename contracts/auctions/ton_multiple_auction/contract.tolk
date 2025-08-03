@@ -213,15 +213,7 @@ fun onInternalMessage(in: InMessage) {
 
         else => {
             var senderAddress = in.senderAddress;
-            var op: uint32 = 0;
-            var queryId: uint64 = 0;
-            
-            if (in.body.remainingBitsCount() >= 32) {
-                op = in.body.loadUint(32);
-                if (in.body.remainingBitsCount() >= 64) {
-                    queryId = in.body.loadUint(64);
-                }
-            }
+            var (op, queryId) = loadOpAndQueryId(mutate in.body);
             
             // Handle Dedust payout
             if (op == OP_DEDUST_PAYOUT) {
@@ -229,7 +221,7 @@ fun onInternalMessage(in: InMessage) {
                 senderAddress = in.body as address;
             }
             
-            if ((op == 0 && (in.body.bitsEqual("cancel") || in.body.bitsEqual("stop"))) || op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
+            if (op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
                 if (storage.lastBidValue == 0) {  // Cancel auction if it hasn't started yet
                     assert(senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
                     endAuctionFailed(mutate storage, queryId, "Multiple auction on webdom.market was cancelled");
