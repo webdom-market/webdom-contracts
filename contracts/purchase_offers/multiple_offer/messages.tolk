@@ -30,8 +30,9 @@ struct UpdateInfo {
 }
 
 struct (0xb1f57834) SetNewDataMessage {
+    queryId: uint64;
     updateInfo: Cell<UpdateInfo>;
-    signature: Cell<bits512>;
+    signature: bits512;
 }
 
 struct (0x0609e47b) MultipleOfferDeployMessage {

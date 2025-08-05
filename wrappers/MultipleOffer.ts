@@ -90,6 +90,9 @@ export class MultipleOffer extends DefaultContract {
     static STATE_UNINIT = 0;
     static STATE_ACTIVE = 1;
 
+    static TONS_SELL_FOR_TON = Tons.NFT_TRANSFER + toNano("0.02");
+    static TONS_SELL_FOR_JETTON = Tons.NFT_TRANSFER + Tons.JETTON_TRANSFER * 2n + toNano("0.01") + toNano("0.02");
+
     static createFromAddress(address: Address) {
         return new MultipleOffer(address);
     }
@@ -125,7 +128,7 @@ export class MultipleOffer extends DefaultContract {
             .storeUint(OpCodes.SET_NEW_DATA, 32)
             .storeUint(queryId, 64)
             .storeRef(updateInfo)
-            .storeRef(beginCell().storeBuffer(signature).endCell())
+            .storeBuffer(signature)
         .endCell();
     }
 

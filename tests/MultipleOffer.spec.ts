@@ -78,7 +78,7 @@ describe('MultipleOffer', () => {
             expect(transactionRes.transactions).toHaveTransaction({
                 from: multipleOffer.address,
                 to: seller.address,
-                value: domainInOfferInfo.price,
+                value: (v) => { return v! >= domainInOfferInfo.price && v! < domainInOfferInfo.price + toNano('0.01')},
                 body: beginCell().storeUint(0, 32).storeStringTail("NFT sold on webdom.market").endCell(),
                 success: true,
             });
@@ -362,7 +362,7 @@ describe('MultipleOffer', () => {
         transactionRes = await domains[0].sendTransfer(
             seller.getSender(), multipleOffer.address, seller.address, 
             domainsDict.generateMerkleProof([domains[0].address]),
-            toNano('0.03')
+            DOMAINS_INFO[0].jettonInfo ? MultipleOffer.TONS_SELL_FOR_JETTON : MultipleOffer.TONS_SELL_FOR_TON
         );
         await checkSuccessfullSale(transactionRes, 0);
 
@@ -373,7 +373,7 @@ describe('MultipleOffer', () => {
         transactionRes = await domains[3].sendTransfer(
             seller.getSender(), multipleOffer.address, seller.address, 
             domainsDict.generateMerkleProof([domains[3].address]),
-            toNano('0.03')
+            DOMAINS_INFO[3].jettonInfo ? MultipleOffer.TONS_SELL_FOR_JETTON : MultipleOffer.TONS_SELL_FOR_TON
         );
         await checkFailedSale(transactionRes, 3, Exceptions.OUT_OF_GAS);
 
@@ -381,7 +381,7 @@ describe('MultipleOffer', () => {
         transactionRes = await domains[0].sendTransfer(
             owner.getSender(), multipleOffer.address, owner.address, 
             domainsDict.generateMerkleProof([domains[0].address]),
-            toNano('0.03')
+            DOMAINS_INFO[0].jettonInfo ? MultipleOffer.TONS_SELL_FOR_JETTON : MultipleOffer.TONS_SELL_FOR_TON
         );
         await checkFailedSale(transactionRes, 0, Exceptions.NFT_ALREADY_SOLD, owner.address);
 
@@ -389,7 +389,7 @@ describe('MultipleOffer', () => {
         transactionRes = await domains[1].sendTransfer(
             seller.getSender(), multipleOffer.address, seller.address, 
             domainsDict.generateMerkleProof([domains[0].address]),
-            toNano('0.03')
+            DOMAINS_INFO[0].jettonInfo ? MultipleOffer.TONS_SELL_FOR_JETTON : MultipleOffer.TONS_SELL_FOR_TON
         );
         await checkFailedSale(transactionRes, 1, 9);
         
@@ -397,9 +397,8 @@ describe('MultipleOffer', () => {
         transactionRes = await domains[1].sendTransfer(
             seller.getSender(), multipleOffer.address, seller.address, 
             domainsDict.generateMerkleProof([domains[1].address]),
-            toNano('0.03')
+            DOMAINS_INFO[1].jettonInfo ? MultipleOffer.TONS_SELL_FOR_JETTON : MultipleOffer.TONS_SELL_FOR_TON
         );
-        printTransactionFees(transactionRes.transactions);
         await checkSuccessfullSale(transactionRes, 1);
 
         // offer expired
@@ -407,7 +406,7 @@ describe('MultipleOffer', () => {
         transactionRes = await domains[2].sendTransfer(
             seller.getSender(), multipleOffer.address, seller.address, 
             domainsDict.generateMerkleProof([domains[2].address]),
-            toNano('0.03')
+            DOMAINS_INFO[2].jettonInfo ? MultipleOffer.TONS_SELL_FOR_JETTON : MultipleOffer.TONS_SELL_FOR_TON
         );
         await checkFailedSale(transactionRes, 2, Exceptions.DEAL_NOT_ACTIVE);
 
@@ -415,7 +414,7 @@ describe('MultipleOffer', () => {
         transactionRes = await domains[4].sendTransfer(
             seller.getSender(), multipleOffer.address, seller.address, 
             domainsDict.generateMerkleProof([domains[4].address]),
-            toNano('0.03')
+            DOMAINS_INFO[4].jettonInfo ? MultipleOffer.TONS_SELL_FOR_JETTON : MultipleOffer.TONS_SELL_FOR_TON
         );
         await checkFailedSale(transactionRes, 4, Exceptions.NOT_ENOUGH_JETTONS);
         
@@ -428,7 +427,7 @@ describe('MultipleOffer', () => {
         transactionRes = await domains[4].sendTransfer(
             seller.getSender(), multipleOffer.address, seller.address, 
             domainsDict.generateMerkleProof([domains[4].address]),
-            toNano('0.03')
+            DOMAINS_INFO[4].jettonInfo ? MultipleOffer.TONS_SELL_FOR_JETTON : MultipleOffer.TONS_SELL_FOR_TON
         );
         await checkSuccessfullSale(transactionRes, 4);
 
@@ -463,7 +462,7 @@ describe('MultipleOffer', () => {
         transactionRes = await domains[5].sendTransfer(
             seller.getSender(), multipleOffer.address, seller.address, 
             domainsDict.generateMerkleProof([domains[5].address]),
-            toNano('0.02')
+            DOMAINS_INFO[5].jettonInfo ? MultipleOffer.TONS_SELL_FOR_JETTON : MultipleOffer.TONS_SELL_FOR_TON
         );
         await checkSuccessfullSale(transactionRes, 5);
 

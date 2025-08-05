@@ -54,9 +54,6 @@ fun onInternalMessage(in: InMessage) {
         allowChangeCode: true,
         allowChangeData: true,
         allowSendAnyMessage: true,
-        allowWithdrawTon: true,
-        allowWithdrawJetton: true,
-        allowSendNft: true,
     });
 
     val msg = lazy AllowedMessage.fromSlice(in.body);
@@ -98,10 +95,13 @@ fun onInternalMessage(in: InMessage) {
                 var symbol: slice = "TON";
 
                 if (priceInfo.maybeJettonInfo == null) {
-                    val toncoinsToReserve: coins = contractBalance - (priceInfo.price + commission + TONS_NFT_TRANSFER + TONS_MIN_RESERVE);
-                    assert (toncoinsToReserve >= 0) throw EXC_OUT_OF_GAS;
-                    reserveToncoinsOnBalance(toncoinsToReserve, RESERVE_MODE_EXACT_AMOUNT);
-                    remainingBalance = toncoinsToReserve + ton("0.02");
+                    // за газ платит продавец
+                    val requiredGas: coins = TONS_NFT_TRANSFER + ton("0.02");
+                    assert (requiredGas <= in.valueCoins) throw EXC_OUT_OF_GAS;
+                    
+                    remainingBalance = contractBalance - (priceInfo.price + commission + in.valueCoins + storageFees());  // за storage fees платит создатель оффера
+                    assert (remainingBalance >= 0) throw EXC_OUT_OF_GAS;
+                    reserveToncoinsOnBalance(remainingBalance, RESERVE_MODE_EXACT_AMOUNT);
 
                     if (commission > TONS_MIN_EXCESS) {
                         createMessage({
@@ -113,7 +113,7 @@ fun onInternalMessage(in: InMessage) {
                     }
                     createMessage({
                         bounce: false,
-                        value: priceInfo.price,
+                        value: priceInfo.price + in.valueCoins - requiredGas,
                         dest: msg.fromAddress,
                         body: CommentMessage { comment: "NFT sold on webdom.market" }
                     }).send(SEND_MODE_PAY_FEES_SEPARATELY);                    
@@ -129,35 +129,35 @@ fun onInternalMessage(in: InMessage) {
                     assert (remainingBalance >= 0) throw EXC_NOT_ENOUGH_JETTONS;
                     storage.setJettonBalance(jettonWalletAddress, remainingBalance);
                     
-                    var toncoinsToReserve: coins = contractBalance - (TONS_NFT_TRANSFER + TONS_JETTON_TRANSFER + TONS_MIN_RESERVE);
+                    var requiredGas: coins = (TONS_NFT_TRANSFER + TONS_JETTON_TRANSFER + ton("0.02"));
                     if (commission > 0) {
                         createMessage({
                             bounce: false,
-                            value: TONS_JETTON_TRANSFER + ton("0.01"),
+                            value: TONS_JETTON_TRANSFER + TONS_NOTIFY_MARKETPLACE,
                             dest: jettonWalletAddress,
                             body: SendJettonsMessage<cell> { 
                                 queryId: msg.queryId,
                                 jettonAmount: commission,
                                 toAddress: MARKETPLACE_ADDRESS,
-                                responseAddress: contract.getAddress(),
-                                forwardTonAmount: ton("0.01"),
+                                responseAddress: msg.fromAddress,
+                                forwardTonAmount: TONS_NOTIFY_MARKETPLACE,
                                 forwardPayload: MARKETPLACE_COMMISSION_NOTIFICATION()
                             }
                         }).send(SEND_MODE_REGULAR);
-                        toncoinsToReserve -= (TONS_JETTON_TRANSFER + ton("0.01"));
+                        requiredGas += (TONS_JETTON_TRANSFER + TONS_NOTIFY_MARKETPLACE);
                     }
-                    assert (toncoinsToReserve >= 0) throw EXC_OUT_OF_GAS;
-                    reserveToncoinsOnBalance(toncoinsToReserve, RESERVE_MODE_EXACT_AMOUNT);
+                    assert (requiredGas <= in.valueCoins) throw EXC_OUT_OF_GAS;
+                    reserveToncoinsOnBalance(storageFees(), RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
                     
                     createMessage({
                         bounce: false,
-                        value: TONS_JETTON_TRANSFER,
+                        value: TONS_JETTON_TRANSFER + in.valueCoins - requiredGas,
                         dest: jettonWalletAddress,
                         body: SendJettonsMessage<cell> { 
                             queryId: msg.queryId,
                             jettonAmount: priceInfo.price,
                             toAddress: msg.fromAddress,
-                            responseAddress: contract.getAddress(),
+                            responseAddress: msg.fromAddress,
                             forwardTonAmount: 1,
                             forwardPayload: NFT_SOLD_NOTIFICATION()
                         }
@@ -171,7 +171,7 @@ fun onInternalMessage(in: InMessage) {
                     body: NftTransferMessage<cell> { 
                         queryId: msg.queryId,
                         toAddress: storage.ownerAddress,
-                        responseAddress: contract.getAddress(),
+                        responseAddress: msg.fromAddress,
                         forwardTonAmount: 1,
                         forwardPayload: beginCell()
                                             .storeUint(0, 32)
@@ -226,7 +226,7 @@ fun onInternalMessage(in: InMessage) {
 
             assert (in.senderAddress == storage.ownerAddress) throw EXC_INCORRECT_SENDER;
             val publicKey = storage.publicKeyCell.load();
-            assert (isSignatureValid(msg.updateInfo.hash(), msg.signature.load() as slice, publicKey)) throw EXC_INVALID_SIGNATURE;
+            assert (isSignatureValid(msg.updateInfo.hash(), msg.signature as slice, publicKey)) throw EXC_INVALID_SIGNATURE;
 
             val updateInfo = UpdateInfo.fromCell(msg.updateInfo);
             assert (updateInfo.signTime + 600 > blockchain.now() && updateInfo.contractAddress == contract.getAddress()) throw EXC_INVALID_SIGNATURE;
