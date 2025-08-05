@@ -218,7 +218,7 @@ fun onInternalMessage(in: InMessage) {
             // Handle Dedust payout
             if (op == OP_DEDUST_PAYOUT) {
                 op = 0;
-                senderAddress = in.body as address;
+                senderAddress = in.body.loadMaybeRef()!.beginParse() as address;
             }
             
             if (op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
@@ -257,7 +257,7 @@ fun onInternalMessage(in: InMessage) {
                     var bidValue = in.valueCoins - tonsToReserve;
 
                     var nextMinBidValue = max(
-                        max(storage.lastBidValue + ton("0.001"), storage.minBidValue),
+                        max(storage.lastBidValue + ton("0.1"), storage.minBidValue),
                         mulDivFloor(storage.lastBidValue, storage.minBidIncrement, BID_INCREMENT_DIVIDER)
                     );
                     assert(bidValue >= nextMinBidValue) throw EXC_BID_TOO_LOW;
@@ -350,7 +350,7 @@ fun onExternalMessage(in: InMessage) {
         var queryId = in.body.loadUint(64);
         
         if (storage.lastBidValue == 0) {  // No one participated in the auction
-            assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsTotal) throw EXC_OUT_OF_GAS;
+            assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
             endAuctionFailed(mutate storage, queryId, "Multiple auction on webdom.market was cancelled");
         } else {  // Auction finished successfully
             val storage2 = lazy storage.ds2.load();
@@ -389,7 +389,7 @@ get fun get_storage_data() {
 
         storage.hotUntil,
         storage.coloredUntil,
-        createAddressNone(),  // jettonMinterAddress (not used in TON auction)
+        BURN_ADDRESS,  // jettonMinterAddress (not used in TON auction)
         contract.getCode().hash()
     );
 }

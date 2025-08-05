@@ -112,7 +112,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
 
         WithdrawJettonAdminMessage => {
             assert(permissions.allowWithdrawJetton || permissions.allowSendAnyMessage) throw EXC_UNSUPPORTED_OP;
-            createMessage<SendJettonsMessage<CommentMessage>>({
+            createMessage<SendJettonsMessage<cell>>({
                 bounce: false,
                 value: 0,
                 dest: msgBodyTyped.jettonWalletAddress,
@@ -122,7 +122,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
                     toAddress: ADMIN_ADDRESS,
                     responseAddress: ADMIN_ADDRESS,
                     forwardTonAmount: 1,
-                    forwardPayload: CommentMessage { comment: "Jetton withrawal" }
+                    forwardPayload: (CommentMessage { comment: "Jetton withrawal" }).toCell()
                 }
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             throw 0;
@@ -130,7 +130,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
 
         WithdrawNftAdminMessage => {
             assert(permissions.allowSendNft || permissions.allowSendAnyMessage) throw EXC_UNSUPPORTED_OP;
-            createMessage<NftTransferMessage<CommentMessage>>({
+            createMessage<NftTransferMessage<cell>>({
                 bounce: false,
                 value: 0,
                 dest: msgBodyTyped.domainAddress,
@@ -139,7 +139,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
                     toAddress: ADMIN_ADDRESS,
                     responseAddress: ADMIN_ADDRESS,
                     forwardTonAmount: 1,
-                    forwardPayload: CommentMessage { comment: "Domain withrawal" }
+                    forwardPayload: (CommentMessage { comment: "Domain withrawal" }).toCell()
                 }
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             throw 0;

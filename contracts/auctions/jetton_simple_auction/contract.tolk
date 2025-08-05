@@ -237,7 +237,6 @@ fun onInternalMessage(in: InMessage) {
                 
                 assert(in.valueCoins >= requiredGas) throw EXC_OUT_OF_GAS;
                 storage.save();
-                var tmp = Storage.load();
                 return;
                 
             } catch (e, _) {
@@ -255,6 +254,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: storage.ds2.load().domainAddress,
             }).send(SEND_MODE_PAY_FEES_SEPARATELY);
 
+            // Продление домена по сути бесполезно, поэтому не отправляем комиссию маркетплейсу
             createMessage<ExcessesMessage>({
                 bounce: false,
                 value: 0,
@@ -384,7 +384,8 @@ get fun get_storage_data() {
         storage.lastBidTime,
         
         storage.domainNameCell,
-        
+        null,  // legacy
+
         storage2.maxCommission,
         
         storage2.jettonWalletAddress,

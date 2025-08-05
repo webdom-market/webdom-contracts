@@ -163,9 +163,10 @@ fun onInternalMessage(in: InMessage) {
         else => {
             var (op, queryId) = loadOpAndQueryId(mutate in.body);
             var senderAddress = in.senderAddress;
+            
             if (op == OP_DEDUST_PAYOUT) {
-                senderAddress = in.body as address;
                 op = 0;
+                senderAddress = in.body.loadMaybeRef()!.beginParse() as address;
             }
             
             // var storage = lazy Storage.load();
@@ -183,7 +184,7 @@ fun onInternalMessage(in: InMessage) {
                     
                     createMessage<cell>({
                         bounce: false,
-                        value: storage.price - storage.commission,
+                        value: storage.price - storage.commission + contract.getOriginalBalance() - in.valueCoins,
                         dest: storage.sellerAddress,
                         body: getPayoutNotificationBody(storage.domainNameCell)
                     }).send(SEND_MODE_PAY_FEES_SEPARATELY);

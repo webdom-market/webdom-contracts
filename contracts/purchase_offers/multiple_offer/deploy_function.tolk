@@ -52,5 +52,5 @@ fun deployMultipleOffer(args: SimpleDeployArgs): int {
                 .storeBuilder(web3OfferAddress)
             .endCell()
     });
-    return msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + ton("0.05");  // return msg sending price
+    return msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_DEPLOY_MULTIPLE_OFFER;  // return msg sending price
 }

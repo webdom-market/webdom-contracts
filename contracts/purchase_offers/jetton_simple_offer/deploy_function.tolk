@@ -30,7 +30,7 @@ struct JettonSimpleOfferDeployPayload {
     domainNameCell: Cell<SerializableSlice>;
 }
 
-const TONS_DEPLOY_JETTON_OFFER = TONS_JETTON_SIMPLE_OFFER_RESERVE + ton("0.015"); // 0.185
+const TONS_DEPLOY_JETTON_OFFER = TONS_JETTON_SIMPLE_OFFER_RESERVE + ton("0.005"); // 0.185
 
 
 fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {

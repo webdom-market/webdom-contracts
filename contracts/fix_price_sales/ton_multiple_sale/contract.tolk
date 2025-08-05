@@ -218,7 +218,7 @@ fun onInternalMessage(in: InMessage) {
             
             if (op == OP_DEDUST_PAYOUT) {
                 op = 0;
-                senderAddress = in.body as address;
+                senderAddress = in.body.loadMaybeRef()!.beginParse() as address;
             }
             
             try {
@@ -309,6 +309,7 @@ fun onExternalMessage(in: InMessage) {
         }
         
         acceptExternalMessage();
+        assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
         var queryId = in.body.loadUint(64);
         
         cancelSale(mutate storage, queryId, "Your sale offer has expired");

@@ -314,6 +314,24 @@ fun handleTonMarketplaceCommission(storage: MarketplaceStorage, msgBody: slice, 
     storage.save();
 }
 
+fun handleUpdateDeployInfo(storage: MarketplaceStorage, msgBody: slice, senderAddress: address): void {
+    assert(senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+    var updatesDict = msgBody.loadDict();
+    var (keyOp, deployInfoSlice, found) = updatesDict.uDictGetFirst(32);
+    while (found) {
+        storage.deployInfos.uDictSet(32, keyOp!, deployInfoSlice!);
+        (keyOp, deployInfoSlice, found) = updatesDict.uDictGetNext(32, keyOp!);
+    }
+    storage.save();
+
+    createMessage({
+        bounce: false,
+        value: 0,
+        dest: ADMIN_ADDRESS,
+        body: ExcessesMessage {queryId: 0}
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 fun onInternalMessage(in: InMessage): void {
     forceSameWorkchain(in.senderAddress);
     handleAdminMessage(in.senderAddress, in.body, Permissions {
@@ -351,6 +369,9 @@ fun onInternalMessage(in: InMessage): void {
         }
         OP_BUY_SUBSCRIPTION => {
             handleBuySubscription(storage, in.body, in.valueCoins, in.senderAddress);
+        }
+        OP_UPDATE_DEPLOY_INFO => {
+            handleUpdateDeployInfo(storage, in.body, in.senderAddress);
         }
         else => { // simple deploy
             assert(op < 0x0fffffff) throw EXC_UNSUPPORTED_OP;

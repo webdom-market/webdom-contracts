@@ -212,7 +212,7 @@ fun onInternalMessage(in: InMessage) {
                 assert((blockchain.now() >= storage.startTime) && (blockchain.now() < storage.endTime) && (storage.domainsReceived == storage.domainsTotal)) throw EXC_DEAL_NOT_ACTIVE;
                 
                 val tonsToReserve = TONS_JETTON_TRANSFER * 2 + TONS_NOTIFY_MARKETPLACE + TONS_TON_SIMPLE_PURCHASE * storage.domainsTotal + TONS_MIN_TON_FOR_STORAGE;
-                var requiredGas = tonsToReserve;
+                var requiredGas = tonsToReserve + TONS_JETTON_TRANSFER + ton("0.01");
                 if (msg.transferredJettons > storage2.maxBidValue) {
                     requiredGas += TONS_JETTON_TRANSFER;
                 }
@@ -387,7 +387,7 @@ fun onExternalMessage(in: InMessage) {
         var queryId = in.body.loadUint(64);
         
         if (storage.lastBidValue == 0) {  // No one participated in the auction
-            assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsTotal) throw EXC_OUT_OF_GAS;
+            assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
             cancelAuction(mutate storage, queryId, "Multiple auction on webdom.market has ended without bids");
         } else {  // Auction finished successfully
             var storage2 = lazy storage.ds2.load();

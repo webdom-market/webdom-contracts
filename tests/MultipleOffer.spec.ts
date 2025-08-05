@@ -9,6 +9,7 @@ import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
 import { JettonWallet } from '../wrappers/JettonWallet';
 import { jettonsToString } from '../wrappers/helpers/functions';
 import { JettonMinter } from '../wrappers/JettonMinter';
+import { randomAddress } from '@ton/test-utils';
 
 
 describe('MultipleOffer', () => {
@@ -287,6 +288,9 @@ describe('MultipleOffer', () => {
             if (i !== 5) {
                 domainsDict.set(domainAddress, DOMAINS_INFO[i]);
             }
+        }
+        for (let i = 0; i < 20; ++i) {
+            domainsDict.set(randomAddress(), DOMAINS_INFO[i % 5]);
         }
 
         // Calculate merkle root

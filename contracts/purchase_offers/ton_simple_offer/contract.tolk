@@ -12,6 +12,8 @@ import "../../imports/admin_message";
 
 
 fun acceptOffer(mutate storage: Storage, sellerAddress: address, sellerMsgValue: coins, queryId: uint64) {    
+    setGasLimitToMaximum();
+    
     createMessage({
         bounce: false,
         value: storage.commission,
@@ -137,7 +139,6 @@ fun onInternalMessage(in: InMessage) {
                 if (storage.sellerAddress == null) {
                     storage.sellerAddress = msg.fromAddress.toCell();
                 }
-
 
                 msg.forwardPayload = (msg.forwardPayload is Cell<SerializableSlice>) ? msg.forwardPayload.load() : msg.forwardPayload;
 

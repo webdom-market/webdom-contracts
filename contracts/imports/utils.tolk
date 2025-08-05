@@ -183,7 +183,7 @@ fun loadOpAndQueryId(mutate inMsgBody: slice): (uint32, uint64) {
         if (op == 0 && (inMsgBody.bitsEqual("cancel") || inMsgBody.bitsEqual("stop"))) {
             op = OP_CANCEL_DEAL;
         }
-        if (op == 0 && inMsgBody.remainingBitsCount() >= 64) {
+        if (op != 0 && inMsgBody.remainingBitsCount() >= 64) {
             queryId = inMsgBody.loadUint(64);
         }
     }

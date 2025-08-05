@@ -174,7 +174,7 @@ export class TonSimpleAuction extends DefaultContract {
             lastBidValue: stack.readBigNumber(),
             lastBidTime: stack.readNumber(),
             domainName: stack.readCell().beginParse().loadStringTail(),
-            maxCommission: stack.readBigNumber(),
+            maxCommission: (stack.readCellOpt() ? 1n : 1n) *stack.readBigNumber(),
 
             isDeferred: stack.readBoolean(),
             

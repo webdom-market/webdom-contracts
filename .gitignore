@@ -4,6 +4,7 @@ dist
 build
 .DS_Store
 package.ts
+.env
 
 # VS Code
 .vscode/*

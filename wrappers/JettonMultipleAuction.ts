@@ -126,7 +126,7 @@ export class JettonMultipleAuction extends DefaultContract {
         await provider.internal(via, {
             value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN * BigInt(domainsNumber),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).storeBit(0).endCell()
+            body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).endCell()
         });
     }
 

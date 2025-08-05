@@ -39,7 +39,7 @@ REPLACES_ONCHAIN_TESTNET = [
 
 
 REPLACES_ONCHAIN_MAINNET = [
-    ('"MARKETPLACE_ADDRESS"', '"EQD7-a6WPtb7w5VgoUfHJmMvakNFgitXPk3sEM8Gf_WEBDOM"'), 
+    ('"MARKETPLACE_ADDRESS"', '"EQA7QIKU3j1ipe88gg8euLxKupXEjc_czkigjw9mpZ5qXT8N"'), #'"EQD7-a6WPtb7w5VgoUfHJmMvakNFgitXPk3sEM8Gf_WEBDOM"'), 
     ('"ADMIN_ADDRESS"', '"0QCovSj8c8Ik1I-RZt7dbIOEulYe-MfJ2SN5eMhxwfACviV7"'),
     ('"TON_DNS_ADDRESS"', '"EQC3dNlesgVD8YbAazcauIrXBPfiVhMMr5YYk2in0Mtsz0Bz"'),
     ('"WEB3_ADDRESS"', '"EQBtcL4JA-PdPiUkB8utHcqdaftmUSTqdL8Z1EeXePLti_nK"'),
@@ -112,6 +112,8 @@ if len(sys.argv) > 3:
 if action != "run":
     if target == "--all":
         contracts = CONTRACTS
+        if action == "build":
+            contracts = list(map(lambda x: x.replace('_', ''), contracts))
     else:
         contracts = [target]
 

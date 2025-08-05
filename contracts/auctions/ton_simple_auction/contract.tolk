@@ -107,6 +107,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: storage.ds2.load().domainAddress,
             }).send(SEND_MODE_PAY_FEES_SEPARATELY);
 
+            // Продление домена по сути бесполезно, поэтому не отправляем комиссию маркетплейсу
             createMessage<ExcessesMessage>({
                 bounce: false,
                 value: 0,
@@ -141,7 +142,7 @@ fun onInternalMessage(in: InMessage) {
             
             if (op == OP_DEDUST_PAYOUT) {
                 op = 0;
-                senderAddress = in.body as address;
+                senderAddress = in.body.loadMaybeRef()!.beginParse() as address;
             }
             
             // var storage = lazy Storage.load();
@@ -325,6 +326,7 @@ get fun get_storage_data() {
         storage.lastBidTime,
         
         storage.domainNameCell,
+        null,  // legacy
         storage2.maxCommission,
         
         storage.isDeferred && (blockchain.now() < storage.startTime),

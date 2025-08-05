@@ -17,7 +17,7 @@ import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
 import { Addresses, COMMISSION_DIVIDER, Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../wrappers/helpers/constants';
 import { TonMultipleSale, TonMultipleSaleDeployData } from '../wrappers/TonMultipleSale';
 import { TonSimpleOffer, TonSimpleOfferDeployData } from '../wrappers/TonSimpleOffer';
-import { DomainSwap, DomainsSwapDeployData } from '../wrappers/DomainSwap';
+import { DomainSwap, DomainSwapDeployData } from '../wrappers/DomainSwap';
 import { stringValueParser } from '../wrappers/helpers/DefaultContract';
 import { JettonSimpleOffer, JettonSimpleOfferDeployData } from '../wrappers/JettonSimpleOffer';
 import { JettonMultipleSale, JettonMultipleSaleDeployData } from '../wrappers/JettonMultipleSale';
@@ -371,7 +371,7 @@ describe('Marketplace', () => {
             deployFunctionCode: getDeployFunctionCode('DomainSwap'),
             deployType: Marketplace.DeployTypes.SIMPLE,
             deployFee: toNano('0.05'),
-            otherData: DomainsSwapDeployData.fromConfig(
+            otherData: DomainSwapDeployData.fromConfig(
                 toNano('0.5'),   // completionCommission
                 600             // minDuration (5 minutes)
             ),
@@ -1621,7 +1621,7 @@ describe('Marketplace', () => {
 
 
     it ('should deploy multiple domains swap', async () => {
-        let deployData = marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.DOMAIN_SWAP)!.otherData as DomainsSwapDeployData;
+        let deployData = marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.DOMAIN_SWAP)!.otherData as DomainSwapDeployData;
         let leftPaymentTotal = toNano('1000');
         let rightParticipantAddress = buyer.address;
         let rightPaymentTotal = 0n;

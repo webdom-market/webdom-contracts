@@ -4,7 +4,7 @@ import { DefaultContract } from './helpers/DefaultContract';
 import { DeployData } from './Marketplace';
 import { domainInListValueParser } from './JettonMultipleSale';
 
-export class DomainsSwapDeployData extends DeployData {
+export class DomainSwapDeployData extends DeployData {
     completionCommission: bigint; 
     minDuration: number;
 
@@ -14,12 +14,12 @@ export class DomainsSwapDeployData extends DeployData {
         this.minDuration = data.loadUint(32);
     }
 
-    static fromConfig(completionCommission: bigint, minDuration: number): DomainsSwapDeployData {
-        return new DomainsSwapDeployData(beginCell().storeCoins(completionCommission).storeUint(minDuration, 32).endCell().beginParse());
+    static fromConfig(completionCommission: bigint, minDuration: number): DomainSwapDeployData {
+        return new DomainSwapDeployData(beginCell().storeCoins(completionCommission).storeUint(minDuration, 32).endCell().beginParse());
     }
 }
 
-export type DomainsSwapConfig = {
+export type DomainSwapConfig = {
     leftParticipantAddress: Address;
     leftDomainsTotal: number;
     leftDomainsReceived: number;
@@ -43,7 +43,7 @@ export type DomainsSwapConfig = {
     cancelledByLeft?: boolean;
 };
 
-export function domainSwapConfigToCell(config: DomainsSwapConfig): Cell {
+export function domainSwapConfigToCell(config: DomainSwapConfig): Cell {
     return beginCell()
             .storeAddress(config.leftParticipantAddress)
             .storeRef(
@@ -86,7 +86,7 @@ export class DomainSwap extends DefaultContract {
         return new DomainSwap(address);
     }
 
-    static createFromConfig(config: DomainsSwapConfig, code: Cell, workchain = 0) {
+    static createFromConfig(config: DomainSwapConfig, code: Cell, workchain = 0) {
         const data = domainSwapConfigToCell(config);
         const init = { code, data };
         return new DomainSwap(contractAddress(workchain, init), init);
@@ -133,7 +133,7 @@ export class DomainSwap extends DefaultContract {
         });
     }
 
-    async getStorageData(provider: ContractProvider): Promise<DomainsSwapConfig> {
+    async getStorageData(provider: ContractProvider): Promise<DomainSwapConfig> {
         const { stack } = await provider.get('get_storage_data', []);
         return {
             leftParticipantAddress: stack.readAddress(),

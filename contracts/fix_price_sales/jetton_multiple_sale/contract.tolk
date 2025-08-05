@@ -205,16 +205,17 @@ fun onInternalMessage(in: InMessage) {
                 }
 
                 // send seller payout
+                var sellerTonExcesses = contract.getOriginalBalance() - in.valueCoins - storageFees();
                 createMessage({
                     bounce: false,
-                    value: TONS_JETTON_TRANSFER,
+                    value: TONS_JETTON_TRANSFER + sellerTonExcesses,
                     dest: storage.jettonWalletAddress,
                     body: SendJettonsMessage<cell> {
                         queryId: msg.queryId,
                         jettonAmount: storage.price - storage.commission,
                         toAddress: storage.sellerAddress,
-                        responseAddress: storage.sellerAddress,
-                        forwardTonAmount: 1,
+                        responseAddress: fromAddress,
+                        forwardTonAmount: sellerTonExcesses,
                         forwardPayload: MULTIPLE_SALE_NOTIFICATION()
                     }
                 }).send(SEND_MODE_CARRY_ALL_BALANCE);
@@ -337,6 +338,7 @@ fun onExternalMessage(in: InMessage) {
         }
         
         acceptExternalMessage();
+        assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
         var queryId = in.body.loadUint(64);
         
         cancelSale(mutate storage, queryId, "Your sale offer has expired");

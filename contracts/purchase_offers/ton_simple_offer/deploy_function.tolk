@@ -26,7 +26,7 @@ struct TonSimpleOfferDeployPayload {
 }
 
 
-const TONS_DEPLOY_TON_OFFER = TONS_TON_SIMPLE_OFFER_RESERVE + ton("0.015");
+const TONS_DEPLOY_TON_OFFER = TONS_TON_SIMPLE_OFFER_RESERVE + ton("0.005");
 
 
 fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
@@ -87,7 +87,7 @@ fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
 
     val msg = createMessage<FillUpBalanceMessage>({
         bounce: false,
-        value: payload.price + commission + TONS_DEPLOY_TON_OFFER,
+        value: payload.price + commission + TONS_DEPLOY_TON_OFFER,  // газ за исполнение оффера оплачивает его создатель
         dest: offerAddress,
         body: FillUpBalanceMessage {queryId: args.queryId}
     });
