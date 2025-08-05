@@ -171,7 +171,7 @@ fun onInternalMessage(in: InMessage) {
                     // The deal can be cancelled by the right participant at any time
                     assert(in.senderAddress == storage.rightParticipantAddress) throw EXC_INCORRECT_SENDER;
                     cancelNotification = CANCEL_NOTIFICATION_RIGHT();
-                    rightInfo.paymentReceived += in.valueCoins - ton("0.01");
+                    rightInfo.paymentReceived += in.valueCoins + ton("0.01");  // reward for canceling the deal
                 }
                 returnDomains(storage, rightInfo, queryId, cancelNotification);
                 return;
