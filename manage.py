@@ -1,7 +1,10 @@
 import sys
 import subprocess
 import typing
+import os
+import dotenv
 
+dotenv.load_dotenv()
 
 CONTRACTS = ["TonSimpleSale", "Jett_onSimpleSale", "TonMultipleSale", "Jett_onMultipleSale", "DomainSwap", "TonSimpleAuction", "Jett_onSimpleAuction", "TonMultipleAuction", "Jett_onMultipleAuction", "TonSimpleOffer", "Jett_onSimpleOffer", "Marketplace", "MultipleOffer"]
 
@@ -21,8 +24,8 @@ REPLACES_TESTS = [
 ]
 
 REPLACES_ONCHAIN_TESTNET = [
-    ('"MARKETPLACE_ADDRESS"', '"EQBE486yq6DUJMt-cvqj-_kk4Ft0NkPW5t8tjWLZkIR_WEB3"'), 
-    ('"ADMIN_ADDRESS"', '"0QCovSj8c8Ik1I-RZt7dbIOEulYe-MfJ2SN5eMhxwfACviV7"'),
+    ('"MARKETPLACE_ADDRESS"', f'"{os.environ.get("MARKETPLACE_ADDRESS_TESTNET")}"'), 
+    ('"ADMIN_ADDRESS"', f'"{os.environ.get("ADMIN_ADDRESS_TESTNET")}"'),
     ('"TON_DNS_ADDRESS"', '"EQC3dNlesgVD8YbAazcauIrXBPfiVhMMr5YYk2in0Mtsz0Bz"'),
     ('"WEB3_ADDRESS"', '"kQAAsaFsxbeo6paoe9fNCMwRApFR9LIsyGM8bGy4B53DlN_W"'),
     ('"USDT_ADDRESS"', '"kQAke45nLBq-0fO-Vaxl8NwNwKibNtr7SheU0xqB4JTKexSm"'),
@@ -39,8 +42,8 @@ REPLACES_ONCHAIN_TESTNET = [
 
 
 REPLACES_ONCHAIN_MAINNET = [
-    ('"MARKETPLACE_ADDRESS"', '"EQA7QIKU3j1ipe88gg8euLxKupXEjc_czkigjw9mpZ5qXT8N"'), #'"EQD7-a6WPtb7w5VgoUfHJmMvakNFgitXPk3sEM8Gf_WEBDOM"'), 
-    ('"ADMIN_ADDRESS"', '"0QCovSj8c8Ik1I-RZt7dbIOEulYe-MfJ2SN5eMhxwfACviV7"'),
+    ('"MARKETPLACE_ADDRESS"', f'"{os.environ.get("MARKETPLACE_ADDRESS")}"'),
+    ('"ADMIN_ADDRESS"', f'"{os.environ.get("ADMIN_ADDRESS")}"'),
     ('"TON_DNS_ADDRESS"', '"EQC3dNlesgVD8YbAazcauIrXBPfiVhMMr5YYk2in0Mtsz0Bz"'),
     ('"WEB3_ADDRESS"', '"EQBtcL4JA-PdPiUkB8utHcqdaftmUSTqdL8Z1EeXePLti_nK"'),
     ('"USDT_ADDRESS"', '"EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"'),
@@ -118,8 +121,8 @@ if action != "run":
         contracts = [target]
 
     for contract in contracts:
-        if contract.lower() == "marketplace":
-            replaces[0] = REPLACES_ONCHAIN_MAINNET[0] if action == "build" else ('"MARKETPLACE_ADDRESS"', '"EQDS7a_9kvBzUjikv_j2_JdU8q1_T21OlSbgpPFEWGG_WEB3"')
+        if contract.lower() == "marketplace" and action == "test":
+            replaces[0] = ('"MARKETPLACE_ADDRESS"', '"EQDS7a_9kvBzUjikv_j2_JdU8q1_T21OlSbgpPFEWGG_WEB3"')
         if gas_report:
             args = ["npx", "blueprint", action,  "--gas-report", contract]
         else:

@@ -263,7 +263,7 @@ async function runAll() {
 // Если скрипт запущен напрямую
 if (require.main === module) {
     const contractName = process.argv[2];
-    if (contractName == 'all') {
+    if (contractName == '--all') {
         runAll().catch(console.error);
     }
     else {

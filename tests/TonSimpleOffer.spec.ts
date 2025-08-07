@@ -210,7 +210,7 @@ describe('TonSimpleOffer', () => {
 
     it('should be cancelable by the buyer', async () => {
         // reject if not enough time passed
-        blockchain.now! += 300;
+        blockchain.now! += 30;
         transactionRes = await offer.sendCancelOffer(buyer.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             success: false,
@@ -271,10 +271,17 @@ describe('TonSimpleOffer', () => {
     });
 
     it('should change valid until', async () => {
-        let newValidUntil = offerConfig.validUntil! + ONE_DAY * 3;
+        let newValidUntil = blockchain.now! + ONE_DAY * 29;
         transactionRes = await offer.sendChangeValidUntil(buyer.getSender(), newValidUntil);
         expect(transactionRes.transactions[2].inMessage!.body.beginParse().skip(32).loadStringTail()).toEqual("Valid until time updated");
         offerConfig = await offer.getStorageData();
         expect(offerConfig.validUntil).toEqual(newValidUntil)
+        blockchain.now! = newValidUntil;
+        console.log(Number((await blockchain.getContract(offer.address)).balance) / 1e9);
+        transactionRes = await admin.send({
+            value: toNano('0.000001'),
+            to: offer.address,
+        });
+        console.log(Number((await blockchain.getContract(offer.address)).balance) / 1e9);
     });
 });

@@ -65,15 +65,15 @@ export class DefaultContract implements Contract {
         });
     }
 
-    static withdrawTonMessage(queryId: number = 0) {
-        return beginCell().storeUint(OpCodes.WITHDRAW_TON, 32).storeUint(queryId, 64).endCell();
+    static withdrawTonMessage(tonsToReserve: bigint = 0n, queryId: number = 0) {
+        return beginCell().storeUint(OpCodes.WITHDRAW_TON, 32).storeUint(queryId, 64).storeCoins(tonsToReserve).endCell();
     }
 
-    async sendWithdrawTon(provider: ContractProvider, via: Sender, queryId: number = 0) {
+    async sendWithdrawTon(provider: ContractProvider, via: Sender, tonsToReserve: bigint = 0n, queryId: number = 0) {
         await provider.internal(via, {
             value: toNano("0.01"),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: DefaultContract.withdrawTonMessage(queryId),
+            body: DefaultContract.withdrawTonMessage(tonsToReserve, queryId),
         });
     }
 
@@ -104,7 +104,7 @@ export class DefaultContract implements Contract {
     
     async sendWithdrawNft(provider: ContractProvider, via: Sender, nftAddress: Address, queryId: number = 0) {
         await provider.internal(via, {
-            value: toNano("0.01"),
+            value: toNano("0.06"),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: DefaultContract.withdrawNftMessage(nftAddress, queryId),
         });

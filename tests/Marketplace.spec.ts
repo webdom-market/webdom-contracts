@@ -1,6 +1,6 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract, Treasury } from '@ton/sandbox';
 import { Address, beginCell, Cell, contractAddress, Dictionary, toNano } from '@ton/core';
-import { DeployData, DeployInfoValue, Marketplace, MarketplaceConfig, marketplaceConfigToCell, PromotionPricesValue, promotionPricesValueParser } from '../wrappers/Marketplace';
+import { DeployData, DeployInfoValue, deployInfoValueParser, Marketplace, MarketplaceConfig, marketplaceConfigToCell, PromotionPricesValue, promotionPricesValueParser, userSubscriptionValueParser } from '../wrappers/Marketplace';
 import { MarketplaceDeployer } from '../wrappers/MarketplaceDeployer';
 import '@ton/test-utils';
 import { compile, sleep } from '@ton/blueprint';
@@ -1449,6 +1449,35 @@ describe('Marketplace', () => {
         await domains[0].sendTransfer(seller.getSender(), marketplace.address, seller.address, null, 0n);
         transactionRes = await marketplace.sendWithdrawNft(admin.getSender(), domains[0].address, 1);
         expect((await domains[0].getStorageData()).ownerAddress!.toString()).toEqual(admin.address.toString());
+    });
+
+    it('should update deploy info', async () => {
+        const deployData1 = marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.TON_SIMPLE_SALE)!;
+        deployData1.deployFee = toNano('0.01');
+        const deployData2 = marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.JETTON_SIMPLE_AUCTION)!;
+        deployData2.deployFee = toNano('0.06');
+
+        const updatesDict = Dictionary.empty(Dictionary.Keys.Uint(32), deployInfoValueParser());
+        updatesDict.set(Marketplace.DeployOpCodes.TON_SIMPLE_SALE, deployData1);
+        updatesDict.set(Marketplace.DeployOpCodes.JETTON_SIMPLE_AUCTION, deployData2);
+
+        transactionRes = await marketplace.sendUpdateDeployInfo(admin.getSender(), updatesDict);
+        expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
+        marketplaceConfig = await marketplace.getStorageData();
+        expect(marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.TON_SIMPLE_SALE)!.deployFee).toEqual(toNano('0.01'));
+        expect(marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.JETTON_SIMPLE_AUCTION)!.deployFee).toEqual(toNano('0.06'));
+    });
+
+    it('should set subscriptions', async () => {
+        const newSubscriptions = Dictionary.empty(Dictionary.Keys.Address(), userSubscriptionValueParser());
+        newSubscriptions.set(buyer.address, { level: 1, endTime: blockchain.now! + ONE_DAY * 30 });
+        newSubscriptions.set(seller.address, { level: 2, endTime: blockchain.now! + ONE_DAY * 60 });
+
+        transactionRes = await marketplace.sendSetSubscriptions(admin.getSender(), newSubscriptions);
+        expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
+        marketplaceConfig = await marketplace.getStorageData();
+        expect(marketplaceConfig.userSubscriptions!.get(buyer.address)!.endTime).toEqual(blockchain.now! + ONE_DAY * 30);
+        expect(marketplaceConfig.userSubscriptions!.get(seller.address)!.endTime).toEqual(blockchain.now! + ONE_DAY * 60);
     });
 
     /* OTHER TESTS */

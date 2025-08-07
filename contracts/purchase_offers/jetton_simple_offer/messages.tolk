@@ -1,6 +1,6 @@
 import "../../imports/messages"
-import "../messages"
 import "../../imports/types"
+import "../messages"
 
 
 struct (0x96189f94) ChangePricePayload {

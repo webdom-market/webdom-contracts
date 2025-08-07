@@ -1,9 +1,6 @@
-import "@stdlib/tvm-lowlevel";
 import "../../imports/utils";
 import "../../imports/constants";
-import "messages";
 import "../../marketplace/types";
-import "../../marketplace/constants";
 
 
 struct MultipleOfferDeployInfo {
@@ -23,21 +20,22 @@ fun deployMultipleOffer(args: SimpleDeployArgs): int {
         deployInfo.web3CommissionFactor = 0;
         deployInfo.commissionFactor = mulDivFloor(deployInfo.commissionFactor, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER); 
     }
-    val data = beginCell()
+
+    val data: cell = beginCell()
                             .storeAddress(args.fromAddress)
                             .storeUint(0, 256)
                             .storeRef(args.publicKey.toCell())
                             .storeUint(0, 36)
                         .endCell();
-    val offerAddress = (AutoDeployAddress {
+    val offerAddress = AutoDeployAddress {
         stateInit: ContractState {
             code: args.code,
             data: data,
         }
-    });
+    };
 
-    val contractCodes = lazy args.contractCodes.load();
-    val web3OfferAddress = calculateWeb3WalletAddress(offerAddress.buildAddress(), contractCodes.web3WalletCode);
+    val contractCodes: ContractCodes = lazy args.contractCodes.load();
+    val web3OfferAddress: builder = calculateWeb3WalletAddress(offerAddress.buildAddress(), contractCodes.web3WalletCode);
     
     val msg = createMessage<cell>({
         bounce: false,
@@ -52,5 +50,7 @@ fun deployMultipleOffer(args: SimpleDeployArgs): int {
                 .storeBuilder(web3OfferAddress)
             .endCell()
     });
-    return msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_DEPLOY_MULTIPLE_OFFER;  // return msg sending price
+    val requiredGas: int = msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_DEPLOY_MULTIPLE_OFFER;  // return deploy price
+    
+    return requiredGas;
 }

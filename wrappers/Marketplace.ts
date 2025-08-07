@@ -229,6 +229,14 @@ export class Marketplace extends DefaultContract {
         return beginCell().storeUint(OpCodes.BUY_SUBSCRIPTION, 32).storeUint(queryId, 64).storeUint(subscriptionLevel, 8).storeUint(subscriptionPeriod, 32).endCell();
     }
 
+    static updateDeployInfoMessage(updatesDict: Dictionary<number, DeployInfoValue>, queryId: number = 0) {
+        return beginCell().storeUint(OpCodes.UPDATE_DEPLOY_INFO, 32).storeUint(queryId, 64).storeDict(updatesDict, Dictionary.Keys.Uint(32), deployInfoValueParser()).endCell();
+    }
+
+    static setSubscriptionsMessage(subscriptionsDict: Dictionary<Address, UserSubscriptionValue>, queryId: number = 0) {
+        return beginCell().storeUint(OpCodes.SET_SUBSCRIPTIONS, 32).storeUint(queryId, 64).storeDict(subscriptionsDict, Dictionary.Keys.Address(), userSubscriptionValueParser()).endCell();
+    }
+
     async sendBuySubscription(provider: ContractProvider, via: Sender, subscriptionLevel: number, subscriptionPeriod: number, subscriptionPrice: bigint, queryId: number = 0) {
         await provider.internal(via, {
             value: subscriptionPrice + toNano('0.01'),
@@ -238,6 +246,23 @@ export class Marketplace extends DefaultContract {
         });
     }
 
+    async sendUpdateDeployInfo(provider: ContractProvider, via: Sender, updatesDict: Dictionary<number, DeployInfoValue>, queryId: number = 0) {
+        await provider.internal(via, {
+            value: toNano('0.01'),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: Marketplace.updateDeployInfoMessage(updatesDict, queryId),
+            bounce: true,
+        });
+    }
+
+    async sendSetSubscriptions(provider: ContractProvider, via: Sender, subscriptionsDict: Dictionary<Address, UserSubscriptionValue>, queryId: number = 0) {
+        await provider.internal(via, {
+            value: toNano('0.01'),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: Marketplace.setSubscriptionsMessage(subscriptionsDict, queryId),
+            bounce: true,
+        });
+    }
     
     async getStorageData(provider: ContractProvider): Promise<MarketplaceConfig> {
         const { stack } = await provider.get('get_storage_data', []);

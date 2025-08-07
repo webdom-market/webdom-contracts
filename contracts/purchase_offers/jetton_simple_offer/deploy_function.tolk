@@ -11,6 +11,7 @@ import "../../imports/messages"
 import "../constants"
 import "../../imports/dns"
 
+
 struct DeployInfoForJetton {
     minPrice: coins;
     commissionFactor: uint16;
@@ -30,7 +31,7 @@ struct JettonSimpleOfferDeployPayload {
     domainNameCell: Cell<SerializableSlice>;
 }
 
-const TONS_DEPLOY_JETTON_OFFER = TONS_JETTON_SIMPLE_OFFER_RESERVE + ton("0.005"); // 0.185
+const TONS_DEPLOY_JETTON_OFFER = TONS_JETTON_SIMPLE_OFFER_RESERVE + ton("0.005"); // 0.175
 
 
 fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
@@ -39,6 +40,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
     var jettonPostfix: slice;
     var oneJetton: int;
 
+    // Deploy conditions depend on the token
     if (args.isWeb3) {
         jettonMinterAddress = WEB3_ADDRESS;
         jettonPostfix = " WEB3 for ";
@@ -55,22 +57,32 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
     }
 
     var payload = JettonSimpleOfferDeployPayload.fromSlice(args.commonArgs.payloadSlice);
-    var contractCodes = lazy args.commonArgs.contractCodes.load();
-    val domainNameSlice = payload.domainNameCell.load();
+    var contractCodes: ContractCodes = lazy args.commonArgs.contractCodes.load();
+    val domainNameSlice: SerializableSlice = payload.domainNameCell.load();
     val isTgUsername = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
     val domainAddressBuilder: builder = domainNameToAddress(domainNameSlice.getFirstBits(domainNameSlice.remainingBitsCount() - (isTgUsername ? 5 * 8 : 4 * 8)), contractCodes.domainCode);
 
-    assert(payload.validUntil >= blockchain.now() + deployInfo.minDuration) throw(EXC_INCORRECT_TIME_RANGE);
+    // Check validUntil time
+    assert(
+        payload.validUntil >= blockchain.now() + deployInfo.minDuration &&
+        payload.validUntil <= blockchain.now() + ONE_DAY * 30
+    ) throw(EXC_INCORRECT_TIME_RANGE);
 
-    val commission: int = mulDivFloor(min(
-        mulDivFloor(args.transferredJettons, deployInfo.commissionFactor, COMMISSION_DIVIDER + deployInfo.commissionFactor),
-        deployInfo.maxCommission
-    ), COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
+    // Calculate commission accounting discount
+    val commissionDiscountFactor = COMMISSION_DIVIDER - args.commonArgs.commissionDiscount;
+    val commissionFactor = mulDivFloor(deployInfo.commissionFactor, commissionDiscountFactor, COMMISSION_DIVIDER);
+    val commission: int = min(
+        mulDivFloor(args.transferredJettons, commissionFactor, COMMISSION_DIVIDER + commissionFactor),
+        mulDivFloor(deployInfo.maxCommission, commissionDiscountFactor, COMMISSION_DIVIDER)
+    );
+
+    // Calculate and check price
     val price = args.transferredJettons - commission;
     assert(price >= deployInfo.minPrice) throw(EXC_PRICE_TOO_LOW);
 
     var requiredGas = TONS_DEPLOY_JETTON_OFFER + TONS_JETTON_TRANSFER;
     if (payload.notifySeller) {
+        // Send onchain notification to seller
         assert(payload.sellerAddress != createAddressNone()) throw(EXC_INCORRECT_SELLER_ADDRESS);
         val deployMsg = createMessage<cell>({
             bounce: false,
@@ -87,13 +99,13 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
         requiredGas += deployMsg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_OFFER_NOTIFICATION;
     }
     
-    val data = beginCell()
+    val data: cell = beginCell()
             .storeUint(STATE_UNINIT, 2)
             .storeCoins(price)
             .storeCoins(commission)
             .storeUint(payload.validUntil, 32)
             .storeAddress(payload.sellerAddress)
-            .storeUint(0, 7)  // jetton wallet address + cancelled by seller + seller price
+            .storeUint(0, 7)  // Jetton wallet address + cancelled by seller + seller price
             .storeUint(blockchain.now(), 32)
             .storeRef(
                 beginCell()
@@ -112,7 +124,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
             data: data,
         }
     });
-    val offerAddressBuilder = offerAddress.buildAddress();
+    val offerAddressBuilder: builder = offerAddress.buildAddress();
 
     val deployMsg = createMessage<cell>({
         bounce: false,

@@ -55,6 +55,9 @@ export const OpCodes = {
     BUY_SUBSCRIPTION: 0xd5518b6b,
     MOVE_UP_SALE: 0xa49fac67,
     DEDUST_PAYOUT: 0x474f86cf,
+
+    UPDATE_DEPLOY_INFO: 0xbfc67221,
+    SET_SUBSCRIPTIONS: 0x6f36a835,
 }
 
 export const Tons = {

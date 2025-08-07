@@ -1,3 +1,5 @@
+import "../imports/constants"
+
 const EXC_INCORRECT_SELLER_ADDRESS: int = 55;
 const EXC_INCORRECT_PRICE: int          = 56;
 const EXC_NFT_ALREADY_SOLD: int         = 57;
@@ -5,9 +7,9 @@ const EXC_INCORRECT_EXOTIC_CELL: int    = 58;
 const EXC_INCORRECT_PROOF: int          = 59;
 const EXC_NFT_NOT_FOUND: int            = 60;
 
-const TONS_TON_SIMPLE_OFFER_RESERVE: coins = ton("0.07");
-const TONS_JETTON_SIMPLE_OFFER_RESERVE: coins = ton("0.17");
-const TONS_MIN_PRICE_CHANGE: coins = ton("0.1");
+const TONS_TON_SIMPLE_OFFER_RESERVE: coins = TONS_NFT_TRANSFER + TONS_PURCHASE_NOTIFICATION + ton("0.013");  // 0.073 TON to sell NFT and pay storage for 30 days 
+const TONS_JETTON_SIMPLE_OFFER_RESERVE: coins = TONS_NFT_TRANSFER + TONS_PURCHASE_NOTIFICATION + 2 * TONS_JETTON_TRANSFER + ton("0.013");  // 0.173 TON to sell NFT and pay storage fee for 1 year
+const TONS_MIN_PRICE_CHANGE: coins = ton("0.1");  
 const TONS_COUNTERPROPOSE_PRICE: coins = ton("0.05");
 const TONS_CHANGE_PRICE_GAS: coins = ton("0.015");
 const TONS_COUNTERPROPOSE_GAS: coins = ton("0.01");

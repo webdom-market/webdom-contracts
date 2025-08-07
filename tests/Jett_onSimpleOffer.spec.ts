@@ -235,7 +235,7 @@ describe('JettonSimpleOffer', () => {
 
     it('should be cancelable by the buyer', async () => {
         // reject if not enough time passed
-        blockchain.now! += 300;
+        blockchain.now! += 30;
         transactionRes = await offer.sendCancelOffer(buyer.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             success: false,

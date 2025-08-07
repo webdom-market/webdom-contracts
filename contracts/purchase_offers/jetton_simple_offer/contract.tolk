@@ -1,127 +1,39 @@
-import "@stdlib/tvm-dicts";
-import "../../imports/constants";
-import "../../imports/messages";
-import "../../imports/utils";
-import "../../imports/types";
-import "storage";
-import "messages";
-import "../constants";
-import "@stdlib/gas-payments";
-import "../messages";
+import "@stdlib/tvm-dicts"
+import "@stdlib/gas-payments"
+import "../../imports/constants"
+import "../../imports/messages"
+import "../../imports/utils"
+import "../../imports/types"
 import "../../imports/admin_message"
+import "../constants"
+import "../messages"
+import "storage"
+import "messages"
+import "utils"
 
 
-fun acceptOffer(mutate storage: Storage, domainAddress: address, buyerAddress: address, sellerMsgValue: coins, queryId: uint64) {
-    if (storage.commission > 0) {
-        createMessage({
-            bounce: false,
-            value: TONS_JETTON_TRANSFER + TONS_NOTIFY_MARKETPLACE,
-            dest: storage.jettonWalletAddress,
-            body: SendJettonsMessage<cell> {
-                queryId: queryId,
-                jettonAmount: storage.commission,
-                toAddress: MARKETPLACE_ADDRESS,
-                responseAddress: buyerAddress,
-                forwardTonAmount: TONS_NOTIFY_MARKETPLACE,
-                forwardPayload: MARKETPLACE_COMMISSION_NOTIFICATION()
-            }
-        }).send(SEND_MODE_REGULAR);
-    }
-    
-    createMessage({
-        bounce: false,
-        value: TONS_JETTON_TRANSFER + sellerMsgValue,
-        dest: storage.jettonWalletAddress,
-        body: SendJettonsMessage<cell> {
-            queryId: queryId,
-            jettonAmount: storage.price,
-            toAddress: storage.sellerAddress,
-            responseAddress: buyerAddress,
-            forwardTonAmount: sellerMsgValue,
-            forwardPayload: OFFER_ACCEPTED_NOTIFICATION()
-        }
-    }).send(SEND_MODE_REGULAR);
-    
-    createMessage({
-        bounce: false,
-        value: 0,
-        dest: domainAddress,
-        body: NftTransferMessage<cell> {
-            queryId: queryId,
-            toAddress: buyerAddress,
-            responseAddress: buyerAddress,
-            forwardTonAmount: TONS_PURCHASE_NOTIFICATION,
-            forwardPayload: BUYER_NOTIFICATION()
-        }
-    }).send(SEND_MODE_CARRY_ALL_BALANCE);
-    
-    storage.state = STATE_COMPLETED;
-    storage.validUntil = blockchain.now();
-}
-
-fun cancelOffer(mutate storage: Storage, domainAddress: address, buyerAddress: address, sellerMsgValue: coins, cancellationComment: slice, queryId: uint64) {
-    if (storage.sellerPrice > 0) {
-        createMessage({
-            bounce: false,
-            value: TONS_NFT_TRANSFER + sellerMsgValue,
-            dest: domainAddress,
-            body: NftTransferMessage<cell> {
-                queryId: queryId,
-                toAddress: storage.sellerAddress,
-                responseAddress: buyerAddress,
-                forwardTonAmount: sellerMsgValue,
-                forwardPayload: COUNTERPROPOSAL_REJECTED_NOTIFICATION()
-            }
-        }).send(SEND_MODE_REGULAR);
-    } else if (sellerMsgValue > 0) {
-        createMessage({
-            bounce: false,
-            value: sellerMsgValue + TONS_DECLINE_REWARD,
-            dest: storage.sellerAddress,
-            body: ExcessesMessage { queryId: queryId }
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY);
-    }
-    
-    storage.state = STATE_CANCELLED;
-    storage.validUntil = min(storage.validUntil, blockchain.now());
-    storage.save();
-    
-    createMessage({
-        bounce: false,
-        value: 0,
-        dest: storage.jettonWalletAddress,
-        body: SendJettonsMessage<cell> {
-            queryId: queryId,
-            jettonAmount: storage.price + storage.commission,
-            toAddress: buyerAddress,
-            responseAddress: buyerAddress,
-            forwardTonAmount: 1,
-            forwardPayload: (CommentMessage { comment: cancellationComment }).toCell()
-        }
-    }).send(SEND_MODE_CARRY_ALL_BALANCE);
-}
-
-fun onInternalMessage(in: InMessage) {
+fun onInternalMessage(in: InMessage): void {
     forceSameWorkchain(in.senderAddress);
     
+    var storage: Storage = lazy Storage.load();
     handleAdminMessage(in.senderAddress, in.body, Permissions {
-        allowChangeCode: false,
-        allowChangeData: false,
-        allowSendAnyMessage: false,
+        allowChangeCode: storage.state != STATE_ACTIVE,
+        allowChangeData: storage.state != STATE_ACTIVE,
+        allowSendAnyMessage: storage.state != STATE_ACTIVE,
         allowWithdrawTon: true,
-        allowWithdrawJetton: false,
         allowSendNft: true,
     });
     
-    var msg = lazy AllowedMessage.fromSlice(in.body);
-    var contractBalance = contract.getOriginalBalance();
+    var msg: AllowedMessage = lazy AllowedMessage.fromSlice(in.body);
+    var contractBalance: coins = contract.getOriginalBalance();
     
     match (msg) {
-        // Fill up balance message from marketplace
+        // Deploy and set wallet message from marketplace
         DeployAndSetWalletMessage => {
-            var storage: Storage = lazy Storage.load();
-            var storage2 = lazy storage.ds2.load();
+            var storage2: StorageDs2 = lazy storage.ds2.load();
+            // If message is from marketplace, this is a deploy transaction, otherwise it's a simple fill-up transaction
             if (in.senderAddress == MARKETPLACE_ADDRESS) {
+                // Return funds if the offer has already been activated
                 if (storage.state != STATE_UNINIT) {
                     createMessage({
                         bounce: false,
@@ -132,6 +44,7 @@ fun onInternalMessage(in: InMessage) {
                     return;
                 }
                 
+                // Reserve TON for offer execution
                 if (contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE + TONS_MIN_EXCESS) {
                     reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
                     createMessage({
@@ -142,34 +55,39 @@ fun onInternalMessage(in: InMessage) {
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
                 
+                // Initialize the offer
                 storage.jettonWalletAddress = msg.jettonWalletAddress;
                 storage.state = STATE_ACTIVE;
                 storage.save();
                 return;
             }
+
             return;
         }
 
-        // Exchange domain for jetton
+        // Seller transfers NFT to this contract to sell it or counterpropose a different price
         NftOwnershipAssignedMessage<SerializableSlice> => {
-            var storage: Storage = lazy Storage.load();
-            var storage2 = lazy storage.ds2.load();
+            var storage2: StorageDs2 = lazy storage.ds2.load();
             try {
                 assert(storage.validUntil > blockchain.now() && storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
                 assert(in.senderAddress == storage2.domainAddress) throw EXC_INCORRECT_DOMAIN;
                 
+                // Set seller address if it wasn't set during offer creation
                 storage.sellerAddress = msg.fromAddress;
+               
                 msg.forwardPayload = (msg.forwardPayload is Cell<SerializableSlice>) ? msg.forwardPayload.load() : msg.forwardPayload;
 
                 if ((msg.forwardPayload as slice).isEmpty()) {
+                    // If there is no forward payload, accept the offer
                     acceptOffer(mutate storage, storage2.domainAddress, storage2.buyerAddress, in.valueCoins, msg.queryId);
-                }
-                else {
-                    var forwardPayload = CounterProposePayload.fromSlice(msg.forwardPayload, { throwIfOpcodeDoesNotMatch: EXC_UNSUPPORTED_OP });
+                } else {
+                    // Otherwise, propose seller's price
+                    var forwardPayload: CounterProposePayload = CounterProposePayload.fromSlice(msg.forwardPayload, { throwIfOpcodeDoesNotMatch: EXC_UNSUPPORTED_OP });
                     assert(forwardPayload.sellerPrice > storage.sellerPrice) throw EXC_INCORRECT_PRICE;
                     storage.sellerPrice = forwardPayload.sellerPrice;
                     
                     if (forwardPayload.notifyBuyer) {
+                        // Notify buyer about the counterproposal
                         createMessage({
                             bounce: false,
                             value: TONS_OFFER_NOTIFICATION,
@@ -179,6 +97,7 @@ fun onInternalMessage(in: InMessage) {
                         contractBalance -= TONS_OFFER_NOTIFICATION;
                     }
                     
+                    // Send excess
                     assert(contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE + TONS_MIN_EXCESS) throw EXC_OUT_OF_GAS;
                     reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
                     createMessage({
@@ -188,28 +107,31 @@ fun onInternalMessage(in: InMessage) {
                         body: CommentMessage { comment: "Counterproposal sent" }
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
+
+                // Save data
                 storage.save();
                 return;
             } catch (e, _) {
+                // Try to return NFT on error
                 returnNftToSender(in.senderAddress, msg, e);
             }
         }
         
-        // Process counterproposal after NFT ownership transfer
+        // Process counterproposals after the first one
         CounterProposeMessage => {
-            var storage = Storage.load();
-            var storage2 = lazy storage.ds2.load();
-            assert (storage.sellerAddress == in.senderAddress) throw EXC_INCORRECT_SENDER;
-            assert(storage.validUntil > blockchain.now() && storage.sellerPrice > 0) throw EXC_DEAL_NOT_ACTIVE;
+            var storage2: StorageDs2 = lazy storage.ds2.load();
+            assert(storage.sellerAddress == in.senderAddress) throw EXC_INCORRECT_SENDER;  // Check that message is from seller
+            assert(storage.validUntil > blockchain.now() && storage.sellerPrice > 0) throw EXC_DEAL_NOT_ACTIVE;  // Check that offer is active and there was counterproposal
             
-            storage.sellerPrice = msg.sellerPrice;
-    
-            if (storage.sellerPrice <= storage.price) {
+            if (msg.sellerPrice <= storage.price) {
+                // If seller set price less than or equal to buyer's price, execute offer
                 acceptOffer(mutate storage, storage2.domainAddress, storage2.buyerAddress, in.valueCoins, msg.queryId);
-            } 
-            else {                
+            } else {
+                storage.sellerPrice = msg.sellerPrice;  // Update storage
+                
                 if (msg.notifyBuyer) {
-                    val notificationPrice = createMessage({
+                    // Notify buyer about the counterproposal
+                    val notificationPrice: coins = createMessage({
                         bounce: false,
                         value: TONS_OFFER_NOTIFICATION,
                         dest: storage2.buyerAddress,
@@ -218,6 +140,7 @@ fun onInternalMessage(in: InMessage) {
                     contractBalance -= (notificationPrice + TONS_OFFER_NOTIFICATION);
                 }
                 
+                // Send marketplace commission (2nd and further counterproposals are paid)
                 createMessage({
                     bounce: false,
                     value: TONS_COUNTERPROPOSE_PRICE,
@@ -225,6 +148,7 @@ fun onInternalMessage(in: InMessage) {
                     body: CommentMessage { comment: "Marketplace commission" }
                 }).send(SEND_MODE_REGULAR);
                 
+                // Reserve TON for offer execution and send excess
                 assert(contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE + TONS_COUNTERPROPOSE_PRICE + TONS_COUNTERPROPOSE_GAS) throw EXC_OUT_OF_GAS;
                 reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
                 createMessage({
@@ -235,39 +159,31 @@ fun onInternalMessage(in: InMessage) {
                 }).send(SEND_MODE_CARRY_ALL_BALANCE);
             }
 
+            // Save data
             storage.save();
             return;
         }
         
         // Process jetton transfer notification (for changing price)
         JettonsTransferNotificationMessage<SerializableSlice> => {
-            var storage: Storage = lazy Storage.load();
-            var storage2 = lazy storage.ds2.load();
+            var storage2: StorageDs2 = lazy storage.ds2.load();
             try {
-                assert(in.senderAddress == storage.jettonWalletAddress && msg.fromAddress == storage2.buyerAddress) throw EXC_INCORRECT_SENDER;
-                assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
+                assert(in.senderAddress == storage.jettonWalletAddress && msg.fromAddress == storage2.buyerAddress) throw EXC_INCORRECT_SENDER;  // Check that message is from buyer
+                assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that offer is active
                 
+                // Parse forward payload
                 msg.forwardPayload = (msg.forwardPayload is Cell<SerializableSlice>) ? msg.forwardPayload.load() : msg.forwardPayload;
-                var payload = ChangePricePayload.fromSlice(msg.forwardPayload, { throwIfOpcodeDoesNotMatch: EXC_UNSUPPORTED_OP });
+                var payload: ChangePricePayload = ChangePricePayload.fromSlice(msg.forwardPayload, { throwIfOpcodeDoesNotMatch: EXC_UNSUPPORTED_OP });
                 
-                    
-                val priceDelta = mulDivFloor(msg.transferredJettons, storage.price, storage.commission + storage.price);
+                // Calculate new price (considering fees)
+                val priceDelta: coins = mulDivFloor(msg.transferredJettons, storage.price, storage.commission + storage.price);
                 storage.price = storage.price + priceDelta;
                 storage.commission = storage.commission + msg.transferredJettons - priceDelta;
                 
-                if (storage.price == storage.sellerPrice) {
+                if (storage.sellerPrice != 0 && storage.price >= storage.sellerPrice) {
+                    // If new price is greater than or equal to seller's price, execute offer
                     acceptOffer(mutate storage, storage2.domainAddress, storage2.buyerAddress, 0, msg.queryId);
                 } else {
-                    if (storage.sellerPrice != 0) {  // платные все изменения цены после counterproposal
-                        createMessage({
-                            bounce: false,
-                            value: TONS_COUNTERPROPOSE_PRICE,
-                            dest: MARKETPLACE_ADDRESS,
-                            body: CommentMessage { comment: "Marketplace commission" }
-                        }).send(SEND_MODE_REGULAR);
-                        contractBalance -= TONS_COUNTERPROPOSE_PRICE;
-                    }
-                    
                     assert(payload.newValidUntil >= max(blockchain.now() + 300, storage.validUntil)) throw EXC_INCORRECT_VALID_UNTIL;
                     
                     storage.validUntil = payload.newValidUntil;
@@ -275,13 +191,14 @@ fun onInternalMessage(in: InMessage) {
                     
                     // Determine jetton display info
                     var oneJetton: coins = 1000;
-                    var jettonName = " WEB3";
+                    var jettonName: slice = " WEB3";
                     if (storage2.jettonMinterAddress == USDT_ADDRESS) {
                         oneJetton = 1000000;
                         jettonName = " USDT";
                     }
                     
                     if (payload.notifySeller && storage.sellerAddress != createAddressNone()) {
+                        // Send blockchain notification to seller
                         createMessage({
                             bounce: false,
                             value: TONS_OFFER_NOTIFICATION,
@@ -297,10 +214,23 @@ fun onInternalMessage(in: InMessage) {
                         }).send(SEND_MODE_PAY_FEES_SEPARATELY);
                         contractBalance -= TONS_OFFER_NOTIFICATION;
                     }
+
+                    if (storage.sellerPrice != 0) {
+                        // Send marketplace commission (bargaining after seller counterproposal is paid)
+                        createMessage({
+                            bounce: false,
+                            value: TONS_COUNTERPROPOSE_PRICE,
+                            dest: MARKETPLACE_ADDRESS,
+                            body: CommentMessage { comment: "Marketplace commission" }
+                        }).send(SEND_MODE_REGULAR);
+                        contractBalance -= TONS_COUNTERPROPOSE_PRICE;
+                    }
                     
+                    // Check remaining balance and reserve required TON
                     assert(contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE + TONS_CHANGE_PRICE_GAS) throw EXC_OUT_OF_GAS;
-                    // Notify buyer about successful price change
                     reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+                    
+                    // Notify buyer about successful price change
                     createMessage({
                         bounce: false,
                         value: 0,
@@ -313,6 +243,8 @@ fun onInternalMessage(in: InMessage) {
                             .endCell()
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
+
+                // Save data
                 storage.save();
                 return;
             } catch (e, _) {
@@ -322,16 +254,21 @@ fun onInternalMessage(in: InMessage) {
                 
         // Change valid until
         ChangeValidUntilMessage => {
-            var storage: Storage = lazy Storage.load();
-            var storage2 = lazy storage.ds2.load();
-            assert(in.senderAddress == storage2.buyerAddress) throw EXC_INCORRECT_SENDER;
-            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
+            var storage2: StorageDs2 = lazy storage.ds2.load();
+            assert(in.senderAddress == storage2.buyerAddress) throw EXC_INCORRECT_SENDER;  // Check that message is from buyer
+            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that offer is active
             
-            assert(msg.newValidUntil >= max(blockchain.now() + 300, storage.validUntil)) throw EXC_INCORRECT_VALID_UNTIL;
+            // Check that new validUntil is greater than current one and less than 30 days from now
+            assert(
+                msg.newValidUntil >= max(blockchain.now() + 300, storage.validUntil) &&
+                msg.newValidUntil <= blockchain.now() + ONE_DAY * 30
+            ) throw EXC_INCORRECT_VALID_UNTIL;
             
+            // Update storage
             storage.validUntil = msg.newValidUntil;
             storage.save();
             
+            // Reserve balance for offer execution (don't use mode 64 to save TON for storage fees)
             reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
             createMessage({
                 bounce: false,
@@ -345,23 +282,24 @@ fun onInternalMessage(in: InMessage) {
         
         // Cancel offer
         CancelDealMessage => {
-            var storage: Storage = lazy Storage.load();
-            var storage2 = lazy storage.ds2.load();
-            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
+            var storage2: StorageDs2 = lazy storage.ds2.load();
+            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that offer is active
             
             var sellerMsgValue: coins = 0;
 
             if (in.senderAddress == storage2.buyerAddress) {
-                // Buyer can cancel if 10 minutes have passed since creation, or offer has expired, or there's a counterproposal
-                assert(storage.createdAt + 600 < blockchain.now() || storage.validUntil < blockchain.now() || storage.sellerPrice != 0) throw EXC_CANT_CANCEL_DEAL;
+                // Buyer can cancel if 1 minute has passed since creation, offer has expired, or there's counterproposal
+                assert(storage.createdAt + 60 < blockchain.now() || storage.validUntil < blockchain.now() || storage.sellerPrice != 0) throw EXC_CANT_CANCEL_DEAL;
             } else if (in.senderAddress == storage.sellerAddress) {
+                // Seller can cancel offer at any time
                 storage.cancelledBySeller = true;
                 sellerMsgValue = in.valueCoins;
             } else {
                 throw EXC_INCORRECT_SENDER;
-            }   
+            }
 
             if (msg.cancellationComment.isEmpty()) {
+                // Set default comment if it wasn't provided
                 msg.cancellationComment = "Your offer on webdom.market was cancelled";
             }
             
@@ -371,10 +309,9 @@ fun onInternalMessage(in: InMessage) {
         
         CommentMessage => {
             if (msg.comment.bitsEqual("cancel")) {
-                var storage = lazy Storage.load();
-                var storage2 = lazy storage.ds2.load();
-                assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
-                assert(storage2.buyerAddress == in.senderAddress) throw EXC_INCORRECT_SENDER;
+                var storage2: StorageDs2 = lazy storage.ds2.load();
+                assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that offer is active
+                assert(storage2.buyerAddress == in.senderAddress) throw EXC_INCORRECT_SENDER;  // Only buyer can cancel offer via comment message
 
                 cancelOffer(mutate storage, storage2.domainAddress, storage2.buyerAddress, 0, "Your offer on webdom.market was cancelled", 0);
                 return;
@@ -387,28 +324,30 @@ fun onInternalMessage(in: InMessage) {
 }
 
 
-fun onExternalMessage(in: InMessage) {
-    var storage = lazy Storage.load();
+fun onExternalMessage(in: InMessage): void {
+    var storage: Storage = lazy Storage.load();
     assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
-    val opCode = in.body.loadUint(32);
-    val queryId = in.body.loadUint(64);
+    val opCode: uint32 = in.body.loadUint(32);
+    val queryId: uint64 = in.body.loadUint(64);
     assert(opCode == OP_CANCEL_DEAL) throw EXC_UNSUPPORTED_OP;
         
-    var storage2 = lazy storage.ds2.load();
+    var storage2: StorageDs2 = lazy storage.ds2.load();
     
     if (blockchain.now() >= storage.validUntil) {
+        // If offer has expired, anyone can send external message to cancel it
         acceptExternalMessage();
         cancelOffer(mutate storage, storage2.domainAddress, storage2.buyerAddress, 0, "Offer expired", queryId);
         return;
     } else {
+        // If offer is active, only marketplace can send signed message to cancel it (used when domain is no longer owned by seller)
         assert(storage2.publicKeyCell != null) throw EXC_INVALID_SIGNATURE;
-        val publicKey = storage2.publicKeyCell!.load();
-        val signature = in.body.loadBits(512);
+        val publicKey: uint256 = storage2.publicKeyCell!.load();
+        val signature: slice = in.body.loadBits(512);
         assert(isSignatureValid(in.body.hash(), signature as slice, publicKey)) throw EXC_INVALID_SIGNATURE;
         assert(in.body.loadAddress() == contract.getAddress()) throw EXC_INVALID_SIGNATURE;
         
         acceptExternalMessage();
-        var comment = in.body.loadRef().beginParse();
+        var comment: slice = in.body.loadRef().beginParse();
         comment.skipBits(32);
         cancelOffer(mutate storage, storage2.domainAddress, storage2.buyerAddress, 0, comment, queryId);
 
@@ -427,17 +366,17 @@ get fun get_storage_data() {
     return (
         storage.sellerAddress,
         domainsDict,
-        1,
-        storage.state == STATE_COMPLETED ? 1 : 0,
+        1,  // total domains count
+        storage.state == STATE_COMPLETED ? 1 : 0,  // domains received
         storage.state,
         storage.price,
         mulDivFloor(storage.commission, COMMISSION_DIVIDER, storage.price),
         storage.createdAt,
-        0,
+        0,  // last renewal time (unused)
         storage.validUntil,
         storage2.buyerAddress,
         storage2.domainName,
-        storage.cancelledBySeller ? -1 : 0,
+        storage.cancelledBySeller,
         storage.jettonWalletAddress,
         storage.sellerPrice,
         storage2.jettonMinterAddress,

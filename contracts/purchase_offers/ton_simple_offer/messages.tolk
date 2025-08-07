@@ -1,9 +1,9 @@
 import "../../imports/messages"
 import "../../imports/types"
-import "../messages";
+import "../messages"
 
 type AllowedMessage = (
-    NftOwnershipAssignedMessage<SerializableSlice> 
+    NftOwnershipAssignedMessage<SerializableSlice>
     | CounterProposeMessage
     | ChangePriceMessage
     | ChangeValidUntilMessage
