@@ -33,9 +33,6 @@ fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
     var payload = TonSimpleOfferDeployPayload.fromSlice(args.payloadSlice);
 
     var contractCodes: ContractCodes = lazy args.contractCodes.load();
-    var domainNameSlice: SerializableSlice = payload.domainNameCell.load();
-    val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
-    val domainAddressBuilder: builder = domainNameToAddress(domainNameSlice.removeLastBits(isTgUsername ? 5 * 8 : 4 * 8), contractCodes.domainCode);
 
     assert(payload.price >= deployInfo.minPrice) throw(EXC_PRICE_TOO_LOW);   // check that price is greater than the minimum price
     assert(
@@ -69,6 +66,16 @@ fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
         mulDivFloor(deployInfo.maxCommission, commissionDiscountFactor, COMMISSION_DIVIDER)
     );  // commission is the minimum of {commission rate * price} and {max commission including discount}
    
+    // calculate domain address
+    var domainNameSlice: SerializableSlice = payload.domainNameCell.load();
+    val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+    var domainAddressBuilder: builder;
+    if (isTgUsername) {
+        domainAddressBuilder = tgUsernameToAddress(domainNameSlice.removeLastBits(5 * 8), contractCodes.tgUsernameCode);
+    } else {
+        domainAddressBuilder = domainNameToAddress(domainNameSlice.removeLastBits(4 * 8), contractCodes.domainCode);
+    }
+    
     // we don't use Storage.toCell() here because we don't want to convert the domainAddress from `builder` to `slice`
     val data: cell = beginCell()
                 .storeUint(STATE_UNINIT, 2)

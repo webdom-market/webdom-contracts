@@ -58,9 +58,6 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
 
     var payload = JettonSimpleOfferDeployPayload.fromSlice(args.commonArgs.payloadSlice);
     var contractCodes: ContractCodes = lazy args.commonArgs.contractCodes.load();
-    val domainNameSlice: SerializableSlice = payload.domainNameCell.load();
-    val isTgUsername = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
-    val domainAddressBuilder: builder = domainNameToAddress(domainNameSlice.getFirstBits(domainNameSlice.remainingBitsCount() - (isTgUsername ? 5 * 8 : 4 * 8)), contractCodes.domainCode);
 
     // Check validUntil time
     assert(
@@ -98,7 +95,18 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
         });
         requiredGas += deployMsg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY) + TONS_OFFER_NOTIFICATION;
     }
-    
+
+    // calculate domain address
+    var domainNameSlice: SerializableSlice = payload.domainNameCell.load();
+    val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+    var domainAddressBuilder: builder;
+    if (isTgUsername) {
+        domainAddressBuilder = tgUsernameToAddress(domainNameSlice.removeLastBits(5 * 8), contractCodes.tgUsernameCode);
+    } else {
+        domainAddressBuilder = domainNameToAddress(domainNameSlice.removeLastBits(4 * 8), contractCodes.domainCode);
+    }
+
+    // we don't use Storage.toCell() here because we don't want to convert the domainAddress from `builder` to `slice`
     val data: cell = beginCell()
             .storeUint(STATE_UNINIT, 2)
             .storeCoins(price)

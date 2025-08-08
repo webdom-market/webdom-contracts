@@ -58,14 +58,14 @@ fun handleNftOwnershipAssigned(
         val innerOp: int = payload.loadUint(32);
         if (innerOp < 0x0fffffff) {
             val domainNameCell: cell = payload.loadRef();
-            val domainNameSlice: slice = domainNameCell.beginParse();
+            var domainNameSlice: slice = domainNameCell.beginParse();
             val isTgUsername = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
             val contractCodes = lazy storage.contractCodes.load();
             var domainAddressBuilder: builder;
             if (isTgUsername) {
-                domainAddressBuilder = tgUsernameToAddress(domainNameSlice.getFirstBits(domainNameSlice.remainingBitsCount() - 5 * 8), contractCodes.tgUsernameCode);
+                domainAddressBuilder = tgUsernameToAddress(domainNameSlice.removeLastBits(5 * 8), contractCodes.tgUsernameCode);
             } else {
-                domainAddressBuilder = domainNameToAddress(domainNameSlice.getFirstBits(domainNameSlice.remainingBitsCount() - 4 * 8), contractCodes.domainCode);
+                domainAddressBuilder = domainNameToAddress(domainNameSlice.removeLastBits(4 * 8), contractCodes.domainCode);
             }
             val domainAddress = domainAddressBuilder.endCell().beginParse() as address;
             assert(domainAddress == nftAddress) throw EXC_INCORRECT_SENDER;
@@ -182,7 +182,7 @@ fun handleJettonsTransferNotification(
         if (innerOp == OP_MOVE_UP_SALE) {
             val ds2 = lazy storage.ds2.load();
             assert(jettonWalletAddress == ds2.web3WalletAddress) throw EXC_INCORRECT_SENDER;
-            assert(transferredJettons == storage.moveUpSalePrice) throw EXC_NOT_ENOUGH_JETTONS;
+            assert(transferredJettons >= storage.moveUpSalePrice) throw EXC_NOT_ENOUGH_JETTONS;
 
             storage.collectedFeesDict = addCollectedFees(storage.collectedFeesDict, jettonWalletAddress, transferredJettons);
             storage.currentTopSale = payload.loadAddress();
