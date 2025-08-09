@@ -1,25 +1,24 @@
-import "../../imports/types"
-
+// Additional storage data (stored in separate cell for optimization)
 struct StorageDs2 {
-    domainAddress: address;
-    jettonMinterAddress: address;
-    buyerAddress: address;
+    domainAddress: address;       // Address of the domain being sold
+    jettonMinterAddress: address; // Address of the jetton minter
+    buyerAddress: address;        // Address of the buyer (set when sale is completed)
 }
 
+// Jetton Simple Sale contract storage structure
 struct Storage {
-    jettonWalletAddress: address;
-    sellerAddress: address;
-    price: coins;
-    state: uint2;
-    commission: coins;
-    createdAt: uint32;
-    lastRenewalTime: uint32;
-    validUntil: uint32;
-    domainNameCell: cell;
-    hotUntil: uint32;
-    coloredUntil: uint32;
-
-    ds2: Cell<StorageDs2>;
+    jettonWalletAddress: address; // Address of the jetton wallet
+    sellerAddress: address;       // Address of the domain seller
+    price: coins;                 // Sale price in jettons
+    state: uint2;                 // Sale state (UNINIT, ACTIVE, COMPLETED, CANCELLED)
+    commission: coins;            // Marketplace commission amount
+    createdAt: uint32;            // Sale creation timestamp
+    lastRenewalTime: uint32;      // Last domain renewal timestamp
+    validUntil: uint32;           // Sale validity end timestamp
+    domainNameCell: cell;         // Domain name for notifications
+    hotUntil: uint32;             // Hot promotion end timestamp
+    coloredUntil: uint32;         // Colored promotion end timestamp
+    ds2: Cell<StorageDs2>;        // Additional storage data
 }
 
 fun Storage.load(): Storage {

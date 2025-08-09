@@ -1,14 +1,13 @@
-import "../../imports/messages";
-import "../../imports/types";
-import "../messages";
+import "../../imports/messages"
+import "../messages"
 
 
 type AllowedMessage = (
-    ChangePriceMessage
-    | FillUpBalanceMessage
-    | RenewDomainMessage
-    | MakeHotMessage
-    | MakeColoredMessage
-    | DnsBalanceReleaseMessage
-    | ExcessesMessage
+    ChangePriceMessage          // Change sale price and validity
+    | FillUpBalanceMessage      // Activate sale when deployed
+    | RenewDomainMessage        // Renew domain and extend sale
+    | MakeHotMessage            // Add hot promotion
+    | MakeColoredMessage        // Add colored promotion
+    | DnsBalanceReleaseMessage  // Handle domain expiration
+    | ExcessesMessage           // Accept excess coins
 );

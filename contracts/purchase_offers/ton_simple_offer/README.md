@@ -4,7 +4,7 @@ Smart contract for creating purchase offers for TON domains using TON as a payme
 
 ## Overview
 
-The TON Simple Offer contract allows users to create purchase offers for specific TON domains. Buyers can deposit TON into the contract, and domain owners can either accept the offer or make counterproposals. The contract handles the entire negotiation process and ensures secure execution of the deal.
+The TON Simple Offer contract allows users to create purchase offers for specific TON domains. Buyers can deposit TON into the contract, and domain owners can either accept the offer or make counterproposals. The contract handles the entire negotiation process and ensures secure execution of the deal. Offer creator pays for all fees.
 
 ## Offer Lifecycle
 

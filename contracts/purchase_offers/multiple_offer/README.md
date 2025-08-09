@@ -4,7 +4,7 @@ Smart contract for creating multiple purchase offers for TON domains using TON o
 
 ## Overview
 
-The Multiple Offer contract allows users to create a single offer that can purchase multiple different TON domains at different prices. Only the Merkle root is stored on the contract while all detailed data about domains and sale conditions is kept off-chain on the backend. The contract uses Merkle proofs to efficiently verify sale conditions for thousands of domains without storing them on-chain. Buyers can deposit TON and jettons into the contract, and domain owners can sell their domains if they provide a valid Merkle proof and there are enough funds.
+The Multiple Offer contract allows users to create a single offer that can purchase multiple different TON domains at different prices. Only the Merkle root is stored on the contract while all detailed data about domains and sale conditions is kept off-chain on the backend. The contract uses Merkle proofs to efficiently verify sale conditions for thousands of domains without storing them on-chain. Buyers can deposit TON and jettons into the contract, and domain owners can sell their domains if they provide a valid Merkle proof and there are enough funds. Offer creator pays for storage fees, NFT sellers pay for gas fees.
 
 ## Offer Lifecycle
 

@@ -1,26 +1,32 @@
-import "@stdlib/tvm-dicts";
-import "../../imports/constants";
-import "../../imports/messages";
-import "../../imports/utils";
-import "../../imports/types";
-import "storage";
-import "messages";
-import "@stdlib/gas-payments";
-import "../../imports/handle_promotion";
-import "../../imports/admin_message";
-import "../messages";
-import "../constants";
-import "storage";
+import "@stdlib/tvm-dicts"
+import "@stdlib/gas-payments"
+import "../../imports/constants"
+import "../../imports/messages"
+import "../../imports/utils"
+import "../../imports/types"
+import "../../imports/handle_promotion"
+import "../../imports/admin_message"
+import "../constants"
+import "../messages"
+import "storage"
+import "messages"
 
-const TONS_MIN_TON_FOR_STORAGE: uint32 = ton("0.035") as uint32;
+const TONS_MIN_TON_FOR_STORAGE: uint32 = ton("0.035") as uint32;   // TON for paying storage fees for 1 year
 
+// Cancel the multiple sale and return all received domains back to the seller
 @inline
 fun cancelSale(mutate storage: Storage, queryId: uint64, cancelReason: slice) {
     setGasLimitToMaximum();
 
+    storage.state = STATE_CANCELLED;
+    storage.validUntil = blockchain.now();
+    storage.save();
+    commitContractDataAndActions();
+
     var (domainAddress, domainReceived, found) = storage.domainsDict.sDictGetFirst(267);
     while (found) {
         if (domainReceived!.bitsEqual(BIT_TRUE_SLICE())) {
+            // Return NFT back to seller
             createMessage({
                 bounce: false,
                 value: TONS_NFT_TRANSFER,
@@ -32,22 +38,20 @@ fun cancelSale(mutate storage: Storage, queryId: uint64, cancelReason: slice) {
                     forwardTonAmount: 1,
                     forwardPayload: null
                 }
-            }).send(SEND_MODE_REGULAR);
+            }).send(SEND_MODE_REGULAR | SEND_MODE_IGNORE_ERRORS);
         }
         (domainAddress, domainReceived, found) = storage.domainsDict.sDictGetNext(267, domainAddress!);
     }
+    // Notify seller and send remaining balance
     createMessage({
         bounce: false,
         value: 0,
         dest: storage.sellerAddress,
         body: CommentMessage { comment: cancelReason }
-    }).send(SEND_MODE_CARRY_ALL_BALANCE);
-
-    storage.state = STATE_CANCELLED;
-    storage.validUntil = blockchain.now();
-    storage.save();
+    }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
 }
 
+// Forward bounced funds back to the seller as excesses
 fun onBouncedMessage(in: InMessageBounced) {
     if (in.valueCoins > TONS_MIN_EXCESS) {
         val storage = lazy Storage.load();
@@ -60,21 +64,24 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
+// Calculate TON amount to reserve 
 @inline
 fun getTonsToReserve(domainsTotal: uint8, nothrow: bool): int {
-    var tonsToReserve = (TONS_NFT_TRANSFER + ton("0.0075")) * domainsTotal + TONS_MIN_TON_FOR_STORAGE;
+    var tonsToReserve = (TONS_NFT_TRANSFER + ton("0.0075")) * domainsTotal + TONS_MIN_TON_FOR_STORAGE;  // Balance required to cancel the sale via external message
     var actualBalance = contract.getOriginalBalance() - ton("0.01") - storageFees();
     assert(actualBalance >= TONS_MIN_TON_FOR_STORAGE || nothrow) throw EXC_OUT_OF_GAS;
-    if (actualBalance < tonsToReserve) {
+    if (actualBalance < tonsToReserve) {  // If balance is less than required, return minimal reserve
         return TONS_MIN_TON_FOR_STORAGE;
     }
     return tonsToReserve as int;
 }
 
-fun onInternalMessage(in: InMessage) {
+fun onInternalMessage(in: InMessage): void {
     forceSameWorkchain(in.senderAddress);
     
-    var storage = lazy Storage.load();
+    var storage: Storage = lazy Storage.load();
+
+    // Allow admin operations when sale is not active or expired
     val allowAdminCommands: bool = storage.state != STATE_ACTIVE || storage.validUntil + 600 < blockchain.now();
     handleAdminMessage(in.senderAddress, in.body, Permissions {
         allowChangeCode: allowAdminCommands,
@@ -84,9 +91,10 @@ fun onInternalMessage(in: InMessage) {
         allowWithdrawJetton: true,
     });
     
-    val msg = lazy AllowedMessage.fromSlice(in.body);
+    val msg: AllowedMessage = lazy AllowedMessage.fromSlice(in.body);
     
     match (msg) {
+        // Activate the sale when deployed by the marketplace
         FillUpBalanceMessage => {
             if (storage.state == STATE_UNINIT) {
                 assert(in.senderAddress == MARKETPLACE_ADDRESS) throw EXC_INCORRECT_SENDER;
@@ -96,15 +104,18 @@ fun onInternalMessage(in: InMessage) {
             return;
         }
         
+        // Seller transfers domain to this contract
         NftOwnershipAssignedMessage<SerializableSlice> => {
             try {
+                // Check that domain present in the storage
                 var (_, found) = storage.domainsDict.sDictGet(267, in.senderAddress as slice);
                 assert(found) throw EXC_INCORRECT_DOMAIN;
-                
+
+                // Mark domain as received
                 storage.domainsDict.sDictSet(267, in.senderAddress as slice, BIT_TRUE_SLICE());
                 storage.domainsReceived += 1;
 
-                if (storage.domainsReceived == storage.domainsTotal) {
+                if (storage.domainsReceived == storage.domainsTotal) {  // If all domains were received, reserve required TONs and send excess to seller
                     reserveToncoinsOnBalance(getTonsToReserve(storage.domainsTotal, false), RESERVE_MODE_EXACT_AMOUNT);
                     
                     createMessage({
@@ -116,36 +127,26 @@ fun onInternalMessage(in: InMessage) {
                 }
                 storage.save();
                 return;
-            } catch (e, _) {
+            } catch (e, _) {  // If error occurs, return NFT back to seller
                 returnNftToSender(in.senderAddress, msg, e);
             }
         }
-        
-        DnsBalanceReleaseMessage => {
-            var (_, found) = storage.domainsDict.sDictGet(267, in.senderAddress as slice);
-            assert(found) throw EXC_INCORRECT_DOMAIN;
-            
-            if (storage.state != STATE_CANCELLED) {
-                storage.domainsDict.sDictSet(267, in.senderAddress as slice, BIT_FALSE_SLICE());
-                cancelSale(mutate storage, 0, "Your domain has expired");
-            }
-            
-            return;
-        }
-        
+        // Change price and validity period
         ChangePriceMessage => {
-            assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
-            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
+            assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;  // Check that message sender is the seller
+            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that sale is active
             
-            var newCommission = mulDivFloor(msg.newPrice, storage.commission, storage.price);
+            // Check that new validUntil time is greater than current time and less than domain expiration time
             assert((msg.newValidUntil >= max(blockchain.now() + 600, storage.validUntil)) && 
                    (msg.newValidUntil <= storage.lastRenewalTime + ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_VALID_UNTIL;
 
+            var newCommission = mulDivFloor(msg.newPrice, storage.commission, storage.price);
             storage.validUntil = msg.newValidUntil;
             storage.price = msg.newPrice;
             storage.commission = newCommission;
             storage.save();
             
+            // Notify seller about successful price change
             createMessage({
                 bounce: false,
                 value: 0,
@@ -160,14 +161,17 @@ fun onInternalMessage(in: InMessage) {
             return;
         }
         
+        // Renew all domains and extend sale validity
         RenewDomainMessage => {
-            assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
-            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
-            assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN * storage.domainsTotal) throw EXC_OUT_OF_GAS;
-            assert(storage.lastRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;
+            assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;  // Check that message sender is the seller
+            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that sale is active
+            assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN * storage.domainsTotal) throw EXC_OUT_OF_GAS;  // Check that enough TONs are sent
+            assert(storage.lastRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;  // Check that domain is not expired
 
+            // Reserve TONs required for storage
             reserveToncoinsOnBalance(max(getTonsToReserve(storage.domainsTotal, false), contract.getOriginalBalance() - in.valueCoins - ton("0.007")), RESERVE_MODE_EXACT_AMOUNT);
             
+            // Renew all domains
             var (domainAddress, _, found) = storage.domainsDict.sDictGetFirst(267);
             while (found) {
                 createMessage({
@@ -178,6 +182,7 @@ fun onInternalMessage(in: InMessage) {
                 (domainAddress, _, found) = storage.domainsDict.sDictGetNext(267, domainAddress!);
             }
             
+            // Send renewal fee to marketplace
             createMessage({
                 bounce: false,
                 value: 0,
@@ -185,6 +190,7 @@ fun onInternalMessage(in: InMessage) {
                 body: RenewalFeeMessage { queryId: msg.queryId, ownerAddress: storage.sellerAddress }
             }).send(SEND_MODE_CARRY_ALL_BALANCE);
 
+            // Set new validUntil time
             var newValidUntil: uint32;
             if (msg.newValidUntil != null) {
                 newValidUntil = min(blockchain.now() + ONE_YEAR - ONE_DAY, msg.newValidUntil);
@@ -197,12 +203,29 @@ fun onInternalMessage(in: InMessage) {
             storage.save();
             return;
         }
+        
+        // Handle domain expiration notification
+        DnsBalanceReleaseMessage => {
+            // Check that domain present in the storage
+            var (_, found) = storage.domainsDict.sDictGet(267, in.senderAddress as slice);
+            assert(found) throw EXC_INCORRECT_DOMAIN;
+            
+            // Cancel sale if it is not cancelled yet
+            if (storage.state != STATE_CANCELLED) {
+                storage.domainsDict.sDictSet(267, in.senderAddress as slice, BIT_FALSE_SLICE());  // Mark domain as not received
+                cancelSale(mutate storage, 0, "Your domain has expired");
+            }
+            
+            return;
+        }
 
+        // Add "hot" promotion
         MakeHotMessage => {
             handleMakeHot<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
         }
 
+        // Add "colored" promotion
         MakeColoredMessage => {
             handleMakeColored<Storage>(mutate storage, msg.promotionUntil, msg.queryId, in.senderAddress);
             return;
@@ -216,18 +239,19 @@ fun onInternalMessage(in: InMessage) {
             var (op, queryId) = loadOpAndQueryId(mutate in.body);
             var senderAddress = in.senderAddress;
             
-            if (op == OP_DEDUST_PAYOUT) {
+            if (op == OP_DEDUST_PAYOUT) {  // If dedust payout, extract sender address from the message
                 op = 0;
                 senderAddress = in.body.loadMaybeRef()!.beginParse() as address;
             }
             
             try {
-                assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
+                assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that sale is active
                 
                 if (op == 0) {
-                    assert((storage.domainsReceived == storage.domainsTotal) && (storage.state == STATE_ACTIVE) && (storage.validUntil > blockchain.now())) throw EXC_DEAL_NOT_ACTIVE;
+                    assert((storage.domainsReceived == storage.domainsTotal) && (storage.validUntil > blockchain.now())) throw EXC_DEAL_NOT_ACTIVE;  // Check that all domains were received and sale is not expired
                     assert(in.valueCoins >= storage.price + TONS_TON_SIMPLE_PURCHASE * storage.domainsTotal) throw EXC_OUT_OF_GAS;
 
+                    // Send marketplace commission
                     createMessage({
                         bounce: false,
                         value: storage.commission,
@@ -235,6 +259,7 @@ fun onInternalMessage(in: InMessage) {
                         body: CommentMessage { comment: "Marketplace commission" }
                     }).send(SEND_MODE_REGULAR);
 
+                    // Send all domains to buyer
                     var (domainAddress, _, found) = storage.domainsDict.sDictGetFirst(267);
                     while (found) {
                         createMessage({
@@ -252,6 +277,7 @@ fun onInternalMessage(in: InMessage) {
                         (domainAddress, _, found) = storage.domainsDict.sDictGetNext(267, domainAddress!);
                     }
 
+                    // Send unused TONs to seller
                     createMessage({
                         bounce: false,
                         value: (contract.getOriginalBalance() - in.valueCoins) + storage.price - storage.commission,
@@ -259,6 +285,7 @@ fun onInternalMessage(in: InMessage) {
                         body: CommentMessage { comment: "Payout for multiple domains sale on webdom.market" }
                     }).send(SEND_MODE_REGULAR);
 
+                    // Send excess TONs to buyer
                     createMessage({
                         bounce: false,
                         value: 0,
@@ -266,6 +293,7 @@ fun onInternalMessage(in: InMessage) {
                         body: ExcessesMessage { queryId: queryId }
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
 
+                    // Set sale state to completed
                     storage.state = STATE_COMPLETED;
                     storage.validUntil = blockchain.now();
                     storage.buyerAddress = senderAddress;
@@ -273,14 +301,14 @@ fun onInternalMessage(in: InMessage) {
                     return;
                 }
                 else if (op == OP_CANCEL_DEAL) {
-                    assert(senderAddress == storage.sellerAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
-                    cancelSale(mutate storage, queryId, "Sale cancelled");
+                    assert(senderAddress == storage.sellerAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;  // Check that message sender is the seller or admin
+                    cancelSale(mutate storage, queryId, "Sale cancelled");  // Cancel sale
                     return;
                 }
                 else {
                     throw EXC_UNSUPPORTED_OP;
                 }
-            } catch (e, _) {                
+            } catch (e, _) {  // If error occurs, return TONs to sender (we can't just bounce in case of dedust payout)
                 createMessage({
                     bounce: false,
                     value: 0,
@@ -295,13 +323,14 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun onExternalMessage(in: InMessage) {
-    var storage = lazy Storage.load();
+fun onExternalMessage(in: InMessage): void {
+    var storage: Storage = lazy Storage.load();
     
     if (storage.state != STATE_ACTIVE) {
         throw EXC_DEAL_NOT_ACTIVE;
     }
     
+    // Cancel sale if it is expired
     if (blockchain.now() >= storage.validUntil) {
         var opCode = in.body.loadUint(32);
         if (opCode != OP_CANCEL_DEAL) {
@@ -313,9 +342,6 @@ fun onExternalMessage(in: InMessage) {
         var queryId = in.body.loadUint(64);
         
         cancelSale(mutate storage, queryId, "Your sale offer has expired");
-        
-        storage.state = STATE_CANCELLED;
-        storage.save();
         return;
     }
     

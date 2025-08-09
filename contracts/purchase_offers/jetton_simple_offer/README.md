@@ -4,7 +4,7 @@ Smart contract for creating purchase offers for TON domains using jettons as pay
 
 ## Overview
 
-The Jetton Simple Offer contract allows users to create purchase offers for specific TON domains. Buyers can deposit jettons (USDT or WEB3) into the contract, and domain owners can either accept the offer or make counterproposals. The contract handles the entire negotiation process and ensures secure execution of the deal.
+The Jetton Simple Offer contract allows users to create purchase offers for specific TON domains. Buyers can deposit jettons (USDT or WEB3) into the contract, and domain owners can either accept the offer or make counterproposals. The contract handles the entire negotiation process and ensures secure execution of the deal. Offer creator pays for all fees.
 
 ## Offer Lifecycle
 
