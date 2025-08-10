@@ -1,35 +1,35 @@
 struct StorageDs2 {
-    domainAddress: address;
-    maxBidValue: coins;
-    maxCommission: uint64;
+    domainAddress: address;           // Domain address
+    maxBidValue: coins;               // Maximum bid value
+    maxCommission: uint64;            // Commission limit
 }
 
 struct Storage {
-    state: uint2;
-    isDeferred: bool;
+    state: uint2;                     // Auction state (UNINIT, ACTIVE, COMPLETED, CANCELLED)
+    isDeferred: bool;                 // Whether auction is deferred
 
-    startTime: uint32;
-    endTime: uint32;
-    lastDomainRenewalTime: uint32;
+    startTime: uint32;                // Auction start timestamp
+    endTime: uint32;                  // Auction end timestamp
+    lastDomainRenewalTime: uint32;    // Last domain renewal timestamp
 
-    lastBidValue: coins;
-    lastBidTime: uint32;
-    lastBidderAddress: address;
+    lastBidValue: coins;              // Last bid value
+    lastBidTime: uint32;              // Last bid timestamp
+    lastBidderAddress: address;       // Last bidder address
 
-    domainNameCell: cell
+    domainNameCell: cell;             // Domain name for notifications
 
-    hotUntil: uint32;
-    coloredUntil: uint32;
+    hotUntil: uint32;                 // Hot promotion end timestamp
+    coloredUntil: uint32;             // Colored promotion end timestamp
 
     // const part
-    sellerAddress: address;
-    minBidValue: uint64;
-    minBidIncrement: uint12;
-    timeIncrement: uint32;
+    sellerAddress: address;           // Seller address
+    minBidValue: uint64;              // Minimum bid value
+    minBidIncrement: uint12;          // Minimum bid increment
+    timeIncrement: uint32;            // Time increment
 
-    commissionFactor: uint16;
+    commissionFactor: uint16;         // Commission factor (commission = bid * commissionFactor / 10_000)
 
-    ds2: Cell<StorageDs2>;
+    ds2: Cell<StorageDs2>;            // Other data
 }
 
 

@@ -1,15 +1,11 @@
-import "@stdlib/tvm-lowlevel";
-import "../../imports/utils";
-import "../../imports/constants";
-import "messages";
-import "../../imports/dns";
-import "../../marketplace/types";
-import "../../marketplace/constants";
-import "../../imports/types";
-import "storage";
-import "../../imports/messages";
-import "../constants";
+import "../../imports/utils"
+import "../../imports/constants"
+import "../../marketplace/types"
+import "../../marketplace/constants"
+import "../../imports/types"
+import "storage"
 import "@stdlib/tvm-dicts"
+
 
 struct DeployInfoForJetton {
     minPrice: coins;
@@ -69,7 +65,7 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
     }
     assert(domainsTotal > 0) throw EXC_EMPTY_DICT;
 
-    var data = (Storage {
+    var data: Cell<Storage> = (Storage {
         state: STATE_UNINIT,
         isDeferred: payload.isDeferred,
 
@@ -99,19 +95,19 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
             jettonWalletAddress: createAddressNone(),
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
             maxBidValue: payload.maxBidValue,
-            maxCommission: deployInfo.maxCommission as uint64
+            maxCommission: maxCommission as uint64
         }).toCell(),
     }).toCell();
 
-    val auctionAddress = (AutoDeployAddress {
+    val auctionAddress = AutoDeployAddress {
         stateInit: {
             code: args.code,
             data: data,
         },
-    });
-    val auctionAddressBuilder = auctionAddress.buildAddress();
+    };
+    val auctionAddressBuilder: builder = auctionAddress.buildAddress();
 
-    val contractCodes = lazy args.contractCodes.load();
+    val contractCodes: ContractCodes = lazy args.contractCodes.load();
     val msg = createMessage({
         bounce: false,
         value: TONS_DEPLOY_JETTON_MULTIPLE_AUCTION,

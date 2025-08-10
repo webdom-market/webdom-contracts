@@ -82,6 +82,7 @@ export class JettonMultipleAuction extends DefaultContract {
     static STATE_ACTIVE = 1;
     static STATE_COMPLETED = 2;
     static STATE_CANCELLED = 3;
+    static TONS_MIN_TON_FOR_STORAGE = toNano('0.04');
 
     static createFromAddress(address: Address) {
         return new JettonMultipleAuction(address);
@@ -112,7 +113,7 @@ export class JettonMultipleAuction extends DefaultContract {
     }
 
     static getTonsToEndAuction(domainsNumber: number) {
-        return (Tons.NFT_TRANSFER + Tons.PURCHASE_NOTIFICATION + toNano('0.01')) * BigInt(domainsNumber) + toNano('0.01') + Tons.JETTON_TRANSFER * 2n;
+        return (Tons.NFT_TRANSFER + Tons.PURCHASE_NOTIFICATION + toNano('0.01')) * BigInt(domainsNumber) + toNano('0.02') + Tons.JETTON_TRANSFER * 3n + JettonMultipleAuction.TONS_MIN_TON_FOR_STORAGE;
     }
 
     async sendStopAuction(provider: ContractProvider, via: Sender, queryId: number = 0) {

@@ -115,9 +115,10 @@ fun onInternalMessage(in: InMessage): void {
                 storage.domainsDict.sDictSet(267, in.senderAddress as slice, BIT_TRUE_SLICE());
                 storage.domainsReceived += 1;
 
-                if (storage.domainsReceived == storage.domainsTotal) {  // If all domains were received, reserve required TONs and send excess to seller
+                // If all domains were received, reserve required TONs and send excess to seller
+                if (storage.domainsReceived == storage.domainsTotal) {
                     reserveToncoinsOnBalance(getTonsToReserve(storage.domainsTotal, false), RESERVE_MODE_EXACT_AMOUNT);
-                    
+
                     createMessage({
                         bounce: false,
                         value: 0,

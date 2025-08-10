@@ -1,5 +1,3 @@
-import "../../imports/types"
-
 struct Storage {
     domainAddress: address;           // Address of the domain being sold
     sellerAddress: address;           // Address of the domain seller
