@@ -1,13 +1,12 @@
-import "../imports/utils";
-import "../imports/constants";
-import "../marketplace/types";
-import "../marketplace/constants";
-import "storage";
-import "../imports/messages";
+import "../imports/utils"
+import "../imports/constants"
+import "../marketplace/types"
+import "../marketplace/constants"
+import "storage"
+import "../imports/messages"
 import "@stdlib/tvm-dicts"
 import "../imports/constants"
 import "../marketplace/constants"
-import "constants";
 import "../marketplace/types"
 import "../imports/messages"
 
@@ -37,7 +36,7 @@ fun deployDomainSwap(args: SimpleDeployArgs): int {
     assert(payload.validUntil >= blockchain.now() + deployInfo.minDuration && payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY) throw EXC_INCORRECT_VALID_UNTIL;
 
     var leftDomainsTotal: uint8 = 0;
-    var (domainAddress, received, found) = payload.leftDomainsList.sDictGetFirst(267);
+    var (domainAddress: slice?, received: slice?, found: bool) = payload.leftDomainsList.sDictGetFirst(267);
     while (found) {
         leftDomainsTotal += 1;
         assert(received!.bitsEqual(BIT_FALSE_SLICE())) throw EXC_INCORRECT_DOMAIN;
