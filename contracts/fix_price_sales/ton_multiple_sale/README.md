@@ -72,7 +72,7 @@ Seller/Admin → Cancel Message → Contract
 ## Testing
 
 ```shell
-python manage.py test TonMultipleSale
+npm run contracts:test -- TonMultipleSale
 ```
 
 

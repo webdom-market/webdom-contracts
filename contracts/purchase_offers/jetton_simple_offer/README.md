@@ -65,5 +65,5 @@ The contract implements legacy get methods (`get_offer_data()` and `get_offer_da
 ## Testing
 
 ```shell
-python manage.py test Jett_onSimpleOffer
+npm run contracts:test -- Jett_onSimpleOffer
 ```

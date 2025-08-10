@@ -68,5 +68,5 @@ Anyone → External (op = OP_CANCEL_DEAL, after `validUntil`) → Contract
 ## Testing
 
 ```shell
-python manage.py test DomainSwap
+npm run contracts:test -- DomainSwap
 ```

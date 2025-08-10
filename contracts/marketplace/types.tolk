@@ -1,5 +1,6 @@
 import "../imports/types"
 
+
 struct ContractCodes {
     domainCode: cell;
     tgUsernameCode: cell;
@@ -16,20 +17,20 @@ struct DeployInfo<T> {
 }
 
 struct SimpleDeployArgs {
-    fromAddress: address;
-    payloadSlice: slice;
-    deployInfoSlice: slice;
-    code: cell;
-    commissionDiscount: uint16;
+    fromAddress: address;                   // Sender address
+    payloadSlice: slice;                    // Sender's message
+    deployInfoSlice: slice;                 // Deploy info slice
+    code: cell;                             // Code of the deal
+    commissionDiscount: uint16;             // Discount size for the sender
     queryId: uint64;
-    publicKey: uint256;
-    contractCodes: Cell<ContractCodes>;
+    publicKey: uint256;                    
+    contractCodes: Cell<ContractCodes>;     // Codes for calculating jetton wallets addresses and domains addresses
 }
 
 struct DeployWithNftTransferArgs {
     commonArgs: SimpleDeployArgs;
-    domainAddress: address;
-    domainNameCell: Cell<SerializableSlice>;
+    domainAddress: address;                  
+    domainNameCell: Cell<SerializableSlice>;  // Domain name is used for onchain notifications
 }
 
 struct DeployWithJettonTransferArgs {

@@ -8,16 +8,16 @@ struct MarketplaceStorageDs2 {
 }
 
 struct MarketplaceStorage {
-    ownerAddress: address;
-    publicKey: uint256;
+    ownerAddress: address;                 // Address of the owner of the marketplace
+    publicKey: uint256;                    // Public key is used for checking signed messages
 
-    moveUpSalePrice: coins;
-    currentTopSale: address;
-    collectedFeesTon: uint64;
-    collectedFeesDict: dict;  // walletAddress -> collectedFees(coins)
+    moveUpSalePrice: coins;                // Price of the moving sale to the top (in WEB3)
+    currentTopSale: address;               // Address of the current top sale
+    collectedFeesTon: uint64;              // Total amount of collected TON fees
+    collectedFeesDict: dict;               // A dictionary with all collected jetton fees (jettonWalletAddress -> collectedFees(coins))
 
-    deployInfos: dict;  // opCode -> DeployInfo
-    contractCodes: Cell<ContractCodes>;
+    deployInfos: dict;                     // A dictionary that contains information about all available deals (dealIdentificator (uint32) -> deployInfo)
+    contractCodes: Cell<ContractCodes>;    // codes are used for calculating jetton wallets addresses and domains addresses
     ds2: Cell<MarketplaceStorageDs2>;
 }
 

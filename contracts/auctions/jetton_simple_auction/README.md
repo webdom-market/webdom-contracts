@@ -63,5 +63,5 @@ Implements legacy get methods (`get_auction_data_v4()`) for compatibility with e
 ## Testing
 
 ```shell
-python manage.py test Jett_onSimpleAuction
+npm run contracts:test -- Jett_onSimpleAuction
 ```

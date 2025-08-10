@@ -72,7 +72,7 @@ Seller/Admin → Cancel Message → Contract
 ## Testing
 
 ```shell
-python manage.py test Jett_onMultipleSale
+npm run contracts:test -- Jett_onMultipleSale
 ```
 
 

@@ -65,5 +65,5 @@ Anyone → "cancel" comment → Contract
 ## Testing
 
 ```shell
-python manage.py test MultipleOffer
+npm run contracts:test -- MultipleOffer
 ```

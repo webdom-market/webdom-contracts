@@ -67,5 +67,5 @@ Implements legacy get methods (`get_auction_data()` and `get_sale_data()`) for c
 ## Testing
 
 ```shell
-python manage.py test TonSimpleAuction
+npm run contracts:test -- TonSimpleAuction
 ```

@@ -78,5 +78,5 @@ The contract implements legacy get method (`get_fix_price_data_v4()`) for compat
 ## Testing
 
 ```shell
-python manage.py test Jett_onSimpleSale
+npm run contracts:test -- Jett_onSimpleSale
 ```

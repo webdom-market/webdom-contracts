@@ -66,5 +66,5 @@ Seller → Cancel/Stop → Contract
 ## Testing
 
 ```shell
-python manage.py test Jett_onMultipleAuction
+npm run contracts:test -- Jett_onMultipleAuction
 ```

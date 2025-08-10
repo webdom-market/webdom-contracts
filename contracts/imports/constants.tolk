@@ -102,17 +102,17 @@ fun MARKETPLACE_COMMISSION_NOTIFICATION(): cell
 
 /* ADDRESSES */
 
-const MARKETPLACE_ADDRESS: address  = address("MARKETPLACE_ADDRESS");
-const ADMIN_ADDRESS: address        = address("ADMIN_ADDRESS"); 
-const WEB3_ADDRESS: address         = address("WEB3_ADDRESS");
-const USDT_ADDRESS: address         = address("USDT_ADDRESS");
+const MARKETPLACE_ADDRESS: address  = address("EQDS7a_9kvBzUjikv_j2_JdU8q1_T21OlSbgpPFEWGG_WEB3");
+const ADMIN_ADDRESS: address        = address("EQAX21A4fIw7hX1jmRjvJT0DX7H_FUItj2duCBWtK4ayEiC_"); 
+const WEB3_ADDRESS: address         = address("EQBefYnZpKZTyviz9KYpMgWTnzJbwRTQrtzJVCJxN5qNdLJM");
+const USDT_ADDRESS: address         = address("EQCmj3-TgcVq-mCOwFMG7Z7OKkLdJxQTdPU11St93_oIzRaU");
 const BURN_ADDRESS: address         = address("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c");
-const TON_DNS_ADDRESS: address      = address("TON_DNS_ADDRESS");  
-const TG_USERNAMES_ADDRESS: address = address("USERNAMES_COLLECTION_ADDRESS");
+const TON_DNS_ADDRESS: address      = address("EQCTN6fMuBiue-NUT7EkYU128cYLbDuaH4egFmmc_bCKaMHK");  
+const TG_USERNAMES_ADDRESS: address = address("EQA6SpQ_qolLTMwe3pSVllchLRMs8AOmYwb-DxG3eZD9Qk0c");
 
-const TON_VAULT_ADDRESS: address    = address("TON_VAULT_ADDRESS");
-const USDT_VAULT_ADDRESS: address   = address("USDT_VAULT_ADDRESS");
-const WEB3_VAULT_ADDRESS: address   = address("WEB3_VAULT_ADDRESS");
+const TON_VAULT_ADDRESS: address    = address("EQDshQ2nyhezZleRdlZT12pvrj_cYp9XGmcRgYirA71DWugR");
+const USDT_VAULT_ADDRESS: address   = address("EQAtwRp7c0vR82jID5S2c34HleVxaiYjJBgMvFgdeXIkPjjm");
+const WEB3_VAULT_ADDRESS: address   = address("EQByrIjpJYer4sxHzKb12sxVfYIZ358RFHdAdfY2SEr3P-EX");
 
 
 /* OTHER */

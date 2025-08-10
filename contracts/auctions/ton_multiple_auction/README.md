@@ -68,5 +68,5 @@ Seller → Cancel/Stop → Contract
 ## Testing
 
 ```shell
-python manage.py test TonMultipleAuction
+npm run contracts:test -- TonMultipleAuction
 ```
