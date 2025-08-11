@@ -1,6 +1,0 @@
-int gas_consumed() asm "GASCONSUMED";
-int get_compute_fee(int workchain, int gas_used) asm(gas_used workchain) "GETGASFEE";
-
-int storage_fees() asm "STORAGEFEES";
-
-int send_message(cell msg, int mode) impure asm "SENDMSG";

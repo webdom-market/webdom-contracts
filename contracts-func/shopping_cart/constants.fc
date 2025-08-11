@@ -1,6 +1,0 @@
-const int exc::DOMAIN_ALREADY_TRANSFERRED = 71;
-
-const int tons::PURCHASE_VIA_CART = 45000000;  ;; 0.05 TON
-
-const int state::UNINIT = 0;
-const int state::ACTIVE = 1;
