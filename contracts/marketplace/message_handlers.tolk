@@ -311,7 +311,7 @@ fun handleBuySubscription(storage: MarketplaceStorage, msgBody: slice, msgValue:
 
 
 fun handleRenewalFee(storage: MarketplaceStorage, msgBody: slice, msgValue: coins, queryId: uint64): void {
-    assert(msgValue > ton("0.003")) throw EXC_OUT_OF_GAS;
+    assert(msgValue > ton("0.003")) throw 0;
 
     var excess: coins = msgValue - TONS_RENEW_REQUEST;
     if (excess > TONS_MIN_EXCESS) {  // Send excess if attached TON exceeds renewal fee
@@ -334,7 +334,7 @@ fun handleRenewalFee(storage: MarketplaceStorage, msgBody: slice, msgValue: coin
 fun handleTonMarketplaceCommission(storage: MarketplaceStorage, msgBody: slice, msgValue: coins): void {
     // Just accept TONs if comment is "Marketplace commission". Other comments are not allowed. 
     assert(msgBody.bitsEqual("Marketplace commission")) throw EXC_UNSUPPORTED_OP;
-    assert(msgValue > ton("0.003")) throw EXC_OUT_OF_GAS;
+    assert(msgValue > ton("0.003")) throw 0;
     storage.collectedFeesTon += msgValue - ton("0.003");
     storage.save();
 }
