@@ -7,8 +7,8 @@ export class MarketplaceDeployer implements Contract {
         return new MarketplaceDeployer(address);
     }
 
-    static createFromConfig(param: number | bigint, code: Cell, workchain = 0) {
-        const data = beginCell().storeUint(param, 128).endCell();
+    static createFromConfig(ownerAddress: Address, param: number | bigint, code: Cell, workchain = 0) {
+        const data = beginCell().storeUint(0, 5).storeAddress(ownerAddress).storeUint(param, 256).endCell();
         return new MarketplaceDeployer(contractAddress(workchain, { code, data }), { code, data });
     }
     

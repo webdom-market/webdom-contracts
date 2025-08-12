@@ -2,6 +2,7 @@ import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, T
 import { Address, beginCell, Cell, contractAddress, Dictionary, toNano } from '@ton/core';
 import { DeployData, DeployInfoValue, deployInfoValueParser, Marketplace, MarketplaceConfig, marketplaceConfigToCell, PromotionPricesValue, promotionPricesValueParser, userSubscriptionValueParser } from '../wrappers/Marketplace';
 import { MarketplaceDeployer } from '../wrappers/MarketplaceDeployer';
+import { readFileSync } from 'fs';
 import '@ton/test-utils';
 import { compile, sleep } from '@ton/blueprint';
 import { TonSimpleSale, TonSimpleSaleDeployData, TonSimpleSaleConfig, tonSimpleSaleConfigToCell } from '../wrappers/TonSimpleSale';
@@ -65,7 +66,7 @@ describe('Marketplace', () => {
         tgUsernamesCollectionCode = await compile('TgUsernamesCollection');
         tgUsernameCode = await compile('TgUsername');
 
-        marketplaceDeployerCode = await compile('MarketplaceDeployer');
+        marketplaceDeployerCode = Cell.fromBoc(readFileSync('contracts/marketplace/vanity-address.boc'))[0];
         marketplaceCode = await compile('Marketplace');
         
         tonSimpleOfferCode = await compile('TonSimpleOffer');
@@ -416,7 +417,7 @@ describe('Marketplace', () => {
 
             promotionPrices,
         };
-        let marketplaceDeployer = blockchain.openContract(MarketplaceDeployer.createFromConfig(4702601605n, marketplaceDeployerCode));
+        let marketplaceDeployer = blockchain.openContract(MarketplaceDeployer.createFromConfig(admin.address, 4702601605n, marketplaceDeployerCode));
         transactionRes = await marketplaceDeployer.sendDeploy(admin.getSender(), toNano('0.05'), marketplaceCode, marketplaceConfigToCell(marketplaceConfig, true));
         expect(transactionRes.transactions).toHaveTransaction({
             from: admin.address,
@@ -1634,7 +1635,7 @@ describe('Marketplace', () => {
     it("should accept fees", async () => {
         marketplaceConfig = await marketplace.getStorageData();
         await admin.send({
-            value: toNano('0.1') + 2000000n,
+            value: toNano('0.1') + toNano('0.003'),
             to: marketplace.address,
             body: beginCell().storeUint(0, 32).storeStringTail(`Marketplace commission`).endCell()
         })

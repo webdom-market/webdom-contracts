@@ -52,3 +52,8 @@ Since `deployInfos` contains a large amount of data (it stores codes of all deal
 - `get_storage_data() → (...)` — a summary of all storage fields (see layout in `contract.tolk`)
 
 
+## Testing
+
+```shell
+npm run contracts:get_deploy_functions -- --all --test && npm run contracts:test -- TonSimpleSale
+```

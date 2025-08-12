@@ -3,10 +3,14 @@
     "version": "0.0.1",
     "scripts": {
         "bp": "blueprint",
+        "start": "blueprint run",
+        "build": "blueprint build",
+        "test": "jest --verbose",
+        "manage": "ts-node scripts/manage.ts",
         "contracts:build": "ts-node scripts/manage.ts build",
         "contracts:test": "ts-node scripts/manage.ts test",
         "contracts:run": "ts-node scripts/manage.ts run",
-        "contracts:get": "ts-node scripts/manage.ts get_deploy_functions",
+        "contracts:get_deploy_functions": "ts-node scripts/manage.ts get_deploy_functions",
         "release": "blueprint pack && npm publish --access public"
     },
     "dependencies": {

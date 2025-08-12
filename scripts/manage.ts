@@ -119,7 +119,7 @@ function withMarketplaceWeb3Override(replaces: Array<[string, string]>): Array<[
   // Override MARKETPLACE_ADDRESS to WEB3-coded one
   const idx = next.findIndex(([from]) => from === '"MARKETPLACE_ADDRESS"');
   if (idx >= 0) {
-    next[idx] = ['"MARKETPLACE_ADDRESS"', '"EQDS7a_9kvBzUjikv_j2_JdU8q1_T21OlSbgpPFEWGG_WEB3"'];
+    next[idx] = ['"MARKETPLACE_ADDRESS"', '"EQAd3btl7yW1QJ7oOF0AmaWiwAq8Vtt1-b0359ni8y5muhKJ"'];
   }
   return next;
 }

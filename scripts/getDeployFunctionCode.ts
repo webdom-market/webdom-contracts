@@ -222,12 +222,12 @@ export async function run(contractName: string): Promise<void> {
         console.log('Step 3: Compiling...');
         await new Promise<void>((resolve, reject) => {
             const { spawn } = require('child_process');
-            const proc = spawn('python3', ['manage.py', 'build', 'DeployFunctions'], { stdio: 'inherit' });
+            const proc = spawn('npm', ['run', 'contracts:build', '--', 'DeployFunctions'], { stdio: 'inherit' });
             proc.on('close', (code: number) => {
                 if (code === 0) {
                     resolve();
                 } else {
-                    reject(new Error(`python3 manage.py build DeployFunctions exited with code ${code}`));
+                    reject(new Error(`npm run contracts:build DeployFunctions exited with code ${code}`));
                 }
             });
             proc.on('error', reject);

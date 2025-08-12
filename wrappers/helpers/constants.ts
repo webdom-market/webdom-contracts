@@ -108,7 +108,7 @@ export const Exceptions = {
 
 export const Addresses = {
     MARKETPLACE: Address.parse('EQBE486yq6DUJMt-cvqj-_kk4Ft0NkPW5t8tjWLZkIR_WEB3'),
-    MARKETPLACE_TESTS: Address.parse('EQDS7a_9kvBzUjikv_j2_JdU8q1_T21OlSbgpPFEWGG_WEB3'),
+    MARKETPLACE_TESTS: Address.parse('EQAd3btl7yW1QJ7oOF0AmaWiwAq8Vtt1-b0359ni8y5muhKJ'),
     ADMIN: Address.parse('0QCovSj8c8Ik1I-RZt7dbIOEulYe-MfJ2SN5eMhxwfACviV7'),
     WEB3: Address.parse('kQAAsaFsxbeo6paoe9fNCMwRApFR9LIsyGM8bGy4B53DlN_W'),
     USDT: Address.parse('kQAke45nLBq-0fO-Vaxl8NwNwKibNtr7SheU0xqB4JTKexSm'),

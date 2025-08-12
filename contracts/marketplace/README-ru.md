@@ -51,3 +51,11 @@
 - `get_deploy_info(op: int) → (deployType, deployFee, dealCode, deployFunctionCode, specificInfo)` — возвращает запись из `deployInfos` по идентификатору сделки
 - `get_storage_data() → (...)` — сводка по всем данным хранилища (см. порядок в `contract.tolk`)
 
+## Тестирование
+
+```shell
+npm run contracts:get_deploy_functions -- --all --test && npm run contracts:test -- TonSimpleSale
+```
+
+
+
