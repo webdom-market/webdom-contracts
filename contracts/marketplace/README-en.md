@@ -55,5 +55,5 @@ Since `deployInfos` contains a large amount of data (it stores codes of all deal
 ## Testing
 
 ```shell
-npm run contracts:get_deploy_functions -- --all --test && npm run contracts:test -- TonSimpleSale
+npm run contracts:get_deploy_functions -- --all --test && npm run contracts:test -- Marketplace
 ```
