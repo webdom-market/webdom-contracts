@@ -66,5 +66,5 @@ Seller → Cancel/Stop → Contract
 ## Testing
 
 ```shell
-npm run contracts:test -- Jett_onMultipleAuction
+npm run contracts:get_deploy_functions -- JettonMultipleAuction && npm run contracts:test -- Jett_onMultipleAuction
 ```

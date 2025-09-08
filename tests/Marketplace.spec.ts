@@ -754,7 +754,7 @@ describe('Marketplace', () => {
         expect(transactionRes.transactions).toHaveTransaction({
             from: marketplace.address,
             to: seller.address,
-            op: OpCodes.EXCESSES,
+            op: 0,
         });
 
         let multipleSaleAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address;
@@ -809,7 +809,7 @@ describe('Marketplace', () => {
         expect(transactionRes.transactions).toHaveTransaction({
             from: marketplace.address,
             to: seller.address,
-            op: OpCodes.EXCESSES,
+            op: 0,
         });
 
         let multipleSaleAddress = transactionRes.transactions[2].inMessage!.info.dest! as Address;
@@ -1639,6 +1639,7 @@ describe('Marketplace', () => {
             to: marketplace.address,
             body: beginCell().storeUint(0, 32).storeStringTail(`Marketplace commission`).endCell()
         })
+        printTransactionFees(transactionRes.transactions)
         transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), 100n, marketplace.address, buyer.address, toNano('0.02'),
                                             beginCell().storeUint(0, 32).storeStringTail(`Marketplace commission`).endCell());
         transactionRes = await web3BuyerWallet.sendTransfer(buyer.getSender(), 200n, marketplace.address, buyer.address, toNano('0.02'),

@@ -68,5 +68,5 @@ Seller → Cancel/Stop → Contract
 ## Testing
 
 ```shell
-npm run contracts:test -- TonMultipleAuction
+npm run contracts:get_deploy_functions -- TonMultipleAuction && npm run contracts:test -- TonMultipleAuction
 ```

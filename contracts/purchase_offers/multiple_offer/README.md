@@ -65,5 +65,5 @@ Anyone → "cancel" comment → Contract
 ## Testing
 
 ```shell
-npm run contracts:test -- MultipleOffer
+npm run contracts:get_deploy_functions -- MultipleOffer && npm run contracts:test -- MultipleOffer
 ```

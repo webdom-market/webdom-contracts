@@ -91,12 +91,12 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         bounce: false,
         value: TONS_NFT_TRANSFER,
         dest: args.domainAddress,
-        body: NftTransferMessageBuilder<cell> {
+        body: NftTransferMessageBuilder<CommentMessage> {
             queryId: 0,
             toAddress: auctionAddressBuilder,
             responseAddress: createAddressNone(),
             forwardTonAmount: 0,
-            forwardPayload: null
+            forwardPayload: CommentMessage { comment: "Auction on webdom.market" }
         }
     }).send(SEND_MODE_REGULAR);
 

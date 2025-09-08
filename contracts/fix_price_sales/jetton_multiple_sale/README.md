@@ -72,7 +72,7 @@ Seller/Admin → Cancel Message → Contract
 ## Testing
 
 ```shell
-npm run contracts:test -- Jett_onMultipleSale
+npm run contracts:get_deploy_functions -- JettonMultipleSale && npm run contracts:test -- Jett_onMultipleSale
 ```
 
 

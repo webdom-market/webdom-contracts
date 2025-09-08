@@ -1,14 +1,10 @@
-import "@stdlib/tvm-lowlevel";
 import "../../imports/utils";
 import "../../imports/constants";
-import "messages";
-import "../../imports/dns";
 import "../../marketplace/types";
 import "../../marketplace/constants";
 import "../../imports/types";
 import "storage";
 import "../../imports/messages";
-import "../constants";
 
 
 struct DeployInfoForJetton {
@@ -84,12 +80,12 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
         bounce: false,
         value: TONS_NFT_TRANSFER,
         dest: args.domainAddress,
-        body: NftTransferMessageBuilder<cell> {
+        body: NftTransferMessageBuilder<CommentMessage> {
             queryId: 0,
             toAddress: saleAddressBuilder,
             responseAddress: createAddressNone(),
             forwardTonAmount: 0,
-            forwardPayload: null
+            forwardPayload: CommentMessage { comment: "Sale on webdom.market" }
         }
     }).send(SEND_MODE_REGULAR);
 

@@ -72,7 +72,7 @@ Seller/Admin → Cancel Message → Contract
 ## Testing
 
 ```shell
-npm run contracts:test -- TonMultipleSale
+npm run contracts:get_deploy_functions -- TonMultipleSale && npm run contracts:test -- TonMultipleSale
 ```
 
 

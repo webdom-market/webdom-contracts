@@ -65,7 +65,7 @@ fun checkEnoughGas(msgValue: coins, requiredGas: coins, fromAddress: address, qu
             bounce: false,
             value: 0,
             dest: fromAddress,
-            body: ExcessesMessage { queryId: queryId }
+            body: CommentMessage { comment: "Deal on webdom.market is active" }
         }).send(SEND_MODE_CARRY_ALL_BALANCE);
         return;
     }

@@ -76,5 +76,5 @@ The contract implements legacy get methods (`get_sale_data()` and `get_fix_price
 ## Testing
 
 ```shell
-npm run contracts:test -- TonSimpleSale
+npm run contracts:get_deploy_functions -- TonSimpleSale && npm run contracts:test -- TonSimpleSale
 ```

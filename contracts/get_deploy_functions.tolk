@@ -125,7 +125,7 @@ fun deployFunctionCell(): cell
         x{0} STSLICECONST       	//  ownerAddress web3WalletCode '3
         s1 s2 XCHG              	//  web3WalletCode ownerAddress '3
         STB                     	//  web3WalletCode '3
-        x{800BCFB13B3494CA795F167E94C52640B273E64B78229A15DB992A844E26F351AE9_} PUSHSLICE	//  web3WalletCode '3 '7
+        x{800DAE17C1207C7BA7C4A480F975A3B953AD3F6CCA249D4E97E33A88F2EF1E5DB17_} PUSHSLICE	//  web3WalletCode '3 '7
         STSLICER                	//  web3WalletCode '3
         OVER                    	//  web3WalletCode '3 web3WalletCode
         STREFR                  	//  web3WalletCode '3
@@ -154,7 +154,7 @@ fun deployFunctionCell(): cell
         x{00} STSLICECONST      	//  ownerAddress usdtWalletCode '4
         s1 s2 XCHG              	//  usdtWalletCode ownerAddress '4
         STB                     	//  usdtWalletCode '4
-        x{8014D1EFF27038AD5F4C11D80A60DDB3D9C5485BA4E2826E9EA6BAA56FBBFF4119B_} PUSHSLICE	//  usdtWalletCode '4 '8
+        x{801622753296A04942CE33ED2272651D6EB2B2D87144BEB2051628DFD9B86C43BFD_} PUSHSLICE	//  usdtWalletCode '4 '8
         STSLICER                	//  usdtWalletCode '4
         ENDC                    	//  usdtWalletCode data
             DUP2            // code data code data

@@ -64,12 +64,12 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
         bounce: false,
         value: TONS_NFT_TRANSFER,
         dest: args.domainAddress,
-        body: NftTransferMessageBuilder<cell> {
+        body: NftTransferMessageBuilder<CommentMessage> {
             queryId: 0,
             toAddress: saleAddress.buildAddress(),
             responseAddress: createAddressNone(),
             forwardTonAmount: 0,
-            forwardPayload: null
+            forwardPayload: CommentMessage { comment: "Sale on webdom.market" }
         }
     }).send(SEND_MODE_REGULAR);
 

@@ -72,5 +72,5 @@ The contract implements legacy get methods (`get_offer_data()` and `get_offer_da
 ## Testing
 
 ```shell
-npm run contracts:test -- TonSimpleOffer
+npm run contracts:get_deploy_functions -- TonSimpleOffer && npm run contracts:test -- TonSimpleOffer
 ```

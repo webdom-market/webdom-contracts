@@ -68,5 +68,5 @@ Anyone → External (op = OP_CANCEL_DEAL, after `validUntil`) → Contract
 ## Testing
 
 ```shell
-npm run contracts:test -- DomainSwap
+npm run contracts:get_deploy_functions -- DomainSwap && npm run contracts:test -- DomainSwap
 ```
