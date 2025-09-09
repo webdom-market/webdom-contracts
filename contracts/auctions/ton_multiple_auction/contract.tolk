@@ -389,14 +389,14 @@ fun onExternalMessage(in: InMessage) {
         if (opCode != OP_CANCEL_DEAL) {
             throw EXC_UNSUPPORTED_OP;
         }
-        
-        acceptExternalMessage();
         var queryId = in.body.loadUint(64);
-        
+          
         if (storage.lastBidValue == 0) {  // No one participated in the auction
             assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
+            acceptExternalMessage();
             endAuctionFailed(mutate storage, queryId, "Multiple auction on webdom.market was cancelled");
         } else {  // Auction finished successfully
+            acceptExternalMessage();
             val storage2 = lazy storage.ds2.load();
             endAuctionSuccess(mutate storage, storage2.maxCommission, queryId, 0);
         }

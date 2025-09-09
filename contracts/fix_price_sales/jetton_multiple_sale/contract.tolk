@@ -369,10 +369,10 @@ fun onExternalMessage(in: InMessage): void {
         if (opCode != OP_CANCEL_DEAL) {
             throw EXC_UNSUPPORTED_OP;
         }
-        
-        acceptExternalMessage();
-        assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
         var queryId = in.body.loadUint(64);
+        
+        assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
+        acceptExternalMessage();
         
         cancelSale(mutate storage, queryId, "Your sale offer has expired");
         

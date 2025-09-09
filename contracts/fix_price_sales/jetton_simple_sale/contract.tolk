@@ -324,10 +324,11 @@ fun onExternalMessage(in: InMessage): void {
         if (opCode != OP_CANCEL_DEAL) {
             throw EXC_UNSUPPORTED_OP;
         }
+        var queryId = in.body.loadUint(64);
         
         acceptExternalMessage();
         var storage2: StorageDs2 = lazy storage.ds2.load();
-        cancelDeal(mutate storage, storage2.domainAddress, in.body.loadUint(64));
+        cancelDeal(mutate storage, storage2.domainAddress, queryId);
         
         return;
     }

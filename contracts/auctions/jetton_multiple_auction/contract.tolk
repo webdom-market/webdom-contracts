@@ -423,14 +423,14 @@ fun onExternalMessage(in: InMessage) {
         if (opCode != OP_CANCEL_DEAL) {
             throw EXC_UNSUPPORTED_OP;
         }
-        
-        acceptExternalMessage();
         var queryId: uint64 = in.body.loadUint(64);
         
         if (storage.lastBidValue == 0) {  // No one participated in the auction
             assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsTotal + TONS_MIN_TON_FOR_STORAGE) throw EXC_OUT_OF_GAS;
+            acceptExternalMessage();
             cancelAuction(mutate storage, queryId, "Multiple auction on webdom.market has ended without bids");
         } else {  // Auction finished successfully
+            acceptExternalMessage();
             var storage2: StorageDs2 = lazy storage.ds2.load();
             endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, queryId, 0);
         }

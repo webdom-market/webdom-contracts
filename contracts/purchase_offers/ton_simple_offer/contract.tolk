@@ -330,9 +330,10 @@ fun onExternalMessage(in: InMessage): void {
         assert(isSignatureValid(in.body.hash(), signature as slice, publicKey)) throw EXC_INVALID_SIGNATURE;
         assert(in.body.loadAddress() == contract.getAddress()) throw EXC_INVALID_SIGNATURE;
         
-        acceptExternalMessage();
         var comment: slice = in.body.loadRef().beginParse();
         comment.skipBits(32);
+        
+        acceptExternalMessage();
         cancelOffer(mutate storage, 0, comment, queryId);
 
         return;

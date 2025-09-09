@@ -270,9 +270,10 @@ fun onExternalMessage(in: InMessage): void {
         if (opCode != OP_CANCEL_DEAL) {
             throw EXC_UNSUPPORTED_OP;
         }
+        var queryId = in.body.loadUint(64);
         
         acceptExternalMessage();
-        cancelDeal(mutate storage, in.body.loadUint(64));
+        cancelDeal(mutate storage, queryId);
         
         return;
     }

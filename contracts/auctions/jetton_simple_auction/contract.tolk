@@ -354,9 +354,9 @@ fun onExternalMessage(in: InMessage) {
         if (opCode != OP_CANCEL_DEAL) {
             throw EXC_UNSUPPORTED_OP;
         }
+        var queryId = in.body.loadUint(64);
         
         acceptExternalMessage();
-        var queryId = in.body.loadUint(64);
         
         if (storage.lastBidValue == 0) {  // No one participated in the auction
             endAuctionFailed(mutate storage, storage2, queryId);
