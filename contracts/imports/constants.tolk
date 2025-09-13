@@ -9,6 +9,7 @@ const OP_REPORT_STORAGE_DATA: uint32    = 0xaab4a8ef;
 const OP_EXCESSES: uint32               = 0xd53276db;
 const OP_FILL_UP_BALANCE: uint32        = 0x0609e47b;
 const OP_DEDUST_PAYOUT: uint32          = 0x474f86cf;
+const OP_BIDASK_PAYOUT: uint32          = 0x6edd65f0;
 
 // Jettons
 const OP_TRANSFER_JETTON: uint32        = 0x0f8a7ea5;
@@ -31,7 +32,6 @@ const OP_SWAP_JETTON: uint32              = 0xe3a0d482;
 const OP_DEPOSIT_LIQUIDITY_JETTON: uint32 = 0x40e108d6;
 const OP_SWAP_TON: uint32                 = 0xea06185d;
 const OP_DEPOSIT_LIQUIDITY_TON: uint32    = 0xd55e4686;
-
 
 /* LOCAL OP-CODES */
 

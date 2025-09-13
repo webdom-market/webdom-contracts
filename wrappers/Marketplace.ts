@@ -236,6 +236,12 @@ export class Marketplace extends DefaultContract {
     static setSubscriptionsMessage(subscriptionsDict: Dictionary<Address, UserSubscriptionValue>, queryId: number = 0) {
         return beginCell().storeUint(OpCodes.SET_SUBSCRIPTIONS, 32).storeUint(queryId, 64).storeDict(subscriptionsDict, Dictionary.Keys.Address(), userSubscriptionValueParser()).endCell();
     }
+    static changeMoveUpPriceMessage(newPrice: bigint, queryId: number = 0) {
+        return beginCell().storeUint(OpCodes.CHANGE_MOVE_UP_PRICE, 32).storeUint(queryId, 64).storeCoins(newPrice).endCell();
+    }
+    static changePromotionPriceMessage(newPrice: Dictionary<number, PromotionPricesValue>, queryId: number = 0) {
+        return beginCell().storeUint(OpCodes.CHANGE_PROMOTION_PRICE, 32).storeUint(queryId, 64).storeDict(newPrice, Dictionary.Keys.Uint(32), promotionPricesValueParser()).endCell();
+    }
 
     async sendBuySubscription(provider: ContractProvider, via: Sender, subscriptionLevel: number, subscriptionPeriod: number, subscriptionPrice: bigint, queryId: number = 0) {
         await provider.internal(via, {
@@ -260,6 +266,24 @@ export class Marketplace extends DefaultContract {
             value: toNano('0.01'),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: Marketplace.setSubscriptionsMessage(subscriptionsDict, queryId),
+            bounce: true,
+        });
+    }
+
+    async sendChangeMoveUpPrice(provider: ContractProvider, via: Sender, newPrice: bigint, queryId: number = 0) {
+        await provider.internal(via, {
+            value: toNano('0.01'),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: Marketplace.changeMoveUpPriceMessage(newPrice, queryId),
+            bounce: true,
+        });
+    }
+
+    async sendChangePromotionPrice(provider: ContractProvider, via: Sender, newPrice: Dictionary<number, PromotionPricesValue>, queryId: number = 0) {
+        await provider.internal(via, {
+            value: toNano('0.01'),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: Marketplace.changePromotionPriceMessage(newPrice, queryId),
             bounce: true,
         });
     }

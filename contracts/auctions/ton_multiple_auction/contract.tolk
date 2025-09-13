@@ -250,7 +250,7 @@ fun onInternalMessage(in: InMessage) {
             var (op: uint32, queryId: uint64) = loadOpAndQueryId(mutate in.body);
             
             // Handle DeDust payout (extract real sender from payload)
-            if (op == OP_DEDUST_PAYOUT) {
+            if (op == OP_DEDUST_PAYOUT || op == OP_BIDASK_PAYOUT) {
                 op = 0;
                 senderAddress = in.body.loadMaybeRef()!.beginParse() as address;
             }

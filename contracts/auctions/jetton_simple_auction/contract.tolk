@@ -132,9 +132,9 @@ fun onInternalMessage(in: InMessage) {
             var fromAddress = msg.fromAddress;
             // If jettons were received by DeDust swap, extract real sender from payload
             if (msg.forwardPayload is Cell<SerializableSlice>) {
-                fromAddress = address.fromSlice(msg.forwardPayload.load());
+                msg.forwardPayload = msg.forwardPayload.load();
             }
-            else if (msg.forwardPayload.remainingBitsCount() == 267) {
+            if (msg.forwardPayload.remainingBitsCount() == 267) {
                 fromAddress = address.fromSlice(msg.forwardPayload);
             }
             

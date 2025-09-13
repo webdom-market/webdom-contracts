@@ -1,6 +1,3 @@
-import "../../imports/types"
-
-
 struct Storage {
     sellerAddress: address;           // Address of the seller
     domainsDict: dict;                // Dictionary of domains (key: domain address, value: received boolean flag)

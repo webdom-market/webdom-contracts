@@ -160,9 +160,9 @@ fun onInternalMessage(in: InMessage): void {
 
             // Parse forward payload in case jettons were received via dedust swap
             if (msg.forwardPayload is Cell<SerializableSlice>) {
-                fromAddress = address.fromSlice(msg.forwardPayload.load());
+                msg.forwardPayload = msg.forwardPayload.load();
             }
-            else if (msg.forwardPayload.remainingBitsCount() == 267) {
+            if (msg.forwardPayload.remainingBitsCount() == 267) {
                 // Get real sender address
                 fromAddress = address.fromSlice(msg.forwardPayload);
             }

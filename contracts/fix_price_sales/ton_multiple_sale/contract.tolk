@@ -240,7 +240,7 @@ fun onInternalMessage(in: InMessage): void {
             var (op, queryId) = loadOpAndQueryId(mutate in.body);
             var senderAddress = in.senderAddress;
             
-            if (op == OP_DEDUST_PAYOUT) {  // If dedust payout, extract sender address from the message
+            if (op == OP_DEDUST_PAYOUT || op == OP_BIDASK_PAYOUT) {  // If dedust payout, extract sender address from the message
                 op = 0;
                 senderAddress = in.body.loadMaybeRef()!.beginParse() as address;
             }

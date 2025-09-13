@@ -378,3 +378,35 @@ fun handleSetSubscriptions(storage: MarketplaceStorage, msgBody: slice, senderAd
         body: ExcessesMessage {queryId: 0}
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
+
+
+fun handleChangeMoveUpPrice(storage: MarketplaceStorage, msgBody: slice, senderAddress: address): void {
+    assert(senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+    storage.moveUpSalePrice = msgBody.loadCoins();
+    storage.save(); 
+
+    // Send excess
+    createMessage({
+        bounce: false,
+        value: 0,
+        dest: ADMIN_ADDRESS,
+        body: ExcessesMessage {queryId: 0}
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun handleChangePromotionPrice(storage: MarketplaceStorage, msgBody: slice, senderAddress: address): void {
+    assert(senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+    var ds2: MarketplaceStorageDs2 = lazy storage.ds2.load();
+    ds2.promotionPrices = msgBody.loadDict();
+    storage.ds2 = ds2.toCell();
+    storage.save();
+
+    // Send excess
+    createMessage({
+        bounce: false,
+        value: 0,
+        dest: ADMIN_ADDRESS,
+        body: ExcessesMessage {queryId: 0}
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+}

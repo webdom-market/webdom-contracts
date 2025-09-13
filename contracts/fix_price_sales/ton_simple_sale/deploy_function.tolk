@@ -1,14 +1,8 @@
-import "@stdlib/tvm-lowlevel";
-import "../../imports/utils";
 import "../../imports/constants";
-import "messages";
-import "../../imports/dns";
 import "../../marketplace/types";
 import "../../marketplace/constants";
-import "../../imports/types";
 import "storage";
 import "../../imports/messages";
-import "../constants";
 
 struct TonSimpleSaleDeployInfo {
     minPrice: coins;

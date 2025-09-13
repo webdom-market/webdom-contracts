@@ -60,6 +60,14 @@ fun onInternalMessage(in: InMessage): void {
             // Update info about subscription plans (admin command)
             handleSetSubscriptions(storage, in.body, in.senderAddress);
         }
+        OP_CHANGE_MOVE_UP_PRICE => {
+            // Change move up sale price
+            handleChangeMoveUpPrice(storage, in.body, in.senderAddress);
+        }
+        OP_CHANGE_PROMOTION_PRICE => {
+            // Change promotion price
+            handleChangePromotionPrice(storage, in.body, in.senderAddress);
+        }
         else => { 
             assert(op < 0x0fffffff) throw EXC_UNSUPPORTED_OP;
             // Simple deploy without jetton or NFT transfers (e.g. ton simple offer, jetton multiple auction)
