@@ -172,7 +172,7 @@ fun onInternalMessage(in: InMessage) {
         allowWithdrawTon: true,
     });
     
-    val msg = lazy AllowedMessage.fromSlice(in.body);
+    var msg = lazy AllowedMessage.fromSlice(in.body);
     
     match (msg) {
         // Activate the auction when deployed by marketplace

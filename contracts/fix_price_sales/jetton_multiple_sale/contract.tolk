@@ -96,7 +96,7 @@ fun onInternalMessage(in: InMessage): void {
         allowWithdrawJetton: true,
     });
     
-    val msg: AllowedMessage = lazy AllowedMessage.fromSlice(in.body);
+    var msg: AllowedMessage = lazy AllowedMessage.fromSlice(in.body);
     
     match (msg) {
         // Deploy and activate the jetton sale
