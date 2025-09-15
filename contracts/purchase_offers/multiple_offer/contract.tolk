@@ -10,9 +10,7 @@ import "messages"
 
 // "Cancel" the multiple offer -- reset contract state and return all funds to owner
 @inline
-fun cancelDeal(queryId: uint64): void {   
-    var storage: Storage = lazy Storage.load();
- 
+fun cancelDeal(queryId: uint64, storage: Storage): void {    
     // Return all jettons to owner
     var (jettonWalletAddress: slice?, jettonBalanceSlice: slice?, _) = storage.jettonBalancesDict.sDictGetFirst(267);
     while (jettonBalanceSlice != null) {
@@ -352,7 +350,9 @@ fun onInternalMessage(in: InMessage): void {
             val op: uint32 = in.body.loadUint(32);
             if (op == 0 && in.body.bitsEqual("cancel")) {
                 // Handle text-based cancellation
-                cancelDeal(blockchain.currentBlockLogicalTime());
+                var storage: Storage = lazy Storage.load();
+                assert(in.senderAddress == storage.ownerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+                cancelDeal(blockchain.currentBlockLogicalTime(), storage);
             }
             else if (!in.body.bitsEqual("fillup")) {
                 // Ignore "fillup" messages, throw error for unknown operations

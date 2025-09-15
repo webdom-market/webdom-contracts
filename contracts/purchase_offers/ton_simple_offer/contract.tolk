@@ -295,7 +295,7 @@ fun onInternalMessage(in: InMessage): void {
 
         CommentMessage => {
             if (msg.comment.bitsEqual("cancel")) {
-                assert(storage.buyerAddress == in.senderAddress) throw EXC_INCORRECT_SENDER;  // Only buyer can cancel offer via comment message
+                assert(storage.buyerAddress == in.senderAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;  // Only buyer can cancel offer via comment message
                 assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that offer is active
 
                 cancelOffer(mutate storage, 0, "Your offer on webdom.market was cancelled", 0);

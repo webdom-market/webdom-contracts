@@ -311,7 +311,7 @@ fun onInternalMessage(in: InMessage): void {
             if (msg.comment.bitsEqual("cancel")) {
                 var storage2: StorageDs2 = lazy storage.ds2.load();
                 assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that offer is active
-                assert(storage2.buyerAddress == in.senderAddress) throw EXC_INCORRECT_SENDER;  // Only buyer can cancel offer via comment message
+                assert(storage2.buyerAddress == in.senderAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;  // Only buyer can cancel offer via comment message
 
                 cancelOffer(mutate storage, storage2.domainAddress, storage2.buyerAddress, 0, "Your offer on webdom.market was cancelled", 0);
                 return;

@@ -304,14 +304,14 @@ fun onInternalMessage(in: InMessage) {
                 
                 if (op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
                     if (storage.lastBidValue == 0) {  // Cancel auction if it hasn't started yet
-                        assert(senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
+                        assert(senderAddress == storage.sellerAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                         endAuctionFailed(mutate storage, storage2, queryId);
                     } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
                         var additionalSellerTons: coins;
                         if (senderAddress == storage.lastBidderAddress) {
                             additionalSellerTons = 0;
                         } else {
-                            assert(senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
+                            assert(senderAddress == storage.sellerAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                             additionalSellerTons = in.valueCoins;
                         }
                         endAuctionSuccess(mutate storage, storage2, queryId, additionalSellerTons);

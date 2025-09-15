@@ -346,6 +346,7 @@ fun onInternalMessage(in: InMessage): void {
             if (in.body.remainingBitsCount() >= 32) {
                 var op = in.body.loadUint(32);
                 if ((op == 0 && in.body.bitsEqual("cancel")) || op == OP_CANCEL_DEAL) {
+                    assert(in.senderAddress == storage.sellerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                     // Handle sale cancellation
                     cancelSale(mutate storage,  0, "Sale cancelled");
                     return;

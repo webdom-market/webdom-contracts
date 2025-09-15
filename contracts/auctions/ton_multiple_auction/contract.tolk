@@ -351,7 +351,7 @@ fun onInternalMessage(in: InMessage) {
 
             if (op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
                 if (storage.lastBidValue == 0) {  // Cancel auction if it hasn't started yet
-                    assert(senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
+                    assert(senderAddress == storage.sellerAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                     endAuctionFailed(mutate storage, queryId, "Multiple auction on webdom.market was cancelled");
                     return;
                 } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
@@ -359,7 +359,7 @@ fun onInternalMessage(in: InMessage) {
                     if (senderAddress == storage.sellerAddress) {
                         additionalSellerTons = in.valueCoins;  // Seller doesn't pay gas fees for finalizing the auction
                     } else {
-                        assert(senderAddress == storage.lastBidderAddress) throw EXC_INCORRECT_SENDER;
+                        assert(senderAddress == storage.lastBidderAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                         additionalSellerTons = 0;
                     }
                     val storage2 = lazy storage.ds2.load();

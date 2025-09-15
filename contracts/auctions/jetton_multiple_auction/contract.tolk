@@ -387,7 +387,7 @@ fun onInternalMessage(in: InMessage) {
             var (op: uint32, queryId: uint64) = loadOpAndQueryId(mutate in.body);
             if (op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
                 if (storage.lastBidValue == 0) {  // Cancel auction if it hasn't started yet
-                    assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
+                    assert(in.senderAddress == storage.sellerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                     cancelAuction(mutate storage, 0, "Multiple auction on webdom.market was cancelled");
                     return;
                 } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
@@ -395,7 +395,7 @@ fun onInternalMessage(in: InMessage) {
                     if (in.senderAddress == storage.sellerAddress) {
                         additionalTons = in.valueCoins;  // Seller doesn't pay gas fees for finalizing the auction
                     } else {
-                        assert(in.senderAddress == storage.lastBidderAddress) throw EXC_INCORRECT_SENDER;
+                        assert(in.senderAddress == storage.lastBidderAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                         additionalTons = 0;
                     }
                     var storage2: StorageDs2 = lazy storage.ds2.load();
