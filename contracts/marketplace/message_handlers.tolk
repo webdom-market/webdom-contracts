@@ -126,7 +126,7 @@ fun handleNftOwnershipAssigned(
                     .storeNumber10(e)
                 .endCell()
             }
-        }).send(SEND_MODE_CARRY_ALL_BALANCE);
+        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             
         commitContractDataAndActions();
         throw e;
