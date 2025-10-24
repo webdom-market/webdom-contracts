@@ -40,7 +40,7 @@ fun onInternalMessage(in: InMessage): void {
                         value: 0,
                         dest: storage2.buyerAddress,
                         body: CommentMessage { comment: "Offer has already been created" }
-                    }).send(SEND_MODE_CARRY_ALL_BALANCE);
+                    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
                     return;
                 }
                 
