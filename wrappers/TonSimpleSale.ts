@@ -247,10 +247,10 @@ export class TonSimpleSale extends DefaultContract {
             buyerAddress: stack.readAddressOpt(),
             domainName: stack.readCell().beginParse().loadStringTail(),
             isTgUsername: stack.readBoolean(),
-            hotUntil: stack.readNumber(),
-            coloredUntil: stack.readNumber(),
             autoRenewCooldown: stack.readNumber(),
             autoRenewIterations: stack.readNumber(),
+            hotUntil: stack.readNumber(),
+            coloredUntil: stack.readNumber(),
         }
         return res;
     }

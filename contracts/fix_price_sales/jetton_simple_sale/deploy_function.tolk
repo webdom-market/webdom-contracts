@@ -114,7 +114,7 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
     val contractCodes = lazy args.commonArgs.contractCodes.load();
     val msg = createMessage<cell>({
         bounce: false,
-        value: TONS_DEPLOY_JETTON_SIMPLE_SALE + autoRenewReserve,
+        value: TONS_DEPLOY_JETTON_SIMPLE_SALE + autoRenewReserve + autoRenewPrepay,
         dest: saleAddress,
         body: beginCell()
                 .storeUint(OP_FILL_UP_BALANCE, 32)

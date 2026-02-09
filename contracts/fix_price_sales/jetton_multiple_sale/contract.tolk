@@ -101,9 +101,20 @@ fun onInternalMessage(in: InMessage): void {
         DeployAndSetWalletMessage => {
             if (storage.state == STATE_UNINIT) {
                 assert(in.senderAddress == MARKETPLACE_ADDRESS) throw EXC_INCORRECT_SENDER;
-                
+                if (storage2.autoRenewIterations > 0) {
+                    createMessage<AutoRenewPrepayMessage>({
+                        bounce: false,
+                        value: storage2.autoRenewIterations * TONS_AUTORENEW_MARKETPLACE_FEE,
+                        dest: MARKETPLACE_ADDRESS,
+                        body: AutoRenewPrepayMessage {
+                            queryId: msg.queryId,
+                            ownerAddress: storage.sellerAddress,
+                            iterations: storage2.autoRenewIterations
+                        }
+                    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+                }
                 storage.jettonWalletAddress = msg.jettonWalletAddress;
-                storage.state = STATE_ACTIVE;
+                storage.state = STATE_ACTIVE; 
                 storage.save();
             }
             return;
@@ -481,10 +492,10 @@ get fun get_storage_data() {
         storage2.buyerAddress,
         getTonsToReserve(storage.domainsTotal, storage2.autoRenewIterations, true),
         storage.jettonWalletAddress,
-        storage.hotUntil,
-        storage.coloredUntil,
         storage2.autoRenewCooldown,
         storage2.autoRenewIterations,
+        storage.hotUntil,
+        storage.coloredUntil,
         storage2.jettonMinterAddress,
         contract.getCode().hash()
     );
