@@ -33,7 +33,9 @@ When requesting a deployment you pass the required deal settings and a special i
 
 ### Accepting renewal fees for domains
 
-All webdom contracts support renewing owned domains. A small fixed fee (no more than 0.1 TON) is charged on each renewal.
+Marketplace accepts two renewal-related TON fee flows from deal contracts:
+- `RenewalFeeMessage` for manual renewals (`0.1 TON` renewal fee, excess can be returned to owner)
+- `AutoRenewPrepayMessage` for prepaid auto-renew iterations (`iterations * 0.1 TON`, excess can be returned to owner)
 
 ### Accepting fees from completed deals
 
