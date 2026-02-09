@@ -96,6 +96,8 @@ describe('MultipleTonSale', () => {
             validUntil: blockchain.now + ONE_DAY * 3,
             buyerAddress: null,
             tonsToReserve: domains.length,
+            autoRenewCooldown: ONE_DAY * 30,
+            autoRenewIterations: 0,
         }
         tonMultipleSale = blockchain.openContract(TonMultipleSale.createFromConfig(tonMultipleSaleConfig, tonMultipleSaleCode));
         transactionRes = await tonMultipleSale.sendDeploy(admin.getSender(), toNano('0.04'));
@@ -245,6 +247,30 @@ describe('MultipleTonSale', () => {
         for (let domain of domains) {
             let domainConfig = await domain.getStorageData();
             expect(domainConfig.ownerAddress!.toString()).toEqual(tonMultipleSaleConfig.sellerAddress.toString());
+        }
+    });
+
+    it("should top up auto-renew and execute external auto-renew", async () => {
+        transactionRes = await tonMultipleSale.sendSetAutoRenewParams(seller.getSender(), domains.length, ONE_DAY, 2);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: tonMultipleSale.address,
+            to: marketplace.address,
+            op: OpCodes.AUTORENEW_PREPAY,
+            value(x) { return x! >= 2n * 100000000n },
+        });
+
+        tonMultipleSaleConfig = await tonMultipleSale.getStorageData();
+        expect(tonMultipleSaleConfig.autoRenewIterations).toEqual(2);
+
+        blockchain.now! += ONE_DAY;
+        transactionRes = await tonMultipleSale.sendExternalTriggerAutoRenew();
+        tonMultipleSaleConfig = await tonMultipleSale.getStorageData();
+        expect(tonMultipleSaleConfig.autoRenewIterations).toEqual(1);
+        expect(tonMultipleSaleConfig.lastRenewalTime).toEqual(blockchain.now!);
+
+        for (let domain of domains) {
+            let domainConfig = await domain.getStorageData();
+            expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
         }
     });
 

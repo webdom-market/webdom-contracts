@@ -6,7 +6,7 @@ import { compile } from '@ton/blueprint';
 import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
 import { Domain, DomainConfig } from '../wrappers/Domain';
 import { getIndexByDomainName } from '../wrappers/helpers/dnsUtils';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes } from '../wrappers/helpers/constants';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../wrappers/helpers/constants';
 import { jettonsToString } from '../wrappers/helpers/functions';
 
 describe('TonSimpleSale', () => {
@@ -81,7 +81,9 @@ describe('TonSimpleSale', () => {
             lastRenewalTime: blockchain.now,
             validUntil: blockchain.now + ONE_DAY * 3,
             buyerAddress: null,
-            domainName: DOMAIN_NAME
+            domainName: DOMAIN_NAME,
+            autoRenewCooldown: ONE_DAY * 30,
+            autoRenewIterations: 0,
         }
         tonSimpleSale = blockchain.openContract(TonSimpleSale.createFromConfig(tonSimpleSaleConfig, fixPriceSaleCode));
         transactionRes = await tonSimpleSale.sendDeploy(admin.getSender(), toNano('0.05'));
@@ -157,14 +159,12 @@ describe('TonSimpleSale', () => {
             blockchain.now! += timeSpent;
             let newValidUntil = Math.ceil(blockchain.now! + ONE_DAY * Math.random() * 700 / checks);
             transactionRes = await tonSimpleSale.sendChangePrice(seller.getSender(), newPrice, newValidUntil);
-            if (tonSimpleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now! + 600, tonSimpleSaleConfig.validUntil)) {
+            if (newValidUntil < Math.max(blockchain.now! + 600, tonSimpleSaleConfig.validUntil)) {
                 expect(transactionRes.transactions).toHaveTransaction({
                     from: seller.address,
                     to: tonSimpleSale.address,
-                    // success: false,
                     exitCode: Exceptions.INCORRECT_VALID_UNTIL
                 })
-                if (newValidUntil >= Math.max(blockchain.now! + 600, tonSimpleSaleConfig.lastRenewalTime)) break;
             }
             else {
                 tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
@@ -179,6 +179,18 @@ describe('TonSimpleSale', () => {
         }
     });
 
+    it("should set max validUntil", async () => {
+        const maxValidUntil = 0xffffffff;
+        transactionRes = await tonSimpleSale.sendChangePrice(seller.getSender(), tonSimpleSaleConfig.price, maxValidUntil);
+        expect(transactionRes.transactions).not.toHaveTransaction({
+            from: seller.address,
+            to: tonSimpleSale.address,
+            exitCode: Exceptions.INCORRECT_VALID_UNTIL
+        });
+        tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
+        expect(tonSimpleSaleConfig.validUntil).toEqual(maxValidUntil);
+    });
+
     it("should renew domain", async () => {
         blockchain.now! += ONE_DAY * 30;
         transactionRes = await tonSimpleSale.sendRenewDomain(seller.getSender());
@@ -187,11 +199,8 @@ describe('TonSimpleSale', () => {
         
         blockchain.now! += ONE_YEAR - ONE_DAY + 1;
         transactionRes = await tonSimpleSale.sendRenewDomain(seller.getSender());
-        expect(transactionRes.transactions).toHaveTransaction({
-            from: seller.address,
-            to: tonSimpleSale.address,
-            exitCode: Exceptions.DOMAIN_EXPIRED
-        });
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
     });
 
     it("should cancel by external message", async () => {
@@ -213,6 +222,98 @@ describe('TonSimpleSale', () => {
         let saleConfig = await tonSimpleSale.getStorageData();
         expect(saleConfig.state).toEqual(TonSimpleSale.STATE_CANCELLED);
     })
+
+    it("should reject purchase when domain is expired by renewal time", async () => {
+        await tonSimpleSale.sendChangePrice(seller.getSender(), tonSimpleSaleConfig.price, 0xffffffff);
+        tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
+        blockchain.now! = tonSimpleSaleConfig.lastRenewalTime + ONE_YEAR;
+        transactionRes = await tonSimpleSale.sendPurchase(buyer.getSender(), tonSimpleSaleConfig.price);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: buyer.address,
+            to: tonSimpleSale.address,
+            exitCode: Exceptions.DOMAIN_EXPIRED
+        });
+    });
+
+    it("should disable renew paths and skip renewal-time expiration check for tg usernames", async () => {
+        transactionRes = await tonSimpleSale.sendCancelSale(seller.getSender());
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: seller.address,
+            to: tonSimpleSale.address,
+            success: true,
+        });
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
+
+        blockchain.now! += 1;
+        const tgSaleConfig: TonSimpleSaleConfig = {
+            ...tonSimpleSaleConfig,
+            state: TonSimpleSale.STATE_UNINIT,
+            createdAt: blockchain.now!,
+            lastRenewalTime: blockchain.now! - ONE_YEAR,
+            validUntil: blockchain.now! + ONE_DAY,
+            buyerAddress: null,
+            domainName: "testusername.t.me",
+            isTgUsername: false,
+        };
+        const tgSale = blockchain.openContract(TonSimpleSale.createFromConfig(tgSaleConfig, fixPriceSaleCode));
+        await tgSale.sendDeploy(admin.getSender(), toNano('0.05'));
+        await domain.sendTransfer(seller.getSender(), tgSale.address, null, null, 0n, 0, toNano('0.015'));
+
+        let tgSaleConfigAfterDeploy = await tgSale.getStorageData();
+        expect(tgSaleConfigAfterDeploy.isTgUsername).toEqual(true);
+
+        await tgSale.sendChangePrice(seller.getSender(), tgSaleConfigAfterDeploy.price, 0xffffffff);
+        tgSaleConfigAfterDeploy = await tgSale.getStorageData();
+        blockchain.now! = tgSaleConfigAfterDeploy.lastRenewalTime + ONE_YEAR;
+
+        transactionRes = await tgSale.sendRenewDomain(seller.getSender());
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: seller.address,
+            to: tgSale.address,
+            exitCode: Exceptions.UNSUPPORTED_OP,
+        });
+
+        transactionRes = await tgSale.sendSetAutoRenewParams(seller.getSender(), ONE_DAY, 1);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: seller.address,
+            to: tgSale.address,
+            exitCode: Exceptions.UNSUPPORTED_OP,
+        });
+
+        await expect(tgSale.sendExternalTriggerAutoRenew()).rejects.toThrow("External message not accepted by smart contract");
+
+        transactionRes = await tgSale.sendPurchase(buyer.getSender(), tgSaleConfigAfterDeploy.price);
+        expect(transactionRes.transactions).not.toHaveTransaction({
+            from: buyer.address,
+            to: tgSale.address,
+            exitCode: Exceptions.DOMAIN_EXPIRED
+        });
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
+    });
+
+    it("should top up auto-renew and execute external auto-renew", async () => {
+        transactionRes = await tonSimpleSale.sendSetAutoRenewParams(seller.getSender(), ONE_DAY, 2);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: tonSimpleSale.address,
+            to: marketplace.address,
+            op: OpCodes.AUTORENEW_PREPAY,
+            value(x) { return x! >= Tons.AUTORENEW_MARKETPLACE_FEE * 2n },
+        });
+
+        tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
+        expect(tonSimpleSaleConfig.autoRenewIterations).toEqual(2);
+
+        blockchain.now! += ONE_DAY;
+        transactionRes = await tonSimpleSale.sendExternalTriggerAutoRenew();
+        tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
+        expect(tonSimpleSaleConfig.autoRenewIterations).toEqual(1);
+        expect(tonSimpleSaleConfig.lastRenewalTime).toEqual(blockchain.now!);
+
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
+    });
 
     it("should cancel by internal message", async () => {
         blockchain.now! = tonSimpleSaleConfig.validUntil;

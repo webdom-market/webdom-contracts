@@ -1,3 +1,8 @@
+struct AutoRenewData {
+    autoRenewCooldown: uint32;   // Minimal delay between domain renewals
+    autoRenewIterations: uint8;  // Remaining paid auto-renew iterations
+}
+
 struct Storage {
     sellerAddress: address;           // Address of the seller
     domainsDict: dict;                // Dictionary of domains (key: domain address, value: received boolean flag)
@@ -16,6 +21,7 @@ struct Storage {
 
     hotUntil: uint32;                 // Hot promotion end timestamp
     coloredUntil: uint32;             // Colored promotion end timestamp
+    autoRenewData: Cell<AutoRenewData>;
 }
 
 fun Storage.load(): Storage {

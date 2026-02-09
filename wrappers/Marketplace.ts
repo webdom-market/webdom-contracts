@@ -1,5 +1,5 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, toNano } from '@ton/core';
-import { Addresses, ONE_DAY, OpCodes } from './helpers/constants';
+import { Addresses, ONE_DAY, OpCodes, Tons } from './helpers/constants';
 import { Maybe } from '@ton/core/dist/utils/maybe';
 import { DefaultContract } from './helpers/DefaultContract';
 import { sign } from '@ton/crypto';
@@ -229,6 +229,15 @@ export class Marketplace extends DefaultContract {
         return beginCell().storeUint(OpCodes.BUY_SUBSCRIPTION, 32).storeUint(queryId, 64).storeUint(subscriptionLevel, 8).storeUint(subscriptionPeriod, 32).endCell();
     }
 
+    static autoRenewPrepayMessage(ownerAddress: Address, iterations: number, queryId: number = 0) {
+        return beginCell()
+            .storeUint(OpCodes.AUTORENEW_PREPAY, 32)
+            .storeUint(queryId, 64)
+            .storeAddress(ownerAddress)
+            .storeUint(iterations, 8)
+        .endCell();
+    }
+
     static updateDeployInfoMessage(updatesDict: Dictionary<number, DeployInfoValue>, queryId: number = 0) {
         return beginCell().storeUint(OpCodes.UPDATE_DEPLOY_INFO, 32).storeUint(queryId, 64).storeDict(updatesDict, Dictionary.Keys.Uint(32), deployInfoValueParser()).endCell();
     }
@@ -248,6 +257,22 @@ export class Marketplace extends DefaultContract {
             value: subscriptionPrice + toNano('0.01'),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: Marketplace.buySubscriptionMessage(subscriptionLevel, subscriptionPeriod, queryId),
+            bounce: true,
+        });
+    }
+
+    async sendAutoRenewPrepay(
+        provider: ContractProvider,
+        via: Sender,
+        ownerAddress: Address,
+        iterations: number,
+        queryId: number = 0,
+        value: bigint = Tons.AUTORENEW_MARKETPLACE_FEE * BigInt(iterations),
+    ) {
+        await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: Marketplace.autoRenewPrepayMessage(ownerAddress, iterations, queryId),
             bounce: true,
         });
     }

@@ -1,3 +1,10 @@
+struct StorageDs2 {
+    buyerAddress: address;           // Address of the buyer (set when sale is completed)
+    jettonMinterAddress: address;    // Address of the jetton minter contract
+    autoRenewCooldown: uint32;       // Minimal delay between domain renewals
+    autoRenewIterations: uint8;      // Remaining paid auto-renew iterations
+}
+
 struct Storage {
     sellerAddress: address;           // Address of the seller
     domainsDict: dict;                // Dictionary of domains (key: domain address, value: received boolean flag)
@@ -17,8 +24,7 @@ struct Storage {
     hotUntil: uint32;                 // Hot promotion end timestamp
     coloredUntil: uint32;             // Colored promotion end timestamp
 
-    buyerAddressCell: Cell<address>;  // Address of the buyer (set when sale is completed)
-    jettonMinterAddressCell: Cell<address>;  // Address of the jetton minter contract
+    ds2: Cell<StorageDs2>;            // Additional data (buyer, jetton minter, auto-renew params)
 }
 
 fun Storage.load(): Storage {

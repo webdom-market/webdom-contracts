@@ -6,7 +6,7 @@ import { compile } from '@ton/blueprint';
 import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
 import { Domain, DomainConfig } from '../wrappers/Domain';
 import { getIndexByDomainName } from '../wrappers/helpers/dnsUtils';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes } from '../wrappers/helpers/constants';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../wrappers/helpers/constants';
 import { jettonsToString } from '../wrappers/helpers/functions';
 import { JettonMinter } from '../wrappers/JettonMinter';
 import { JettonWallet } from '../wrappers/JettonWallet';
@@ -110,7 +110,9 @@ describe('JettonSimpleSale', () => {
             lastRenewalTime: blockchain.now,
             validUntil: blockchain.now + ONE_DAY * 3,
             buyerAddress: null,
-            domainName: DOMAIN_NAME
+            domainName: DOMAIN_NAME,
+            autoRenewCooldown: ONE_DAY * 30,
+            autoRenewIterations: 0,
         }
         jettonSimpleSale = blockchain.openContract(JettonSimpleSale.createFromConfig(jettonSimpleSaleConfig, fixPriceSaleCode));
         usdtSaleWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonSimpleSale.address)));
@@ -248,21 +250,122 @@ describe('JettonSimpleSale', () => {
         
         blockchain.now! += ONE_YEAR - ONE_DAY + 1;
         transactionRes = await jettonSimpleSale.sendRenewDomain(seller.getSender());
-        expect(transactionRes.transactions).toHaveTransaction({
-            from: seller.address,
-            to: jettonSimpleSale.address,
-            exitCode: Exceptions.DOMAIN_EXPIRED
-        });
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
     });
 
     it("should cancel by external message", async () => {
-        blockchain.now! = jettonSimpleSaleConfig.validUntil;
+        blockchain.now! = jettonSimpleSaleConfig.validUntil + 1;
         // console.log((await blockchain.getContract(jettonSimpleSale.address)).balance);
         transactionRes = await jettonSimpleSale.sendExternalCancel();
         jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
         expect(jettonSimpleSaleConfig.state).toEqual(JettonSimpleSale.STATE_CANCELLED);
         domainConfig = await domain.getStorageData();
         expect(domainConfig.ownerAddress!.toString()).toEqual(jettonSimpleSaleConfig.sellerAddress.toString());
+    });
+
+    it("should reject purchase when domain is expired by renewal time", async () => {
+        await jettonSimpleSale.sendChangePrice(seller.getSender(), jettonSimpleSaleConfig.price, 0xffffffff);
+        jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
+        blockchain.now! = jettonSimpleSaleConfig.lastRenewalTime + ONE_YEAR;
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonSimpleSaleConfig.price, jettonSimpleSale.address, buyer.address, toNano("0.235"));
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: usdtBuyerWallet.address,
+            to: buyer.address,
+            body: JettonWallet.transferNotificationMessage(jettonSimpleSaleConfig.price, jettonSimpleSale.address,
+                 beginCell().storeUint(0, 32).storeStringTail(`Error. Code ${Exceptions.DOMAIN_EXPIRED}`).endCell()),
+        });
+    });
+
+    it("should disable renew paths and skip renewal-time expiration check for tg usernames", async () => {
+        transactionRes = await jettonSimpleSale.sendCancelSale(seller.getSender());
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: seller.address,
+            to: jettonSimpleSale.address,
+            success: true,
+        });
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
+
+        blockchain.now! += 1;
+        const tgSaleConfig: JettonSimpleSaleConfig = {
+            ...jettonSimpleSaleConfig,
+            state: JettonSimpleSale.STATE_UNINIT,
+            createdAt: blockchain.now!,
+            lastRenewalTime: blockchain.now! - ONE_YEAR,
+            validUntil: blockchain.now! + ONE_DAY,
+            buyerAddress: null,
+            domainName: "testusername.t.me",
+            isTgUsername: false,
+        };
+        const tgSale = blockchain.openContract(JettonSimpleSale.createFromConfig(tgSaleConfig, fixPriceSaleCode));
+        const tgSaleWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(tgSale.address)));
+        await tgSale.sendDeploy(admin.getSender(), toNano('0.05'), beginCell().storeAddress(tgSaleWallet.address).endCell());
+        await domain.sendTransfer(seller.getSender(), tgSale.address, seller.address);
+
+        let tgSaleConfigAfterDeploy = await tgSale.getStorageData();
+        expect(tgSaleConfigAfterDeploy.isTgUsername).toEqual(true);
+
+        await tgSale.sendChangePrice(seller.getSender(), tgSaleConfigAfterDeploy.price, 0xffffffff);
+        tgSaleConfigAfterDeploy = await tgSale.getStorageData();
+        blockchain.now! = tgSaleConfigAfterDeploy.lastRenewalTime + ONE_YEAR;
+
+        transactionRes = await tgSale.sendRenewDomain(seller.getSender());
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: seller.address,
+            to: tgSale.address,
+            exitCode: Exceptions.UNSUPPORTED_OP,
+        });
+
+        transactionRes = await tgSale.sendSetAutoRenewParams(seller.getSender(), ONE_DAY, 1);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: seller.address,
+            to: tgSale.address,
+            exitCode: Exceptions.UNSUPPORTED_OP,
+        });
+
+        await expect(tgSale.sendExternalTriggerAutoRenew()).rejects.toThrow("External message not accepted by smart contract");
+
+        transactionRes = await usdtBuyerWallet.sendTransfer(
+            buyer.getSender(),
+            tgSaleConfigAfterDeploy.price,
+            tgSale.address,
+            buyer.address,
+            toNano("0.235")
+        );
+        expect(transactionRes.transactions).not.toHaveTransaction({
+            from: usdtBuyerWallet.address,
+            to: buyer.address,
+            body: JettonWallet.transferNotificationMessage(
+                tgSaleConfigAfterDeploy.price,
+                tgSale.address,
+                beginCell().storeUint(0, 32).storeStringTail(`Error. Code ${Exceptions.DOMAIN_EXPIRED}`).endCell(),
+            ),
+        });
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
+    });
+
+    it("should top up auto-renew and execute external auto-renew", async () => {
+        transactionRes = await jettonSimpleSale.sendSetAutoRenewParams(seller.getSender(), ONE_DAY, 2);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: jettonSimpleSale.address,
+            to: marketplace.address,
+            op: OpCodes.AUTORENEW_PREPAY,
+            value(x) { return x! >= Tons.AUTORENEW_MARKETPLACE_FEE * 2n },
+        });
+
+        jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
+        expect(jettonSimpleSaleConfig.autoRenewIterations).toEqual(2);
+
+        blockchain.now! += ONE_DAY;
+        transactionRes = await jettonSimpleSale.sendExternalTriggerAutoRenew();
+        jettonSimpleSaleConfig = await jettonSimpleSale.getStorageData();
+        expect(jettonSimpleSaleConfig.autoRenewIterations).toEqual(1);
+        expect(jettonSimpleSaleConfig.lastRenewalTime).toEqual(blockchain.now!);
+
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
     });
 
     it("should cancel by internal message", async () => {

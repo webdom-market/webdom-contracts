@@ -44,6 +44,10 @@ fun onInternalMessage(in: InMessage): void {
             // Accept fee for renewing domains
             handleRenewalFee(storage, in.body, in.valueCoins, queryId);
         }
+        OP_AUTORENEW_PREPAY => {
+            // Accept prepayment for future domain auto-renewals
+            handleAutoRenewPrepay(storage, in.body, in.valueCoins, queryId);
+        }
         OP_COMMENT => {
             // Accept commissions in TON
             handleTonMarketplaceCommission(storage, in.body, in.valueCoins);

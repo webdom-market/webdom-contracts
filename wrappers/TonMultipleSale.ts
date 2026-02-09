@@ -1,5 +1,5 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, Slice, toNano } from '@ton/core';
-import { COMMISSION_DIVIDER, OpCodes, Tons } from './helpers/constants';
+import { COMMISSION_DIVIDER, ONE_DAY, OpCodes, Tons } from './helpers/constants';
 import { DeployData } from './Marketplace';
 import { DefaultContract } from './helpers/DefaultContract';
 import { TonSimpleSaleDeployData } from './TonSimpleSale';
@@ -21,6 +21,8 @@ export type TonMultipleSaleConfig = {
     tonsToReserve: number;
     hotUntil?: number;
     coloredUntil?: number;
+    autoRenewCooldown?: number;
+    autoRenewIterations?: number;
 };
 
 
@@ -29,6 +31,7 @@ export class TonMultipleSaleDeployData extends TonSimpleSaleDeployData {
 
 
 export function multipleTonSaleConfigToCell(config: TonMultipleSaleConfig): Cell {
+    const autoRenewIterations = config.autoRenewIterations ?? 0;
     return beginCell()
             .storeAddress(config.sellerAddress)
             .storeDict(config.domainsDict, Dictionary.Keys.Address(), Dictionary.Values.Uint(1))
@@ -47,11 +50,18 @@ export function multipleTonSaleConfigToCell(config: TonMultipleSaleConfig): Cell
             
             .storeUint(config.hotUntil ?? 0, 32)
             .storeUint(config.coloredUntil ?? 0, 32)
+            .storeRef(
+                beginCell()
+                    .storeUint(config.autoRenewCooldown ?? ONE_DAY * 30, 32)
+                    .storeUint(autoRenewIterations, 8)
+                .endCell()
+            )
         .endCell();
 }
 
 export class TonMultipleSale extends DefaultContract {
     static TON_PURCHASE = 80000000n; 
+    static AUTORENEW_STORAGE_PER_YEAR = 35000000n;
     static STATE_UNINIT = 0;
     static STATE_ACTIVE = 1;
     static STATE_COMPLETED = 2;
@@ -67,16 +77,27 @@ export class TonMultipleSale extends DefaultContract {
         return new TonMultipleSale(contractAddress(workchain, init), init);
     }
 
-    static deployPayload(domainsList: Array<Address>, price: bigint, validUntil: number) {
+    static deployPayload(
+        domainsList: Array<Address>,
+        price: bigint,
+        validUntil: number,
+        autoRenewCooldown: number = ONE_DAY * 365,
+        autoRenewIterations: number = 0,
+    ) {
         let domainsDict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool());
         for (let domainAddress of domainsList) {
             domainsDict.set(domainAddress, false);
         }
-        return beginCell()
+        let payload = beginCell()
             .storeDict(domainsDict)
             .storeCoins(price)
-            .storeUint(validUntil, 32)
-        .endCell();
+            .storeUint(validUntil, 32);
+        if (autoRenewIterations > 0 || autoRenewCooldown !== ONE_DAY * 365) {
+            payload = payload
+                .storeUint(autoRenewCooldown, 32)
+                .storeUint(autoRenewIterations, 8);
+        }
+        return payload.endCell();
     }
 
     async sendPurchase(provider: ContractProvider, via: Sender, price: bigint, domainsNumber: number, queryId: number = 0) {
@@ -111,6 +132,47 @@ export class TonMultipleSale extends DefaultContract {
         });
     }
 
+    static setAutoRenewParamsMessage(
+        autoRenewCooldown: number,
+        autoRenewIterations: number,
+        queryId: number = 0,
+        newValidUntil: number = 0,
+    ) {
+        let msg = beginCell()
+            .storeUint(OpCodes.SET_AUTORENEW_PARAMS, 32)
+            .storeUint(queryId, 64)
+            .storeUint(autoRenewCooldown, 32)
+            .storeUint(autoRenewIterations, 8);
+        if (newValidUntil > 0) {
+            msg = msg.storeBit(1).storeUint(newValidUntil, 32);
+        } else {
+            msg = msg.storeBit(0);
+        }
+        return msg.endCell();
+    }
+
+    async sendSetAutoRenewParams(
+        provider: ContractProvider,
+        via: Sender,
+        domainsNumber: number,
+        autoRenewCooldown: number,
+        autoRenewIterations: number,
+        queryId: number = 0,
+        newValidUntil: number = 0,
+        value: bigint = Tons.AUTORENEW_TOPUP_GAS_BUFFER + Tons.MIN_EXCESS + BigInt(autoRenewIterations) *
+            (TonMultipleSale.AUTORENEW_STORAGE_PER_YEAR + Tons.AUTORENEW_TX_PER_ITER * BigInt(domainsNumber) + Tons.AUTORENEW_MARKETPLACE_FEE),
+    ) {
+        await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: TonMultipleSale.setAutoRenewParamsMessage(autoRenewCooldown, autoRenewIterations, queryId, newValidUntil)
+        });
+    }
+
+    async sendExternalTriggerAutoRenew(provider: ContractProvider, queryId: number = 0) {
+        await provider.external(beginCell().storeUint(OpCodes.TRIGGER_AUTORENEW, 32).storeUint(queryId, 64).endCell());
+    }
+
     async sendExternalCancel(provider: ContractProvider, queryId: number = 0) {
         await provider.external(beginCell().storeUint(OpCodes.CANCEL_DEAL, 32).storeUint(queryId, 64).endCell());
     }
@@ -139,6 +201,8 @@ export class TonMultipleSale extends DefaultContract {
             tonsToReserve: stack.readNumber(),
             hotUntil: stack.readNumber(),
             coloredUntil: stack.readNumber(),
+            autoRenewCooldown: stack.readNumber(),
+            autoRenewIterations: stack.readNumber(),
         }
     }
 }

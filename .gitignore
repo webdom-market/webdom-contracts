@@ -23,3 +23,5 @@ Session.vim
 .emacs/
 .helix/
 # contracts-func
+
+docs
