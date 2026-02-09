@@ -130,6 +130,12 @@ struct (0x975f5690) RenewalFeeMessage {
     ownerAddress: address;
 }
 
+struct (0x299a3bd5) AutoRenewPrepayMessage {
+    queryId: uint64;
+    ownerAddress: address;
+    iterations: uint8;
+}
+
 struct (0x0609e47b) DeployAndSetWalletMessage {
     queryId: uint64;
     jettonWalletAddress: address;

@@ -9,6 +9,13 @@ struct (0x96189f94) ChangePriceMessage {
     newValidUntil: uint32;
 }
 
+struct (0x95ff2735) SetAutoRenewParamsMessage {
+    queryId: uint64;
+    autoRenewCooldown: uint32;
+    autoRenewIterations: uint8;
+    newValidUntil: uint32?;
+}
+
 struct (0x4ed14b65) DnsBalanceReleaseMessage {
     queryId: uint64;
 }

@@ -3,6 +3,8 @@ struct StorageDs2 {
     domainAddress: address;       // Address of the domain being sold
     jettonMinterAddress: address; // Address of the jetton minter
     buyerAddress: address;        // Address of the buyer (set when sale is completed)
+    autoRenewCooldown: uint32;    // Minimal delay between domain renewals
+    autoRenewIterations: uint8;   // Remaining paid auto-renew iterations
 }
 
 // Jetton Simple Sale contract storage structure
@@ -16,6 +18,7 @@ struct Storage {
     lastRenewalTime: uint32;      // Last domain renewal timestamp
     validUntil: uint32;           // Sale validity end timestamp
     domainNameCell: cell;         // Domain name for notifications
+    isTgUsername: bool;           // Whether the asset is a Telegram username (.t.me)
     hotUntil: uint32;             // Hot promotion end timestamp
     coloredUntil: uint32;         // Colored promotion end timestamp
     ds2: Cell<StorageDs2>;        // Additional storage data

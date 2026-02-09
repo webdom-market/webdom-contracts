@@ -1,166 +1,499 @@
 
 fun deployFunctionCell(): cell 
     asm """<{
-    DECLPROC Storage.load()
+    DECLPROC builder.storeStrFloat()
+      DECLPROC builder.storeStrJettons()
+      DECLPROC calculateWeb3WalletAddress()
+      DECLPROC calculateUsdtWalletAddress()
+      DECLPROC forceSameWorkchain()
+      DECLPROC getPayoutNotificationBody()
+      DECLPROC loadOpAndQueryId()
+      DECLPROC domainNameToAddress()
+      DECLPROC tgUsernameToAddress()
+      DECLPROC Storage.load()
       DECLPROC Storage.save()
+      builder.storeStrFloat() PROCINLINE:<{	//  self number tenPowDecimals
+        TUCK                    	//  self tenPowDecimals number tenPowDecimals
+        DIVMOD                  	//  self tenPowDecimals intPart decPart
+        s3 s1 XCPU              	//  decPart tenPowDecimals intPart self intPart
+          ZERO                                                        
+          SWAP                                                        
+          UNTIL:<{                                                   
+            10 PUSHINT DIVMOD                                         
+            48 ADDCONST                                               
+            s3 s1 s3 XCHG3                                          
+            INC                                                      
+            s1 s0 XCPU                                                
+            ISZERO
+          }>
+          DROP
+          REPEAT:<{ 8 STU }>                                        	//  decPart tenPowDecimals intPart self
+        s3 PUSH                 	//  decPart tenPowDecimals intPart self decPart
+        0 EQINT                 	//  decPart tenPowDecimals intPart self '9
+        IF:<{                   	//  decPart tenPowDecimals intPart self
+          3 1 BLKDROP2          	//  self
+          DUP                   	//  self self
+        }>ELSE<{                	//  decPart tenPowDecimals intPart self
+          OVER                  	//  decPart tenPowDecimals intPart self intPart
+          IF:<{                 	//  decPart tenPowDecimals intPart self
+            10000 PUSHINT
+            ROT                 	//  decPart tenPowDecimals self '12=10000 intPart
+            DIV                 	//  decPart tenPowDecimals self '11
+          }>ELSE<{              	//  decPart tenPowDecimals intPart self
+            NIP                 	//  decPart tenPowDecimals self
+            10000 PUSHINT       	//  decPart tenPowDecimals self '11=10000
+          }>                    	//  decPart tenPowDecimals self maxDecPart
+          0 PUSHINT             	//  decPart tenPowDecimals self maxDecPart zeros=0
+          s4 PUSH               	//  decPart tenPowDecimals self maxDecPart zeros=0 decPart
+          INC                   	//  decPart tenPowDecimals self maxDecPart zeros=0 '19
+          s1 s4 XCHG            	//  decPart zeros=0 self maxDecPart tenPowDecimals '19
+          DIV                   	//  decPart zeros=0 self maxDecPart tmp
+          WHILE:<{
+            DUP                 	//  decPart zeros self maxDecPart tmp tmp
+            9 GTINT             	//  decPart zeros self maxDecPart tmp '22
+          }>DO<{                	//  decPart zeros self maxDecPart tmp
+            10 PUSHINT          	//  decPart zeros self maxDecPart tmp '23=10
+            DIV                 	//  decPart zeros self maxDecPart tmp
+            SWAP
+            10 PUSHINT          	//  decPart zeros self tmp maxDecPart '25=10
+            DIV                 	//  decPart zeros self tmp maxDecPart
+            s0 s3 XCHG          	//  decPart maxDecPart self tmp zeros
+            INC                 	//  decPart maxDecPart self tmp zeros
+            s3 s3 XCHG2         	//  decPart zeros self maxDecPart tmp
+          }>                    	//  decPart zeros self maxDecPart tmp
+          DROP                  	//  decPart zeros self maxDecPart
+          DUP                   	//  decPart zeros self maxDecPart maxDecPart
+          0 EQINT               	//  decPart zeros self maxDecPart '30
+          IFJMP:<{              	//  decPart zeros self maxDecPart
+            s1 s3 XCHG
+            3 BLKDROP           	//  self
+            DUP                 	//  self self
+          }>                    	//  decPart zeros self maxDecPart
+          WHILE:<{
+            s3 s0 PUSH2         	//  decPart zeros self maxDecPart decPart maxDecPart
+            GREATER             	//  decPart zeros self maxDecPart '31
+          }>DO<{                	//  decPart zeros self maxDecPart
+            s0 s3 XCHG
+            10 PUSHINT          	//  maxDecPart zeros self decPart '32=10
+            DIV                 	//  maxDecPart zeros self decPart
+            s0 s3 XCHG          	//  decPart zeros self maxDecPart
+          }>                    	//  decPart zeros self maxDecPart
+          DROP                  	//  decPart zeros self
+          s2 PUSH               	//  decPart zeros self decPart
+          IFJMP:<{              	//  decPart zeros self
+            WHILE:<{
+              s2 PUSH
+              10 PUSHINT        	//  decPart zeros self decPart '34=10
+              MOD               	//  decPart zeros self '35
+              0 EQINT           	//  decPart zeros self '37
+            }>DO<{              	//  decPart zeros self
+              s0 s2 XCHG
+              10 PUSHINT        	//  self zeros decPart '38=10
+              DIV               	//  self zeros decPart
+              s0 s2 XCHG        	//  decPart zeros self
+            }>                  	//  decPart zeros self
+            x{2e} STSLICECONST  	//  decPart zeros self
+            SWAP                	//  decPart self zeros
+            REPEAT:<{           	//  decPart self
+              x{30} STSLICECONST	//  decPart self
+            }>
+            s0 s1 PUXC          	//  self self decPart
+              ZERO                                                        
+              SWAP                                                        
+              UNTIL:<{                                                   
+                10 PUSHINT DIVMOD                                         
+                48 ADDCONST                                               
+                s3 s1 s3 XCHG3                                          
+                INC                                                      
+                s1 s0 XCPU                                                
+                ISZERO
+              }>
+              DROP
+              REPEAT:<{ 8 STU }>                                        	//  self '46
+          }>                    	//  decPart zeros self
+          2 1 BLKDROP2          	//  self
+          DUP                   	//  self self
+        }>
+      }>
+      builder.storeStrJettons() PROCINLINE:<{	//  self jettonAmount oneJetton symbol
+        3 -ROLL                 	//  symbol self jettonAmount oneJetton
+        builder.storeStrFloat() INLINECALLDICT	//  symbol self '6
+        x{20} STSLICECONST      	//  symbol self '6
+        s1 s2 XCHG              	//  self symbol '6
+        STSLICE                 	//  self '6
+      }>
+      calculateWeb3WalletAddress() PROCINLINE:<{	//  ownerAddress web3WalletCode
+        NEWC                    	//  ownerAddress web3WalletCode '3
+        x{0} STSLICECONST       	//  ownerAddress web3WalletCode '3
+        s1 s2 XCHG              	//  web3WalletCode ownerAddress '3
+        STB                     	//  web3WalletCode '3
+        x{800BCFB13B3494CA795F167E94C52640B273E64B78229A15DB992A844E26F351AE9_} PUSHSLICE	//  web3WalletCode '3 '7
+        STSLICER                	//  web3WalletCode '3
+        OVER                    	//  web3WalletCode '3 web3WalletCode
+        STREFR                  	//  web3WalletCode '3
+        ENDC                    	//  web3WalletCode data
+            DUP2            // code data code data
+            HASHCU
+            SWAP
+            HASHCU          // code data dataHash codeHash
+            SWAP2           // dataHash codeHash code data
+            CDEPTH
+            SWAP
+            CDEPTH          // dataHash codeHash dataDepth codeDepth
+            NEWC
+            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
+            16 STU                 // store codeDepth
+            16 STU                 // store dataDepth
+            256 STU                // store codeHash
+            256 STU                // store dataHash
+            ONE HASHEXT_SHA256  	//  '21
+        NEWC                    	//  '21 '20
+        b{10000000000} STSLICECONST	//  '21 '20
+        256 STU                 	//  '20
+      }>
+      calculateUsdtWalletAddress() PROCINLINE:<{	//  ownerAddress usdtWalletCode
+        NEWC                    	//  ownerAddress usdtWalletCode '4
+        x{00} STSLICECONST      	//  ownerAddress usdtWalletCode '4
+        s1 s2 XCHG              	//  usdtWalletCode ownerAddress '4
+        STB                     	//  usdtWalletCode '4
+        x{8014D1EFF27038AD5F4C11D80A60DDB3D9C5485BA4E2826E9EA6BAA56FBBFF4119B_} PUSHSLICE	//  usdtWalletCode '4 '8
+        STSLICER                	//  usdtWalletCode '4
+        ENDC                    	//  usdtWalletCode data
+            DUP2            // code data code data
+            HASHCU
+            SWAP
+            HASHCU          // code data dataHash codeHash
+            SWAP2           // dataHash codeHash code data
+            CDEPTH
+            SWAP
+            CDEPTH          // dataHash codeHash dataDepth codeDepth
+            NEWC
+            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
+            16 STU                 // store codeDepth
+            16 STU                 // store dataDepth
+            256 STU                // store codeHash
+            256 STU                // store dataHash
+            ONE HASHEXT_SHA256  	//  '21
+        NEWC                    	//  '21 '20
+        b{10000000000} STSLICECONST	//  '21 '20
+        256 STU                 	//  '20
+      }>
+      forceSameWorkchain() PROCINLINE:<{	//  addr
+        REWRITESTDADDR
+        DROP                    	//  wc
+        0 EQINT                 	//  '5
+        333 THROWIFNOT          	// 
+      }>
+      getPayoutNotificationBody() PROCINLINE:<{	//  domainNameCell
+        NEWC                    	//  domainNameCell '2
+        x{00000000} STSLICECONST	//  domainNameCell '2
+        x{596f757220646f6d61696e2077617320736f6c64206f6e20776562646f6d2e6d61726b65743a20} PUSHSLICE	//  domainNameCell '2 '5
+        STSLICER                	//  domainNameCell '2
+        STREF                   	//  '2
+        ENDC                    	//  '8
+      }>
+      loadOpAndQueryId() PROCINLINE:<{	//  inMsgBody
+        0 PUSHINT               	//  inMsgBody op=0
+        s0 s1 PUSH2             	//  inMsgBody op=0 queryId=0 inMsgBody
+        SBITS                   	//  inMsgBody op=0 queryId=0 '5
+        31 GTINT                	//  inMsgBody op=0 queryId=0 '7
+        IF:<{                   	//  inMsgBody op=0 queryId=0
+          NIP                   	//  inMsgBody queryId=0
+          SWAP                  	//  queryId=0 inMsgBody
+          32 LDU                	//  queryId=0 op inMsgBody
+          OVER                  	//  queryId=0 op inMsgBody op
+          0 EQINT               	//  queryId=0 op inMsgBody '13
+          IF:<{                 	//  queryId=0 op inMsgBody
+            DUP
+            x{63616e63656c} PUSHSLICE	//  queryId=0 op inMsgBody inMsgBody '15
+            SDEQ                	//  queryId=0 op inMsgBody '16
+            IF:<{               	//  queryId=0 op inMsgBody
+              -1 PUSHINT        	//  queryId=0 op inMsgBody '17=-1
+            }>ELSE<{            	//  queryId=0 op inMsgBody
+              DUP
+              x{73746f70} PUSHSLICE	//  queryId=0 op inMsgBody inMsgBody '19
+              SDEQ              	//  queryId=0 op inMsgBody '20
+              0 NEQINT          	//  queryId=0 op inMsgBody '17
+            }>
+            0 NEQINT            	//  queryId=0 op inMsgBody '14
+          }>ELSE<{              	//  queryId=0 op inMsgBody
+            s2 PUSH             	//  queryId=0 op inMsgBody '14=0
+          }>
+          IF:<{                 	//  queryId=0 op inMsgBody
+            2393192597 PUSHINT
+            s2 POP              	//  queryId=0 op=2393192597 inMsgBody
+          }>                    	//  queryId=0 op inMsgBody
+          OVER                  	//  queryId=0 op inMsgBody op
+          0 NEQINT              	//  queryId=0 op inMsgBody '28
+          IF:<{                 	//  queryId=0 op inMsgBody
+            DUP                 	//  queryId=0 op inMsgBody inMsgBody
+            SBITS               	//  queryId=0 op inMsgBody '30
+            63 GTINT            	//  queryId=0 op inMsgBody '32
+            0 NEQINT            	//  queryId=0 op inMsgBody '29
+          }>ELSE<{              	//  queryId=0 op inMsgBody
+            s2 PUSH             	//  queryId=0 op inMsgBody '29=0
+          }>
+          IF:<{                 	//  queryId=0 op inMsgBody
+            1 2 BLKDROP2        	//  op inMsgBody
+            64 LDU              	//  op queryId inMsgBody
+            s1 s2 XCHG          	//  queryId op inMsgBody
+          }>                    	//  queryId op inMsgBody
+          s0 s2 XCHG            	//  inMsgBody op queryId
+        }>                      	//  inMsgBody op queryId
+      }>
+      domainNameToAddress() PROCINLINE:<{	//  domainName domainCode
+        SWAP                    	//  domainCode domainName
+        HASHSU                  	//  domainCode domainIndex
+        NEWC                    	//  domainCode domainIndex '5
+        256 STU                 	//  domainCode '5
+        x{801266F4F9970315CF7C6A89F6248C29AEDE38C16D877343F0F402CD339FB6114D1_} PUSHSLICE	//  domainCode '5 '8
+        STSLICER                	//  domainCode '5
+        ENDC                    	//  domainCode data
+            DUP2            // code data code data
+            HASHCU
+            SWAP
+            HASHCU          // code data dataHash codeHash
+            SWAP2           // dataHash codeHash code data
+            CDEPTH
+            SWAP
+            CDEPTH          // dataHash codeHash dataDepth codeDepth
+            NEWC
+            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
+            16 STU                 // store codeDepth
+            16 STU                 // store dataDepth
+            256 STU                // store codeHash
+            256 STU                // store dataHash
+            ONE HASHEXT_SHA256  	//  '21
+        NEWC                    	//  '21 '20
+        b{10000000000} STSLICECONST	//  '21 '20
+        256 STU                 	//  '20
+      }>
+      tgUsernameToAddress() PROCINLINE:<{	//  tgUsername tgUsernameCode
+        SWAP                    	//  tgUsernameCode tgUsername
+        SHA256U                 	//  tgUsernameCode usernameIndex
+        NEWC                    	//  tgUsernameCode usernameIndex '5
+        SWAP
+        NEWC                    	//  tgUsernameCode '5 usernameIndex '6
+        256 STU                 	//  tgUsernameCode '5 '6
+        x{8007495287F55129699983DBD292B2CAE425A2659E0074CC60DFC1E236EF321FA85_} PUSHSLICE	//  tgUsernameCode '5 '6 '9
+        STSLICER                	//  tgUsernameCode '5 '6
+        ENDC                    	//  tgUsernameCode '5 '11
+        STREFR                  	//  tgUsernameCode '5
+        b{0} STSLICECONST       	//  tgUsernameCode '5
+        ENDC                    	//  tgUsernameCode data
+            DUP2            // code data code data
+            HASHCU
+            SWAP
+            HASHCU          // code data dataHash codeHash
+            SWAP2           // dataHash codeHash code data
+            CDEPTH
+            SWAP
+            CDEPTH          // dataHash codeHash dataDepth codeDepth
+            NEWC
+            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
+            16 STU                 // store codeDepth
+            16 STU                 // store dataDepth
+            256 STU                // store codeHash
+            256 STU                // store dataHash
+            ONE HASHEXT_SHA256  	//  '27
+        NEWC                    	//  '27 '26
+        b{10000000000} STSLICECONST	//  '27 '26
+        256 STU                 	//  '26
+      }>
       Storage.load() PROC:<{      	// 
         c4 PUSH                 	//  '0
         CTOS                    	//  s
-        2 LDU                   	//  '5 s
-        1 LDI                   	//  '5 '7 s
-        32 LDU                  	//  '5 '7 '9 s
-        32 LDU                  	//  '5 '7 '9 '11 s
-        32 LDU                  	//  '5 '7 '9 '11 '13 s
-        LDGRAMS                 	//  '5 '7 '9 '11 '13 '14 s
-        32 LDU                  	//  '5 '7 '9 '11 '13 '14 '16 s
-        LDMSGADDR               	//  '5 '7 '9 '11 '13 '14 '16 '17 s
-        LDREF                   	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 s
-        32 LDU                  	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 '20 s
-        32 LDU                  	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 '20 '22 s
-        LDMSGADDR               	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 '20 '22 '23 s
-        64 LDU                  	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 '20 '22 '23 '25 s
-        12 LDU                  	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 '20 '22 '23 '25 '27 s
-        32 LDU                  	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 '20 '22 '23 '25 '27 '29 s
-        16 LDU                  	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 '20 '22 '23 '25 '27 '29 '31 s
-        LDREF                   	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 '20 '22 '23 '25 '27 '29 '31 '32 s
-        ENDS                    	//  '5 '7 '9 '11 '13 '14 '16 '17 '18 '20 '22 '23 '25 '27 '29 '31 '32
+        LDMSGADDR               	//  '4 s
+        LDOPTREF                	//  '4 '5 s
+        8 LDU                   	//  '4 '5 '7 s
+        8 LDU                   	//  '4 '5 '7 '9 s
+        LDGRAMS                 	//  '4 '5 '7 '9 '10 s
+        LDGRAMS                 	//  '4 '5 '7 '9 '10 '11 s
+        2 LDU                   	//  '4 '5 '7 '9 '10 '11 '13 s
+        32 LDU                  	//  '4 '5 '7 '9 '10 '11 '13 '15 s
+        32 LDU                  	//  '4 '5 '7 '9 '10 '11 '13 '15 '17 s
+        32 LDU                  	//  '4 '5 '7 '9 '10 '11 '13 '15 '17 '19 s
+        LDMSGADDR               	//  '4 '5 '7 '9 '10 '11 '13 '15 '17 '19 '20 s
+        32 LDU                  	//  '4 '5 '7 '9 '10 '11 '13 '15 '17 '19 '20 '22 s
+        32 LDU                  	//  '4 '5 '7 '9 '10 '11 '13 '15 '17 '19 '20 '22 '24 s
+        LDREF                   	//  '4 '5 '7 '9 '10 '11 '13 '15 '17 '19 '20 '22 '24 '25 s
+        ENDS                    	//  '4 '5 '7 '9 '10 '11 '13 '15 '17 '19 '20 '22 '24 '25
       }>
-      Storage.save() PROCINLINE:<{	//  self.state self.isDeferred self.startTime self.endTime self.lastDomainRenewalTime self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.minBidValue self.minBidIncrement self.timeIncrement self.commissionFactor self.ds2
-        s0 16 s() XCHG
-        NEWC                    	//  self.ds2 self.isDeferred self.startTime self.endTime self.lastDomainRenewalTime self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.minBidValue self.minBidIncrement self.timeIncrement self.commissionFactor self.state b
-        2 STU                   	//  self.ds2 self.isDeferred self.startTime self.endTime self.lastDomainRenewalTime self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.minBidValue self.minBidIncrement self.timeIncrement self.commissionFactor b
-        s1 s15 XCHG             	//  self.ds2 self.commissionFactor self.startTime self.endTime self.lastDomainRenewalTime self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.minBidValue self.minBidIncrement self.timeIncrement self.isDeferred b
-        1 STI                   	//  self.ds2 self.commissionFactor self.startTime self.endTime self.lastDomainRenewalTime self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.minBidValue self.minBidIncrement self.timeIncrement b
-        s1 s13 XCHG             	//  self.ds2 self.commissionFactor self.timeIncrement self.endTime self.lastDomainRenewalTime self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.minBidValue self.minBidIncrement self.startTime b
-        32 STU                  	//  self.ds2 self.commissionFactor self.timeIncrement self.endTime self.lastDomainRenewalTime self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.minBidValue self.minBidIncrement b
-        s1 s11 XCHG             	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.lastDomainRenewalTime self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.minBidValue self.endTime b
-        32 STU                  	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.lastDomainRenewalTime self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.minBidValue b
-        s1 s9 XCHG              	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress self.lastDomainRenewalTime b
-        32 STU                  	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.lastBidValue self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil self.sellerAddress b
-        s0 s7 XCHG2             	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.sellerAddress self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil b self.lastBidValue
-        STGRAMS                 	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.sellerAddress self.lastBidTime self.lastBidderAddress self.domainNameCell self.hotUntil self.coloredUntil b
-        s1 s5 XCHG              	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.sellerAddress self.coloredUntil self.lastBidderAddress self.domainNameCell self.hotUntil self.lastBidTime b
-        32 STU                  	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.sellerAddress self.coloredUntil self.lastBidderAddress self.domainNameCell self.hotUntil b
-        s1 s3 XCHG              	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.sellerAddress self.coloredUntil self.hotUntil self.domainNameCell self.lastBidderAddress b
-        STSLICE                 	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.sellerAddress self.coloredUntil self.hotUntil self.domainNameCell b
-        STREF                   	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.sellerAddress self.coloredUntil self.hotUntil b
-        32 STU                  	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.sellerAddress self.coloredUntil b
-        32 STU                  	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue self.sellerAddress b
-        STSLICE                 	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement self.minBidValue b
-        64 STU                  	//  self.ds2 self.commissionFactor self.timeIncrement self.minBidIncrement b
-        12 STU                  	//  self.ds2 self.commissionFactor self.timeIncrement b
-        32 STU                  	//  self.ds2 self.commissionFactor b
-        16 STU                  	//  self.ds2 b
+      Storage.save() PROCINLINE:<{	//  self.sellerAddress self.domainsDict self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil self.coloredUntil self.autoRenewData
+        s0 s13 XCHG
+        NEWC                    	//  self.autoRenewData self.domainsDict self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil self.coloredUntil self.sellerAddress b
+        STSLICE                 	//  self.autoRenewData self.domainsDict self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil self.coloredUntil b
+        s1 s12 XCHG             	//  self.autoRenewData self.coloredUntil self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil self.domainsDict b
+        STOPTREF                	//  self.autoRenewData self.coloredUntil self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil b
+        s1 s10 XCHG             	//  self.autoRenewData self.coloredUntil self.hotUntil self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.domainsTotal b
+        8 STU                   	//  self.autoRenewData self.coloredUntil self.hotUntil self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress b
+        s1 s8 XCHG              	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.domainsReceived b
+        8 STU                   	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil b
+        s0 s6 XCHG2             	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.commission self.state self.createdAt self.lastRenewalTime b self.price
+        STGRAMS                 	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.commission self.state self.createdAt self.lastRenewalTime b
+        s0 s4 XCHG2             	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime self.state self.createdAt b self.commission
+        STGRAMS                 	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime self.state self.createdAt b
+        s1 s2 XCHG              	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime self.createdAt self.state b
+        2 STU                   	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime self.createdAt b
+        32 STU                  	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime b
+        32 STU                  	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil b
+        32 STU                  	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress b
+        STSLICE                 	//  self.autoRenewData self.coloredUntil self.hotUntil b
+        32 STU                  	//  self.autoRenewData self.coloredUntil b
+        32 STU                  	//  self.autoRenewData b
         STREF                   	//  b
-        ENDC                    	//  '30
+        ENDC                    	//  '24
         c4 POP                  	// 
       }>
 
     // Main deploy function content:
-	//  args.commonArgs.fromAddress args.commonArgs.payloadSlice args.commonArgs.deployInfoSlice args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.commonArgs.publicKey args.commonArgs.contractCodes args.domainAddress args.domainNameCell
-    2 2 BLKDROP2            	//  args.commonArgs.fromAddress lazyS lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress args.domainNameCell
-    s0 s6 XCHG              	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress lazyS
-    1 LDI                   	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred lazyS
-    32 LDU                  	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.startTime lazyS
-    32 LDU                  	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.startTime payload.endTime lazyS
-    LDGRAMS                 	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.startTime payload.endTime payload.minBidValue lazyS
-    LDGRAMS                 	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.startTime payload.endTime payload.minBidValue payload.maxBidValue lazyS
-    12 LDU                  	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.startTime payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement lazyS
-    32 PLDU                 	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.startTime payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.timeIncrement
-    NOW                     	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.startTime payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.timeIncrement '41
-    30 ADDCONST             	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.startTime payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.timeIncrement '43
-    s0 s6 XCHG2             	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement '43 payload.startTime
-    MAX                     	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime
-    s0 s5 PUSH2             	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime payload.startTime payload.timeIncrement
-    ADD                     	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '46
-    s5 PUSH                 	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '46 payload.endTime
-    LEQ                     	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '47
-    IF:<{                   	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime
-      NOW                   	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '49
-      31622400 PUSHINT      	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '49 '56
-      ADD                   	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '57
-      86400 PUSHINT         	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '57 '62
-      SUB                   	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '63
-      s5 PUSH               	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '63 payload.endTime
-      GEQ                   	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '64
-      0 NEQINT              	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '48
-    }>ELSE<{                	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime
-      0 PUSHINT             	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime '48=0
+	//  args.fromAddress args.payloadSlice args.deployInfoSlice args.code args.commissionDiscount args.queryId args.publicKey args.contractCodes
+    2DROP                   	//  args.fromAddress payloadSlice lazyS args.code args.commissionDiscount args.queryId
+    s0 s4 XCHG              	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payloadSlice
+    LDDICT                  	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount '24 payloadSlice
+    LDGRAMS                 	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount '24 '27 payloadSlice
+    32 LDU                  	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount '24 '27 '31 payloadSlice
+    31536000 PUSHINT        	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount '24 '27 '31 payloadSlice '44
+    0 PUSHINT               	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0
+    s2 PUSH                 	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0 payloadSlice
+    SBITS                   	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0 '46
+    0 GTINT                 	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0 '48
+    IF:<{                   	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0
+      2DROP                 	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice
+      32 LDU                	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewCooldown payloadSlice
+      8 PLDU                	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewCooldown payload.autoRenewIterations
+      SWAP                  	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations payload.autoRenewCooldown
+    }>ELSE<{
+      s2 POP                	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations=0 payload.autoRenewCooldown
     }>
-    72 THROWIFNOT           	//  args.commonArgs.fromAddress args.domainNameCell lazyS args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement payload.startTime
-    s0 s11 XCHG             	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement lazyS
-    LDGRAMS                 	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minPrice lazyS
-    16 LDU                  	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minPrice deployInfo.commissionFactor lazyS
-    LDGRAMS                 	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission lazyS
-    32 PLDU                 	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minTimeIncrement
-    s6 s3 PUXC              	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission payload.minBidValue deployInfo.minPrice
-    GEQ                     	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission '76
-    IF:<{                   	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission
-      s4 s5 PUSH2           	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission payload.maxBidValue payload.minBidValue
-      GREATER               	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission '78
-      0 NEQINT              	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission '77
-    }>ELSE<{                	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission
-      0 PUSHINT             	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission '77=0
+    s0 s7 XCHG              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations lazyS
+    LDGRAMS                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice lazyS
+    16 LDU                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor lazyS
+    LDGRAMS                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission lazyS
+    32 PLDU                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration
+    s6 s3 PUXC              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission payload.price deployInfo.minPrice
+    GEQ                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission '64
+    70 THROWIFNOT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission
+    NOW                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission '67
+    s0 s3 XCHG2             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '67 deployInfo.minDuration
+    ADD                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '68
+    s4 PUSH                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '68 payload.validUntil
+    LEQ                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '69
+    IF:<{                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+      NOW                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '71
+      31622400 PUSHINT      	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '71 '78
+      ADD                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '79
+      86400 PUSHINT         	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '79 '84
+      SUB                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '85
+      s4 PUSH               	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '85 payload.validUntil
+      GEQ                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '86
+      IF:<{                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+        -1 PUSHINT          	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '87=-1
+      }>ELSE<{              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+        s2 PUSH             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor payload.autoRenewIterations
+        0 GTINT             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '90
+        0 NEQINT            	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '87
+      }>
+      0 NEQINT              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '70
+    }>ELSE<{                	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+      0 PUSHINT             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '70=0
     }>
-    70 THROWIFNOT           	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission
-    s3 PUSH
-    1000 PUSHINT            	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission payload.minBidIncrement '84=1000
-    GREATER                 	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission '85
-    73 THROWIFNOT           	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.minTimeIncrement deployInfo.commissionFactor deployInfo.maxCommission
-    s7 s2 PUXC              	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission deployInfo.commissionFactor payload.timeIncrement deployInfo.minTimeIncrement
-    GEQ                     	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission deployInfo.commissionFactor '88
-    74 THROWIFNOT           	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission deployInfo.commissionFactor
-    10000 PUSHINT           	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission deployInfo.commissionFactor '91=10000
-    s11 PUSH                	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission deployInfo.commissionFactor '91=10000 args.commonArgs.commissionDiscount
-    SUB                     	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission deployInfo.commissionFactor '92
-    10000 PUSHINT           	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission deployInfo.commissionFactor '92 '93=10000
-    MULDIV                  	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission commissionFactor
-    10000 PUSHINT           	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code args.commonArgs.commissionDiscount args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission commissionFactor '96=10000
-    s0 s11 XCHG2            	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission '96=10000 args.commonArgs.commissionDiscount
-    SUB                     	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission '97
-    10000 PUSHINT           	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement deployInfo.maxCommission '97 '98=10000
-    MULDIV                  	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement maxCommission
-    NOW                     	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement maxCommission '102
-    b{00} PUSHSLICE         	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement maxCommission '102 '105
-    s9 PUSH
-    NEWC                    	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement maxCommission '102 '105 args.domainAddress b
-    STSLICE                 	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue payload.maxBidValue payload.minBidIncrement maxCommission '102 '105 b
-    s0 s5 XCHG2             	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement maxCommission '102 b payload.maxBidValue
-    STGRAMS                 	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement maxCommission '102 b
-    s1 s2 XCHG              	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement '102 maxCommission b
-    64 STU                  	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement '102 b
-    ENDC                    	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement '102 '111
-    NEWC                    	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement '102 '111 b
-    b{00} STSLICECONST      	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.isDeferred payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement '102 '111 b
-    s1 s8 XCHG              	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement '102 payload.isDeferred b
-    1 STI                   	//  args.commonArgs.fromAddress args.domainNameCell payload.startTime args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement '102 b
-    s1 s12 XCHG             	//  args.commonArgs.fromAddress args.domainNameCell '102 args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement payload.startTime b
-    32 STU                  	//  args.commonArgs.fromAddress args.domainNameCell '102 args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.endTime payload.minBidValue '105 payload.minBidIncrement b
-    s1 s4 XCHG              	//  args.commonArgs.fromAddress args.domainNameCell '102 args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.minBidIncrement payload.minBidValue '105 payload.endTime b
-    32 STU                  	//  args.commonArgs.fromAddress args.domainNameCell '102 args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.minBidIncrement payload.minBidValue '105 b
-    s1 s10 XCHG             	//  args.commonArgs.fromAddress args.domainNameCell '105 args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.minBidIncrement payload.minBidValue '102 b
-    32 STU                  	//  args.commonArgs.fromAddress args.domainNameCell '105 args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.minBidIncrement payload.minBidValue b
+    49 THROWIFNOT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+    s8 PUSH
+    86400 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor payload.autoRenewCooldown '102
+    GEQ                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '103
+    IF:<{                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+      s8 PUSH
+      31536000 PUSHINT      	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor payload.autoRenewCooldown '117
+      LEQ                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '118
+      0 NEQINT              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '104
+    }>ELSE<{                	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+      0 PUSHINT             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '104=0
+    }>
+    49 THROWIFNOT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+    s4 s(-1) PUXC
+    10000 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission payload.price deployInfo.commissionFactor '124=10000
+    MULDIV                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission '125
+    MIN                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '126
+    10000 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '126 '127=10000
+    s0 s6 XCHG2             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code '126 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '127=10000 args.commissionDiscount
+    SUB                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code '126 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '128
+    s1 s5 XCHG
+    10000 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil '126 '128 '129=10000
+    MULDIV                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission
+    0 PUSHINT               	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal=0
+    s4 PUSH
+    267 PUSHINT             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal=0 payload.domainsAddresses '136=267
+    DICTMIN
+    NULLSWAPIFNOT2          	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal=0 received domainAddress found
+    WHILE:<{
+    }>DO<{                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal received domainAddress
+      s0 s2 XCHG            	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress received domainsTotal
+      INC                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress received domainsTotal
+      b{0} PUSHSLICE        	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress received domainsTotal '143
+      s1 s2 XCHG            	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress domainsTotal received '143
+      SDEQ                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress domainsTotal '144
+      47 THROWIFNOT         	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress domainsTotal
+      s1 s5 XCPU
+      267 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal domainAddress payload.domainsAddresses '146=267
+      DICTGETNEXT
+      NULLSWAPIFNOT2        	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal received domainAddress found
+    }>                      	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal received domainAddress
+    2DROP                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal
+    DUP                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal domainsTotal
+    0 GTINT                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '152
+    71 THROWIFNOT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal
+    35000000 PUSHINT        	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '156=35000000
+    40000000 PUSHINT        	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '156=35000000 '157=40000000
+    s2 PUSH                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '156=35000000 '157=40000000 domainsTotal
+    MUL                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '156=35000000 '158
+    ADD                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '155
+    s6 PUSH                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '155 payload.autoRenewIterations
+    MUL                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve
+    100000000 PUSHINT       	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve '162=100000000
+    s7 PUSH                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve '162=100000000 payload.autoRenewIterations
+    MUL                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay
+    NOW                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167
+    NOW                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '168
+    b{00} PUSHSLICE         	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '168 '169
+    s0 s12 XCHG
+    NEWC                    	//  args.fromAddress args.queryId '169 args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '168 payload.autoRenewCooldown b
+    32 STU                  	//  args.fromAddress args.queryId '169 args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '168 b
+    s1 s10 XCHG             	//  args.fromAddress args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 payload.autoRenewIterations b
+    8 STU                   	//  args.fromAddress args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 b
+    ENDC                    	//  args.fromAddress args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '176
+    s0 s13 XCHG
+    NEWC                    	//  '176 args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 args.fromAddress b
+    STSLICE                 	//  '176 args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 b
+    s1 s8 XCHG              	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay payload.domainsAddresses b
+    STOPTREF                	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay b
+    s1 s3 XCHG              	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission autoRenewPrepay autoRenewReserve domainsTotal b
+    8 STU                   	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission autoRenewPrepay autoRenewReserve b
+    x{00} STSLICECONST      	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission autoRenewPrepay autoRenewReserve b
+    s0 s5 XCHG2             	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil commission autoRenewPrepay b payload.price
+    STGRAMS                 	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil commission autoRenewPrepay b
+    ROT                     	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil autoRenewPrepay b commission
+    STGRAMS                 	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil autoRenewPrepay b
+    b{00} STSLICECONST      	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil autoRenewPrepay b
+    s1 s4 XCHG              	//  '176 args.queryId '169 args.code '168 autoRenewPrepay autoRenewReserve payload.validUntil '167 b
+    32 STU                  	//  '176 args.queryId '169 args.code '168 autoRenewPrepay autoRenewReserve payload.validUntil b
+    s1 s4 XCHG              	//  '176 args.queryId '169 args.code payload.validUntil autoRenewPrepay autoRenewReserve '168 b
+    32 STU                  	//  '176 args.queryId '169 args.code payload.validUntil autoRenewPrepay autoRenewReserve b
+    s1 s3 XCHG              	//  '176 args.queryId '169 args.code autoRenewReserve autoRenewPrepay payload.validUntil b
+    32 STU                  	//  '176 args.queryId '169 args.code autoRenewReserve autoRenewPrepay b
+    s1 s4 XCHG              	//  '176 args.queryId autoRenewPrepay args.code autoRenewReserve '169 b
+    STSLICE                 	//  '176 args.queryId autoRenewPrepay args.code autoRenewReserve b
     0 PUSHINT
-    36 STUR                 	//  args.commonArgs.fromAddress args.domainNameCell '105 args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.minBidIncrement payload.minBidValue b
-    s1 s9 XCHG              	//  args.commonArgs.fromAddress args.domainNameCell payload.minBidValue args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.minBidIncrement '105 b
-    STSLICE                 	//  args.commonArgs.fromAddress args.domainNameCell payload.minBidValue args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement payload.minBidIncrement b
-    s1 s9 XCHG              	//  args.commonArgs.fromAddress payload.minBidIncrement payload.minBidValue args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement args.domainNameCell b
-    STREF                   	//  args.commonArgs.fromAddress payload.minBidIncrement payload.minBidValue args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement b
-    0 PUSHINT
-    64 STUR                 	//  args.commonArgs.fromAddress payload.minBidIncrement payload.minBidValue args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 payload.timeIncrement b
-    s1 s9 XCHG              	//  payload.timeIncrement payload.minBidIncrement payload.minBidValue args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 args.commonArgs.fromAddress b
-    STSLICE                 	//  payload.timeIncrement payload.minBidIncrement payload.minBidValue args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress '111 b
-    s1 s6 XCHG              	//  payload.timeIncrement payload.minBidIncrement '111 args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress payload.minBidValue b
-    64 STU                  	//  payload.timeIncrement payload.minBidIncrement '111 args.commonArgs.code commissionFactor args.commonArgs.queryId args.domainAddress b
-    s1 s6 XCHG              	//  payload.timeIncrement args.domainAddress '111 args.commonArgs.code commissionFactor args.commonArgs.queryId payload.minBidIncrement b
-    12 STU                  	//  payload.timeIncrement args.domainAddress '111 args.commonArgs.code commissionFactor args.commonArgs.queryId b
-    s1 s6 XCHG              	//  args.commonArgs.queryId args.domainAddress '111 args.commonArgs.code commissionFactor payload.timeIncrement b
-    32 STU                  	//  args.commonArgs.queryId args.domainAddress '111 args.commonArgs.code commissionFactor b
-    16 STU                  	//  args.commonArgs.queryId args.domainAddress '111 args.commonArgs.code b
-    s1 s2 XCHG              	//  args.commonArgs.queryId args.domainAddress args.commonArgs.code '111 b
-    STREF                   	//  args.commonArgs.queryId args.domainAddress args.commonArgs.code b
-    ENDC                    	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2
-    2DUP                    	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2
+    64 STUR                 	//  '176 args.queryId autoRenewPrepay args.code autoRenewReserve b
+    s1 s5 XCHG              	//  autoRenewReserve args.queryId autoRenewPrepay args.code '176 b
+    STREF                   	//  autoRenewReserve args.queryId autoRenewPrepay args.code b
+    ENDC                    	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2
+    50000000 PUSHINT        	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '202=50000000
+    s5 PUSH                 	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '202=50000000 autoRenewReserve
+    ADD                     	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203
+    NEWC                    	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b
+    b{01000010000000000} STSLICECONST	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b
+    2OVER                   	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2
                      // code data
         DUP2            // code data code data
         HASHCU
@@ -176,81 +509,27 @@ fun deployFunctionCell(): cell
         16 STU                 // store dataDepth
         256 STU                // store codeHash
         256 STU                // store dataHash
-        ONE HASHEXT_SHA256  	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '144
-    NEWC                    	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '144 '143
-    b{10000000000} STSLICECONST	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '144 '143
-    256 STU                 	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 auctionAddressBuilder
-    30000000 PUSHINT        	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 auctionAddressBuilder '164=30000000
-    b{00} PUSHSLICE         	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 auctionAddressBuilder '164=30000000 '175
-    PUSHNULL                	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 auctionAddressBuilder '164=30000000 '175 '176
-    x{41756374696f6e206f6e20776562646f6d2e6d61726b6574} PUSHSLICE	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 auctionAddressBuilder '164=30000000 '175 '176 '178
-    NEWC                    	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 auctionAddressBuilder '164=30000000 '175 '176 '178 refb
-    x{5fcc3d140000000000000000} STSLICECONST	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 auctionAddressBuilder '164=30000000 '175 '176 '178 refb
-    s1 s5 XCHG              	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 '175 '176 auctionAddressBuilder refb
-    STB                     	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 '175 '176 refb
-    s1 s2 XCHG              	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 '176 '175 refb
-    STSLICE                 	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 '176 refb
-    STOPTREF                	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 refb
-    x{0} STSLICECONST       	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 refb
-    s2 PUSH                 	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 refb '178
-    ISNULL                  	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 refb '195
-    IF:<{                   	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 refb
-      1 2 BLKDROP2          	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '164=30000000 refb
-      b{0} STSLICECONST     	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '164=30000000 refb
-    }>ELSE<{                	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 refb
-      b{100000000000000000000000000000000} STSLICECONST	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '178 '164=30000000 b
-      s1 s2 XCHG            	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '164=30000000 '178 b
-      STSLICE               	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '164=30000000 refb
-    }>
-    ENDC                    	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '164=30000000 '205
-    NEWC                    	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '164=30000000 '205 b
-    b{010000} STSLICECONST  	//  args.commonArgs.queryId args.domainAddress auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '164=30000000 '205 b
-    s1 s5 XCHG              	//  args.commonArgs.queryId '205 auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '164=30000000 args.domainAddress b
-    STSLICE                 	//  args.commonArgs.queryId '205 auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 '164=30000000 b
-    SWAP                    	//  args.commonArgs.queryId '205 auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 b '164=30000000
-    STGRAMS                 	//  args.commonArgs.queryId '205 auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 b
-    1 PUSHINT
-    107 STUR                	//  args.commonArgs.queryId '205 auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2 b
-    s1 s3 XCHG              	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 '205 b
-    STREF                   	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 b
-    ENDC                    	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 '242
-    0 PUSHINT               	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 '242 '243=0
-    SENDRAWMSG              	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1
-    65000000 PUSHINT        	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 '252
-    NEWC                    	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 '252 b
-    b{01000010000000000} STSLICECONST	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 '252 b
-    s2 s3 PUSH2             	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 '252 b auctionAddress.stateInit.USlot1 auctionAddress.stateInit.USlot2
-                     // code data
-        DUP2            // code data code data
-        HASHCU
-        SWAP
-        HASHCU          // code data dataHash codeHash
-        SWAP2           // dataHash codeHash code data
-        CDEPTH
-        SWAP
-        CDEPTH          // dataHash codeHash dataDepth codeDepth
-        NEWC
-        x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
-        16 STU                 // store codeDepth
-        16 STU                 // store dataDepth
-        256 STU                // store codeHash
-        256 STU                // store dataHash
-        ONE HASHEXT_SHA256  	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 '252 b '277
-    256 STUR                	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 '252 b
-    SWAP                    	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 b '252
-    STGRAMS                 	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 b
+        ONE HASHEXT_SHA256  	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b '228
+    256 STUR                	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b
+    SWAP                    	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 b '203
+    STGRAMS                 	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 b
     140 PUSHINT
-    113 STUR                	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 auctionAddress.stateInit.USlot1 b
-    STREF                   	//  args.commonArgs.queryId auctionAddress.stateInit.USlot2 b
-    STREF                   	//  args.commonArgs.queryId b
-    x{0609e47b} STSLICECONST	//  args.commonArgs.queryId b
-    64 STU                  	//  b
-    ENDC                    	//  msg
-    95000000 PUSHINT        	//  msg '316
+    113 STUR                	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 b
+    s1 s2 XCHG              	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot2 saleAddress.stateInit.USlot1 b
+    STREF                   	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot2 b
+    STREF                   	//  autoRenewReserve args.queryId autoRenewPrepay b
+    x{0609e47b} STSLICECONST	//  autoRenewReserve args.queryId autoRenewPrepay b
+    s1 s2 XCHG              	//  autoRenewReserve autoRenewPrepay args.queryId b
+    64 STU                  	//  autoRenewReserve autoRenewPrepay b
+    ENDC                    	//  autoRenewReserve autoRenewPrepay msg
+    50000000 PUSHINT        	//  autoRenewReserve autoRenewPrepay msg '259=50000000
+    s0 s3 XCHG2             	//  msg autoRenewPrepay '259=50000000 autoRenewReserve
+    ADD                     	//  msg autoRenewPrepay '260
+    ADD                     	//  msg '261
     SWAP
-    1 PUSHINT               	//  '316 msg '317=1
-    SENDMSG                 	//  '316 '318
-    ADD                     	//  '319
+    1 PUSHINT               	//  '261 msg '262=1
+    SENDMSG                 	//  '261 '263
+    ADD                     	//  '264
 }>c PUSHREF""";
  
 

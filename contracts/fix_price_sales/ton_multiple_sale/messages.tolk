@@ -8,6 +8,7 @@ type AllowedMessage = (
     | DnsBalanceReleaseMessage
     | ChangePriceMessage
     | RenewDomainMessage
+    | SetAutoRenewParamsMessage
     | MakeHotMessage
     | MakeColoredMessage
     | ExcessesMessage

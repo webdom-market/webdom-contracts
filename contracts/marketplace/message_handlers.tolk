@@ -331,6 +331,30 @@ fun handleRenewalFee(storage: MarketplaceStorage, msgBody: slice, msgValue: coin
     return;
 }
 
+fun handleAutoRenewPrepay(storage: MarketplaceStorage, msgBody: slice, msgValue: coins, queryId: uint64): void {
+    val ownerAddress: address = msgBody.loadAddress();
+    val iterations: uint8 = msgBody.loadUint(8);
+    assert(iterations > 0) throw EXC_INCORRECT_VALID_UNTIL;
+
+    val expectedPayment: coins = TONS_AUTORENEW_MARKETPLACE_FEE * iterations;
+    assert(msgValue >= expectedPayment) throw EXC_OUT_OF_GAS;
+
+    var excess: coins = msgValue - expectedPayment;
+    if (excess > TONS_MIN_EXCESS) {
+        createMessage({
+            bounce: false,
+            value: 0,
+            dest: ownerAddress,
+            body: ExcessesMessage {queryId: queryId}
+        }).send(SEND_MODE_REGULAR);
+    };
+
+    storage.collectedFeesTon += expectedPayment;
+    storage.save();
+
+    return;
+}
+
 fun handleTonMarketplaceCommission(storage: MarketplaceStorage, msgBody: slice, msgValue: coins): void {
     // Just accept TONs if comment is "Marketplace commission". Other comments are not allowed. 
     assert(msgBody.bitsEqual("Marketplace commission")) throw EXC_UNSUPPORTED_OP;

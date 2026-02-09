@@ -120,6 +120,8 @@ describe('MultipleJettonSale', () => {
             validUntil: blockchain.now + ONE_DAY * 3,
             buyerAddress: null,
             tonsToReserve: 15000000,
+            autoRenewCooldown: ONE_DAY * 30,
+            autoRenewIterations: 0,
         }
         jettonMultipleSale = blockchain.openContract(JettonMultipleSale.createFromConfig(jettonMultipleSaleConfig, jettonMultipleSaleCode));
         usdtSaleWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMinter.getWalletAddress(jettonMultipleSale.address)));
@@ -266,6 +268,30 @@ describe('MultipleJettonSale', () => {
         for (let domain of domains) {
             let domainConfig = await domain.getStorageData();
             expect(domainConfig.ownerAddress!.toString()).toEqual(jettonMultipleSaleConfig.sellerAddress.toString());
+        }
+    });
+
+    it("should top up auto-renew and execute external auto-renew", async () => {
+        transactionRes = await jettonMultipleSale.sendSetAutoRenewParams(seller.getSender(), domains.length, ONE_DAY, 2);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: jettonMultipleSale.address,
+            to: marketplace.address,
+            op: OpCodes.AUTORENEW_PREPAY,
+            value(x) { return x! >= 2n * 100000000n },
+        });
+
+        jettonMultipleSaleConfig = await jettonMultipleSale.getStorageData();
+        expect(jettonMultipleSaleConfig.autoRenewIterations).toEqual(2);
+
+        blockchain.now! += ONE_DAY;
+        transactionRes = await jettonMultipleSale.sendExternalTriggerAutoRenew();
+        jettonMultipleSaleConfig = await jettonMultipleSale.getStorageData();
+        expect(jettonMultipleSaleConfig.autoRenewIterations).toEqual(1);
+        expect(jettonMultipleSaleConfig.lastRenewalTime).toEqual(blockchain.now!);
+
+        for (let domain of domains) {
+            let domainConfig = await domain.getStorageData();
+            expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
         }
     });
 });

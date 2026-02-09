@@ -44,6 +44,9 @@ const OP_RENEW_DOMAIN: uint32            = 0x2e9ead29;
 const OP_RENEWAL_FEE: uint32             = 0x975f5690;
 const OP_MAKE_HOT: uint32                = 0x504b6dd7;
 const OP_MAKE_COLORED: uint32            = 0x96dc2804;
+const OP_SET_AUTORENEW_PARAMS: uint32    = 0x95ff2735;
+const OP_TRIGGER_AUTORENEW: uint32       = 0x65f9a0b1;
+const OP_AUTORENEW_PREPAY: uint32        = 0x299a3bd5;
 
 // Admin
 const OP_SEND_ANY_MESSAGE: uint32       = 0xa47d989c;
@@ -59,8 +62,11 @@ const TONS_MIN_EXCESS: coins            = ton("0.005");
 const TONS_NFT_TRANSFER: coins          = ton("0.03");
 const TONS_JETTON_TRANSFER: coins       = ton("0.05");
 const TONS_BURN_JETTON: coins           = ton("0.05");
-const TONS_RENEW_DOMAIN: coins          = ton("0.01");
+const TONS_RENEW_DOMAIN: coins          = ton("0.02");
 const TONS_RENEW_REQUEST: coins         = ton("0.1");
+const TONS_AUTORENEW_TX_PER_ITER: coins = ton("0.04");
+const TONS_AUTORENEW_MARKETPLACE_FEE: coins = ton("0.1");
+const TONS_AUTORENEW_TOPUP_GAS_BUFFER: coins = ton("0.01");
 const TONS_PURCHASE_NOTIFICATION: coins = ton("0.03");
 const TONS_OFFER_NOTIFICATION: coins    = ton("0.1");
 const TONS_DECLINE_REWARD: coins        = ton("0.01");

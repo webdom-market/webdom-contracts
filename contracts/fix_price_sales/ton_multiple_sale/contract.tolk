@@ -10,8 +10,8 @@ import "../constants"
 import "../messages"
 import "storage"
 import "messages"
+import "constants"
 
-const TONS_MIN_TON_FOR_STORAGE: uint32 = ton("0.035") as uint32;   // TON for paying storage fees for 1 year
 
 // Cancel the multiple sale and return all received domains back to the seller
 @inline
@@ -64,15 +64,13 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-// Calculate TON amount to reserve 
 @inline
-fun getTonsToReserve(domainsTotal: uint8, nothrow: bool): int {
-    var tonsToReserve = (TONS_NFT_TRANSFER + ton("0.0075")) * domainsTotal + TONS_MIN_TON_FOR_STORAGE;  // Balance required to cancel the sale via external message
+fun getTonsToReserve(domainsTotal: uint8, autoRenewIterations: uint8, nothrow: bool): int {
+    val tonsForAutoCancel = ((TONS_NFT_TRANSFER + ton("0.0075")) * domainsTotal + TONS_STORAGE_PER_YEAR) as coins;  // Balance required to cancel the sale via external message
+    val tonsForAutoRenew = (getAutoRenewLockPerIter(domainsTotal) * autoRenewIterations) as coins;
+    val tonsToReserve = tonsForAutoCancel + tonsForAutoRenew;
     var actualBalance = contract.getOriginalBalance() - ton("0.01") - storageFees();
-    assert(actualBalance >= TONS_MIN_TON_FOR_STORAGE || nothrow) throw EXC_OUT_OF_GAS;
-    if (actualBalance < tonsToReserve) {  // If balance is less than required, return minimal reserve
-        return TONS_MIN_TON_FOR_STORAGE;
-    }
+    assert(actualBalance >= tonsToReserve || nothrow) throw EXC_OUT_OF_GAS;
     return tonsToReserve as int;
 }
 
@@ -80,6 +78,7 @@ fun onInternalMessage(in: InMessage): void {
     forceSameWorkchain(in.senderAddress);
     
     var storage: Storage = lazy Storage.load();
+    var autoRenewData: AutoRenewData = lazy storage.autoRenewData.load();
 
     // Allow admin operations when sale is not active or expired
     val allowAdminCommands: bool = storage.state != STATE_ACTIVE || storage.validUntil + 600 < blockchain.now();
@@ -117,7 +116,7 @@ fun onInternalMessage(in: InMessage): void {
 
                 // If all domains were received, reserve required TONs and send excess to seller
                 if (storage.domainsReceived == storage.domainsTotal) {
-                    reserveToncoinsOnBalance(getTonsToReserve(storage.domainsTotal, false), RESERVE_MODE_EXACT_AMOUNT);
+                    reserveToncoinsOnBalance(getTonsToReserve(storage.domainsTotal, autoRenewData.autoRenewIterations, false), RESERVE_MODE_EXACT_AMOUNT);
 
                     createMessage({
                         bounce: false,
@@ -170,7 +169,7 @@ fun onInternalMessage(in: InMessage): void {
             assert(storage.lastRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;  // Check that domain is not expired
 
             // Reserve TONs required for storage
-            reserveToncoinsOnBalance(max(getTonsToReserve(storage.domainsTotal, false), contract.getOriginalBalance() - in.valueCoins - ton("0.007")), RESERVE_MODE_EXACT_AMOUNT);
+            reserveToncoinsOnBalance(max(getTonsToReserve(storage.domainsTotal, autoRenewData.autoRenewIterations, false), contract.getOriginalBalance() - in.valueCoins - ton("0.007")), RESERVE_MODE_EXACT_AMOUNT);
             
             // Renew all domains
             var (domainAddress, _, found) = storage.domainsDict.sDictGetFirst(267);
@@ -191,17 +190,68 @@ fun onInternalMessage(in: InMessage): void {
                 body: RenewalFeeMessage { queryId: msg.queryId, ownerAddress: storage.sellerAddress }
             }).send(SEND_MODE_CARRY_ALL_BALANCE);
 
-            // Set new validUntil time
+            // Calculate new validity period
             var newValidUntil: uint32;
             if (msg.newValidUntil != null) {
-                newValidUntil = min(blockchain.now() + ONE_YEAR - ONE_DAY, msg.newValidUntil);
+                newValidUntil = max(msg.newValidUntil, storage.validUntil);
             } else {
-                newValidUntil = blockchain.now() + ONE_YEAR - ONE_DAY;
+                newValidUntil = max(blockchain.now() + ONE_YEAR - ONE_DAY, storage.validUntil);
             }
             
-            assert(newValidUntil >= max(blockchain.now() + ONE_HOUR, storage.validUntil)) throw EXC_INCORRECT_VALID_UNTIL;
             storage.validUntil = newValidUntil;
+            storage.lastRenewalTime = blockchain.now();
             storage.save();
+            return;
+        }
+
+        // Update auto-renew settings and paid iterations
+        SetAutoRenewParamsMessage => {
+            assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
+            assert((msg.autoRenewCooldown >= ONE_DAY) && (msg.autoRenewCooldown <= ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_VALID_UNTIL;
+            assert(msg.autoRenewIterations >= autoRenewData.autoRenewIterations) throw EXC_INCORRECT_VALID_UNTIL;
+
+            val addIterations: uint8 = msg.autoRenewIterations - autoRenewData.autoRenewIterations;
+            if (addIterations > 0) {
+                val topUpReserve: coins = (getAutoRenewLockPerIter(storage.domainsTotal) + TONS_AUTORENEW_MARKETPLACE_FEE) * addIterations;
+                assert(in.valueCoins >= topUpReserve + TONS_AUTORENEW_TOPUP_GAS_BUFFER) throw EXC_OUT_OF_GAS;
+            }
+
+            if (msg.newValidUntil != null) {
+                assert(msg.newValidUntil! >= max(blockchain.now() + 600, storage.validUntil)) throw EXC_INCORRECT_VALID_UNTIL;
+                storage.validUntil = msg.newValidUntil!;
+            }
+            else {
+                storage.validUntil = max(storage.validUntil, storage.lastRenewalTime + msg.autoRenewCooldown * msg.autoRenewIterations + ONE_YEAR - ONE_DAY);
+            }
+
+            autoRenewData.autoRenewCooldown = msg.autoRenewCooldown;
+            autoRenewData.autoRenewIterations = msg.autoRenewIterations;
+            storage.autoRenewData = autoRenewData.toCell();
+            storage.save();
+
+            reserveToncoinsOnBalance(getTonsToReserve(storage.domainsTotal, autoRenewData.autoRenewIterations, false), RESERVE_MODE_EXACT_AMOUNT);
+
+            if (addIterations > 0) {
+                createMessage<AutoRenewPrepayMessage>({
+                    bounce: false,
+                    value: 0,
+                    dest: MARKETPLACE_ADDRESS,
+                    body: AutoRenewPrepayMessage {
+                        queryId: msg.queryId,
+                        ownerAddress: storage.sellerAddress,
+                        iterations: addIterations
+                    }
+                }).send(SEND_MODE_CARRY_ALL_BALANCE);
+            }
+            else {
+                createMessage<ExcessesMessage>({
+                    bounce: false,
+                    value: 0,
+                    dest: in.senderAddress,
+                    body: ExcessesMessage { queryId: msg.queryId }
+                }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+            }
+
             return;
         }
         
@@ -249,7 +299,9 @@ fun onInternalMessage(in: InMessage): void {
                 assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that sale is active
                 
                 if (op == 0) {
-                    assert((storage.domainsReceived == storage.domainsTotal) && (storage.validUntil > blockchain.now())) throw EXC_DEAL_NOT_ACTIVE;  // Check that all domains were received and sale is not expired
+                    val nowTs: uint32 = blockchain.now();
+                    assert((storage.domainsReceived == storage.domainsTotal) && (storage.validUntil > nowTs)) throw EXC_DEAL_NOT_ACTIVE;  // Check that all domains were received and sale is not expired
+                    assert(storage.lastRenewalTime > nowTs - (ONE_YEAR - ONE_DAY)) throw EXC_DOMAIN_EXPIRED;
                     assert(in.valueCoins >= storage.price + TONS_TON_SIMPLE_PURCHASE * storage.domainsTotal) throw EXC_OUT_OF_GAS;
 
                     // Send marketplace commission
@@ -326,31 +378,61 @@ fun onInternalMessage(in: InMessage): void {
 
 fun onExternalMessage(in: InMessage): void {
     var storage: Storage = lazy Storage.load();
+    var autoRenewData: AutoRenewData = lazy storage.autoRenewData.load();
+    var nowTs: uint32 = blockchain.now();
     
     if (storage.state != STATE_ACTIVE) {
         throw EXC_DEAL_NOT_ACTIVE;
     }
-    
-    // Cancel sale if it is expired
-    if (blockchain.now() >= storage.validUntil) {
-        var opCode = in.body.loadUint(32);
-        if (opCode != OP_CANCEL_DEAL) {
-            throw EXC_UNSUPPORTED_OP;
-        }
-        var queryId = in.body.loadUint(64);
-        
+
+    var (opCode, queryId) = loadOpAndQueryId(mutate in.body);
+    if (opCode == OP_CANCEL_DEAL) {
+        // Allow anyone to cancel expired sales
+        assert(nowTs >= storage.validUntil || storage.lastRenewalTime < nowTs - ONE_YEAR + ONE_DAY) throw 0xfffe;
         assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
         acceptExternalMessage();
         
         cancelSale(mutate storage, queryId, "Your sale offer has expired");
         return;
     }
+
+    if (opCode == OP_TRIGGER_AUTORENEW) {
+        assert(autoRenewData.autoRenewIterations > 0) throw EXC_UNSUPPORTED_OP;
+        assert(storage.domainsReceived == storage.domainsTotal) throw EXC_DEAL_NOT_ACTIVE;
+        assert(nowTs < storage.validUntil) throw EXC_DEAL_NOT_ACTIVE;
+        assert(storage.lastRenewalTime <= nowTs - autoRenewData.autoRenewCooldown) throw 0xfffe;
+
+        acceptExternalMessage();
+        val gasToReserve: coins = getTonsToReserve(storage.domainsTotal, autoRenewData.autoRenewIterations - 1, false);
+        val renewCost: coins = TONS_RENEW_DOMAIN * storage.domainsTotal;
+        if (contract.getOriginalBalance() < gasToReserve + renewCost || storage.lastRenewalTime <= nowTs - (ONE_YEAR - ONE_HOUR)) {
+            cancelSale(mutate storage, queryId, "Your sale offer has expired");
+            return;
+        }
+
+        storage.lastRenewalTime = nowTs;
+        autoRenewData.autoRenewIterations -= 1;
+        storage.autoRenewData = autoRenewData.toCell();
+        storage.save();
+
+        var (domainAddress, _, found) = storage.domainsDict.sDictGetFirst(267);
+        while (found) {
+            createMessage({
+                bounce: false,
+                value: TONS_RENEW_DOMAIN,
+                dest: domainAddress! as address
+            }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+            (domainAddress, _, found) = storage.domainsDict.sDictGetNext(267, domainAddress!);
+        }
+        return;
+    }
     
-    throw 0xfffe;
+    throw EXC_UNSUPPORTED_OP;
 }
 
 get fun get_storage_data() {
     var storage = Storage.load();
+    var autoRenewData: AutoRenewData = lazy storage.autoRenewData.load();
     
     return (
         storage.sellerAddress,
@@ -364,9 +446,11 @@ get fun get_storage_data() {
         storage.lastRenewalTime,
         storage.validUntil,
         storage.buyerAddress,
-        getTonsToReserve(storage.domainsTotal, true),
+        getTonsToReserve(storage.domainsTotal, autoRenewData.autoRenewIterations, true),
         storage.hotUntil,
         storage.coloredUntil,
+        autoRenewData.autoRenewCooldown,
+        autoRenewData.autoRenewIterations,
         BURN_ADDRESS,
         contract.getCode().hash()
     );

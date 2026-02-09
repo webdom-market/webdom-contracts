@@ -1,9 +1,8 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, toNano } from '@ton/core';
-import { COMMISSION_DIVIDER, OpCodes, Tons } from './helpers/constants';
+import { COMMISSION_DIVIDER, ONE_DAY, OpCodes, Tons } from './helpers/constants';
 import { DeployData } from './Marketplace';
 import { DefaultContract } from './helpers/DefaultContract';
 import { JettonSimpleSaleDeployData } from './JettonSimpleSale';
-import { TonMultipleSaleConfig } from './TonMultipleSale';
 import { Maybe } from '@ton/core/dist/utils/maybe';
 
 
@@ -38,6 +37,8 @@ export type JettonMultipleSaleConfig = {
     jettonMinterAddress: Address;
     jettonWalletAddress: Maybe<Address>;
     tonsToReserve: number;
+    autoRenewCooldown?: number;
+    autoRenewIterations?: number;
 };
 
 
@@ -46,6 +47,8 @@ export class JettonMultipleSaleDeployData extends JettonSimpleSaleDeployData {
 
 
 export function multipleJettonSaleConfigToCell(config: JettonMultipleSaleConfig): Cell {
+    const autoRenewCooldown = config.autoRenewCooldown ?? ONE_DAY * 30;
+    const autoRenewIterations = config.autoRenewIterations ?? 0;
     return beginCell()
             .storeAddress(config.sellerAddress)
             .storeDict(config.domainsDict, Dictionary.Keys.Address(), Dictionary.Values.Uint(1))
@@ -64,13 +67,20 @@ export function multipleJettonSaleConfigToCell(config: JettonMultipleSaleConfig)
             
             .storeUint(config.hotUntil ?? 0, 32)
             .storeUint(config.coloredUntil ?? 0, 32)
-            .storeRef(beginCell().storeAddress(config.buyerAddress).endCell())
-            .storeRef(beginCell().storeAddress(config.jettonMinterAddress).endCell())
+            .storeRef(
+                beginCell()
+                    .storeAddress(config.buyerAddress)
+                    .storeAddress(config.jettonMinterAddress)
+                    .storeUint(autoRenewCooldown, 32)
+                    .storeUint(autoRenewIterations, 8)
+                .endCell()
+            )
         .endCell();
 }
 
 export class JettonMultipleSale extends DefaultContract {
     static TON_PURCHASE = 60000000n; 
+    static AUTORENEW_STORAGE_PER_YEAR = 35000000n;
     static STATE_UNINIT = 0;
     static STATE_ACTIVE = 1;
     static STATE_COMPLETED = 2;
@@ -86,17 +96,29 @@ export class JettonMultipleSale extends DefaultContract {
         return new JettonMultipleSale(contractAddress(workchain, init), init);
     }
 
-    static deployPayload(isWeb3: boolean, domainsList: Array<Address>, price: bigint, validUntil: number) {
+    static deployPayload(
+        isWeb3: boolean,
+        domainsList: Array<Address>,
+        price: bigint,
+        validUntil: number,
+        autoRenewCooldown: number = ONE_DAY * 365,
+        autoRenewIterations: number = 0,
+    ) {
         let domainsDict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool());
         for (let domainAddress of domainsList) {
             domainsDict.set(domainAddress, false);
         }
-        return beginCell()
+        let payload = beginCell()
             .storeBit(isWeb3)
             .storeDict(domainsDict)
             .storeCoins(price)
-            .storeUint(validUntil, 32)
-        .endCell();
+            .storeUint(validUntil, 32);
+        if (autoRenewIterations > 0 || autoRenewCooldown !== ONE_DAY * 365) {
+            payload = payload
+                .storeUint(autoRenewCooldown, 32)
+                .storeUint(autoRenewIterations, 8);
+        }
+        return payload.endCell();
     }
     
     async sendChangePrice(provider: ContractProvider, via: Sender, newPrice: bigint, newValidUntil: number, queryId: number = 0) {
@@ -123,8 +145,49 @@ export class JettonMultipleSale extends DefaultContract {
         });
     }
 
+    static setAutoRenewParamsMessage(
+        autoRenewCooldown: number,
+        autoRenewIterations: number,
+        queryId: number = 0,
+        newValidUntil: number = 0,
+    ) {
+        let msg = beginCell()
+            .storeUint(OpCodes.SET_AUTORENEW_PARAMS, 32)
+            .storeUint(queryId, 64)
+            .storeUint(autoRenewCooldown, 32)
+            .storeUint(autoRenewIterations, 8);
+        if (newValidUntil > 0) {
+            msg = msg.storeBit(1).storeUint(newValidUntil, 32);
+        } else {
+            msg = msg.storeBit(0);
+        }
+        return msg.endCell();
+    }
+
+    async sendSetAutoRenewParams(
+        provider: ContractProvider,
+        via: Sender,
+        domainsNumber: number,
+        autoRenewCooldown: number,
+        autoRenewIterations: number,
+        queryId: number = 0,
+        newValidUntil: number = 0,
+        value: bigint = Tons.AUTORENEW_TOPUP_GAS_BUFFER + Tons.MIN_EXCESS + BigInt(autoRenewIterations) *
+            (JettonMultipleSale.AUTORENEW_STORAGE_PER_YEAR + Tons.AUTORENEW_TX_PER_ITER * BigInt(domainsNumber) + Tons.AUTORENEW_MARKETPLACE_FEE),
+    ) {
+        await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: JettonMultipleSale.setAutoRenewParamsMessage(autoRenewCooldown, autoRenewIterations, queryId, newValidUntil)
+        });
+    }
+
     async sendExternalCancel(provider: ContractProvider, queryId: number = 0) {
         await provider.external(beginCell().storeUint(OpCodes.CANCEL_DEAL, 32).storeUint(queryId, 64).endCell());
+    }
+
+    async sendExternalTriggerAutoRenew(provider: ContractProvider, queryId: number = 0) {
+        await provider.external(beginCell().storeUint(OpCodes.TRIGGER_AUTORENEW, 32).storeUint(queryId, 64).endCell());
     }
 
     async getStorageData(provider: ContractProvider): Promise<JettonMultipleSaleConfig> {
@@ -151,6 +214,8 @@ export class JettonMultipleSale extends DefaultContract {
             jettonWalletAddress: stack.readAddress(),
             hotUntil: stack.readNumber(),
             coloredUntil: stack.readNumber(),
+            autoRenewCooldown: stack.readNumber(),
+            autoRenewIterations: stack.readNumber(),
             jettonMinterAddress: stack.readAddress(),
         }
     }

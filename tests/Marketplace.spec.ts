@@ -1632,6 +1632,19 @@ describe('Marketplace', () => {
         expect(marketplaceConfig.collectedFeesDict!.get(web3MarketplaceWallet.address)!).toEqual(hotPrice + coloredPrice + marketplaceConfig.moveUpSalePrice);
     });
 
+    it("should accept auto-renew prepay", async () => {
+        const iterations = 3;
+        const oldCollectedFeesTon = (await marketplace.getStorageData()).collectedFeesTon;
+        transactionRes = await marketplace.sendAutoRenewPrepay(
+            seller.getSender(),
+            seller.address,
+            iterations,
+        );
+        expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
+        marketplaceConfig = await marketplace.getStorageData();
+        expect(marketplaceConfig.collectedFeesTon).toEqual(oldCollectedFeesTon + Tons.AUTORENEW_MARKETPLACE_FEE * BigInt(iterations));
+    });
+
     it("should accept fees", async () => {
         marketplaceConfig = await marketplace.getStorageData();
         await admin.send({

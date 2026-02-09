@@ -9,6 +9,7 @@ import "../../imports/types";
 import "storage";
 import "../../imports/messages";
 import "../constants";
+import "constants";
 import "@stdlib/tvm-dicts"
 
 struct TonMultipleSaleDeployInfo {
@@ -22,17 +23,31 @@ struct TonMultipleSaleDeployPayload {
     domainsAddresses: dict;  // address -> bool
     price: coins;
     validUntil: uint32;
+    autoRenewCooldown: uint32;
+    autoRenewIterations: uint8;
 }
 
 const TONS_DEPLOY_TON_MULTIPLE_SALE: coins = ton("0.05");
 
 fun deployTonMultipleSale(args: SimpleDeployArgs): int {
     var deployInfo = lazy TonMultipleSaleDeployInfo.fromSlice(args.deployInfoSlice);
-    var payload = lazy TonMultipleSaleDeployPayload.fromSlice(args.payloadSlice);
+    var payloadSlice = args.payloadSlice;
+    var payload = TonMultipleSaleDeployPayload {
+        domainsAddresses: payloadSlice.loadDict(),
+        price: payloadSlice.loadCoins(),
+        validUntil: payloadSlice.loadUint(32),
+        autoRenewCooldown: ONE_YEAR - ONE_DAY,
+        autoRenewIterations: 0
+    };
+    if (payloadSlice.remainingBitsCount() > 0) {
+        payload.autoRenewCooldown = payloadSlice.loadUint(32);
+        payload.autoRenewIterations = payloadSlice.loadUint(8);
+    }
     
     assert(payload.price >= deployInfo.minPrice) throw EXC_PRICE_TOO_LOW;
-    assert((payload.validUntil >= blockchain.now() + deployInfo.minDuration) && 
-           (payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_VALID_UNTIL;
+    assert((payload.validUntil >= blockchain.now() + deployInfo.minDuration) &&
+           (payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY || payload.autoRenewIterations > 0)) throw EXC_INCORRECT_VALID_UNTIL;
+    assert((payload.autoRenewCooldown >= ONE_DAY) && (payload.autoRenewCooldown <= ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_VALID_UNTIL;
 
     var commission = mulDivFloor(
         min(mulDivFloor(payload.price, deployInfo.commissionFactor, COMMISSION_DIVIDER), deployInfo.maxCommission),
@@ -48,6 +63,9 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
         (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress!);
     }
     assert(domainsTotal > 0) throw EXC_EMPTY_DICT;
+
+    val autoRenewReserve: coins = getAutoRenewLockPerIter(domainsTotal) * payload.autoRenewIterations;
+    val autoRenewPrepay: coins = TONS_AUTORENEW_MARKETPLACE_FEE * payload.autoRenewIterations;
     
     var data = (Storage {
         sellerAddress: args.fromAddress,
@@ -63,7 +81,11 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
 
         buyerAddress: createAddressNone(),
         hotUntil: 0,
-        coloredUntil: 0
+        coloredUntil: 0,
+        autoRenewData: (AutoRenewData {
+            autoRenewCooldown: payload.autoRenewCooldown,
+            autoRenewIterations: payload.autoRenewIterations,
+        }).toCell(),
     }).toCell();
 
     val saleAddress = AutoDeployAddress {
@@ -75,10 +97,13 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
 
     val msg = createMessage({
         bounce: false,
-        value: TONS_DEPLOY_TON_MULTIPLE_SALE,
+        value: TONS_DEPLOY_TON_MULTIPLE_SALE + autoRenewReserve,
         dest: saleAddress,
         body: FillUpBalanceMessage { queryId: args.queryId }
     });
 
-    return TONS_DEPLOY_TON_MULTIPLE_SALE + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
+    return TONS_DEPLOY_TON_MULTIPLE_SALE
+           + autoRenewReserve
+           + autoRenewPrepay  // Marketplace prepay is not included into collected deploy fees intentionally
+           + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 } 

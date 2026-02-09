@@ -1,3 +1,8 @@
+struct AutoRenewData {
+    autoRenewCooldown: uint32;   // Minimal delay between domain renewals
+    autoRenewIterations: uint8;  // Remaining paid auto-renew iterations
+}
+
 struct Storage {
     domainAddress: address;           // Address of the domain being sold
     sellerAddress: address;           // Address of the domain seller
@@ -9,8 +14,10 @@ struct Storage {
     validUntil: uint32;               // Sale validity end timestamp
     buyerAddressCell: Cell<address>?; // Buyer address (set when sold)
     domainNameCell: cell;             // Domain name for notifications
+    isTgUsername: bool;               // Whether the asset is a Telegram username (.t.me)
     hotUntil: uint32;                 // Hot promotion end timestamp
     coloredUntil: uint32;             // Colored promotion end timestamp
+    autoRenewData: Cell<AutoRenewData>;
 }
 
 fun Storage.load(): Storage {

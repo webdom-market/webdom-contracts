@@ -9,6 +9,7 @@ type AllowedMessage = (
     | JettonsTransferNotificationMessage<SerializableSlice>
     | ChangePriceMessage
     | RenewDomainMessage
+    | SetAutoRenewParamsMessage
     | MakeHotMessage
     | MakeColoredMessage
     | ExcessesMessage

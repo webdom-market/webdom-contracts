@@ -3,8 +3,10 @@ import "../../imports/constants";
 import "../../marketplace/types";
 import "../../marketplace/constants";
 import "../../imports/types";
+import "../constants";
 import "storage";
 import "../../imports/messages";
+import "constants";
 
 
 struct DeployInfoForJetton {
@@ -23,12 +25,25 @@ struct JettonSimpleSaleDeployPayload {
     isWeb3: bool;
     price: coins;
     validUntil: uint32;
+    autoRenewCooldown: uint32;
+    autoRenewIterations: uint8;
 }
 
 const TONS_DEPLOY_JETTON_SIMPLE_SALE = TONS_NFT_TRANSFER + TONS_MIN_RESERVE * 2 + ton("0.005");
 
 fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
-    var payload = JettonSimpleSaleDeployPayload.fromSlice(args.commonArgs.payloadSlice);
+    var payloadSlice = args.commonArgs.payloadSlice;
+    var payload = JettonSimpleSaleDeployPayload {
+        isWeb3: payloadSlice.loadBool(),
+        price: payloadSlice.loadCoins(),
+        validUntil: payloadSlice.loadUint(32),
+        autoRenewCooldown: ONE_YEAR - ONE_DAY,
+        autoRenewIterations: 0
+    };
+    if (payloadSlice.remainingBitsCount() > 0) {
+        payload.autoRenewCooldown = payloadSlice.loadUint(32);
+        payload.autoRenewIterations = payloadSlice.loadUint(8);
+    }
     var deployInfo: DeployInfoForJetton;
     if (payload.isWeb3) {
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice.loadRef().beginParse());
@@ -40,13 +55,16 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
     }
     
     assert(payload.price >= deployInfo.minPrice) throw(EXC_PRICE_TOO_LOW);
-    assert((payload.validUntil >= blockchain.now() + deployInfo.minDuration) && 
-           (payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY)) throw(EXC_INCORRECT_VALID_UNTIL);
+    assert(payload.validUntil >= blockchain.now() + deployInfo.minDuration &&
+           (payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY || payload.autoRenewIterations > 0)) throw(EXC_INCORRECT_VALID_UNTIL);
+    assert((payload.autoRenewCooldown >= ONE_DAY) && (payload.autoRenewCooldown <= ONE_YEAR - ONE_DAY)) throw(EXC_INCORRECT_VALID_UNTIL);
 
     val commission: int = mulDivFloor(min(
         mulDivFloor(payload.price, deployInfo.commissionFactor, COMMISSION_DIVIDER),
         deployInfo.maxCommission
     ), COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
+    val autoRenewReserve: coins = TONS_AUTORENEW_LOCK_PER_ITER * payload.autoRenewIterations;
+    val autoRenewPrepay: coins = TONS_AUTORENEW_MARKETPLACE_FEE * payload.autoRenewIterations;
 
     val data = (Storage {
         jettonWalletAddress: createAddressNone(),
@@ -58,13 +76,16 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
         lastRenewalTime: blockchain.now(),
         validUntil: payload.validUntil,
         domainNameCell: args.domainNameCell,
+        isTgUsername: false,
         hotUntil: 0,
-        coloredUntil: 0, 
+        coloredUntil: 0,
         ds2: (StorageDs2 {
             domainAddress: args.domainAddress,
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
             buyerAddress: createAddressNone(),
-        }).toCell()
+            autoRenewCooldown: payload.autoRenewCooldown,
+            autoRenewIterations: payload.autoRenewIterations,
+        }).toCell(),
     }).toCell();
               
     val saleAddress = AutoDeployAddress {
@@ -93,7 +114,7 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
     val contractCodes = lazy args.commonArgs.contractCodes.load();
     val msg = createMessage<cell>({
         bounce: false,
-        value: TONS_DEPLOY_JETTON_SIMPLE_SALE,
+        value: TONS_DEPLOY_JETTON_SIMPLE_SALE + autoRenewReserve,
         dest: saleAddress,
         body: beginCell()
                 .storeUint(OP_FILL_UP_BALANCE, 32)
@@ -105,5 +126,11 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
                 .endCell()
     }); 
 
-    return TONS_NFT_TRANSFER + TONS_DEPLOY_JETTON_SIMPLE_SALE + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
+    val requiredGas: coins = TONS_NFT_TRANSFER
+                             + TONS_DEPLOY_JETTON_SIMPLE_SALE
+                             + autoRenewReserve
+                             + autoRenewPrepay  // не учитывается в collected fees но в целом это не критично
+                             + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
+    
+    return requiredGas;
 } 
