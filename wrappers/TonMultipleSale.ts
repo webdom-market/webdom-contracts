@@ -199,10 +199,10 @@ export class TonMultipleSale extends DefaultContract {
             validUntil: stack.readNumber(),
             buyerAddress: stack.readAddressOpt(),
             tonsToReserve: stack.readNumber(),
-            hotUntil: stack.readNumber(),
-            coloredUntil: stack.readNumber(),
             autoRenewCooldown: stack.readNumber(),
             autoRenewIterations: stack.readNumber(),
+            hotUntil: stack.readNumber(),
+            coloredUntil: stack.readNumber(),
         }
     }
 }

@@ -97,6 +97,18 @@ fun onInternalMessage(in: InMessage): void {
         FillUpBalanceMessage => {
             if (storage.state == STATE_UNINIT) {
                 assert(in.senderAddress == MARKETPLACE_ADDRESS) throw EXC_INCORRECT_SENDER;
+                if (autoRenewData.autoRenewIterations > 0) {
+                    createMessage<AutoRenewPrepayMessage>({
+                        bounce: false,
+                        value: autoRenewData.autoRenewIterations * TONS_AUTORENEW_MARKETPLACE_FEE,
+                        dest: MARKETPLACE_ADDRESS,
+                        body: AutoRenewPrepayMessage {
+                            queryId: msg.queryId,
+                            ownerAddress: storage.sellerAddress,
+                            iterations: autoRenewData.autoRenewIterations
+                        }
+                    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+                }
                 storage.state = STATE_ACTIVE;
                 storage.save();
             }
@@ -447,10 +459,10 @@ get fun get_storage_data() {
         storage.validUntil,
         storage.buyerAddress,
         getTonsToReserve(storage.domainsTotal, autoRenewData.autoRenewIterations, true),
-        storage.hotUntil,
-        storage.coloredUntil,
         autoRenewData.autoRenewCooldown,
         autoRenewData.autoRenewIterations,
+        storage.hotUntil,
+        storage.coloredUntil,
         BURN_ADDRESS,
         contract.getCode().hash()
     );

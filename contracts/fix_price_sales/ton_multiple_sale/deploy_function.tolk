@@ -66,7 +66,7 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
 
     val autoRenewReserve: coins = getAutoRenewLockPerIter(domainsTotal) * payload.autoRenewIterations;
     val autoRenewPrepay: coins = TONS_AUTORENEW_MARKETPLACE_FEE * payload.autoRenewIterations;
-    
+
     var data = (Storage {
         sellerAddress: args.fromAddress,
         domainsDict: payload.domainsAddresses,
@@ -97,7 +97,7 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
 
     val msg = createMessage({
         bounce: false,
-        value: TONS_DEPLOY_TON_MULTIPLE_SALE + autoRenewReserve,
+        value: TONS_DEPLOY_TON_MULTIPLE_SALE + autoRenewReserve + autoRenewPrepay,
         dest: saleAddress,
         body: FillUpBalanceMessage { queryId: args.queryId }
     });

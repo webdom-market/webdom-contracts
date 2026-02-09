@@ -60,64 +60,64 @@ export async function run(provider: NetworkProvider) {
     //     ),
     // });
 
-    // marketplaceConfig.deployInfos.set(Marketplace.DeployOpCodes.TON_SIMPLE_SALE, {
-    //     dealCode: await compile('TonSimpleSale'),
-    //     deployFunctionCode: getDeployFunctionCode('TonSimpleSale'),
-    //     deployType: Marketplace.DeployTypes.NFT_TRANSFER,
-    //     deployFee: toNano('0.0'),
-    //     otherData: TonSimpleSaleDeployData.fromConfig(
-    //         toNano('0.4'),  // minPrice
-    //         400,            // commissionFactor (4%)
-    //         toNano('200'),  // maxCommission
-    //         300             // minDuration (5 minutes)
-    //     ),
-    // });
-    // marketplaceConfig.deployInfos.set(Marketplace.DeployOpCodes.JETTON_SIMPLE_SALE, {
-    //     dealCode: await compile('JettonSimpleSale'),
-    //     deployFunctionCode: getDeployFunctionCode('JettonSimpleSale'),
-    //     deployType: Marketplace.DeployTypes.NFT_TRANSFER,
-    //     deployFee: toNano('0.0'),
-    //     otherData: JettonSimpleSaleDeployData.fromConfig(
-    //         2n * 10n ** 6n,    // minPriceUsdt
-    //         400,               // commissionFactorUsdt (4%)
-    //         800n * 10n ** 6n,  // maxCommissionUsdt
-    //         300,               // minDuration (5 minutes)
+    marketplaceConfig.deployInfos.set(Marketplace.DeployOpCodes.TON_SIMPLE_SALE, {
+        dealCode: await compile('TonSimpleSale'),
+        deployFunctionCode: getDeployFunctionCode('TonSimpleSale'),
+        deployType: Marketplace.DeployTypes.NFT_TRANSFER,
+        deployFee: toNano('0.0'),
+        otherData: TonSimpleSaleDeployData.fromConfig(
+            toNano('0.4'),  // minPrice
+            400,            // commissionFactor (4%)
+            toNano('200'),  // maxCommission
+            300             // minDuration (5 minutes)
+        ),
+    });
+    marketplaceConfig.deployInfos.set(Marketplace.DeployOpCodes.JETTON_SIMPLE_SALE, {
+        dealCode: await compile('JettonSimpleSale'),
+        deployFunctionCode: getDeployFunctionCode('JettonSimpleSale'),
+        deployType: Marketplace.DeployTypes.NFT_TRANSFER,
+        deployFee: toNano('0.0'),
+        otherData: JettonSimpleSaleDeployData.fromConfig(
+            2n * 10n ** 6n,    // minPriceUsdt
+            400,               // commissionFactorUsdt (4%)
+            800n * 10n ** 6n,  // maxCommissionUsdt
+            300,               // minDuration (5 minutes)
 
-    //         20n * 10n ** 3n,   // minPriceWeb3
-    //         200,               // commissionFactorWeb3 (2%)
-    //         8000n * 10n ** 3n, // minDuration (5 minutes)
-    //         300                // minDuration (5 minutes)
-    //     ),
-    // });
-    // marketplaceConfig.deployInfos.set(Marketplace.DeployOpCodes.TON_MULTIPLE_SALE, {
-    //     dealCode: await compile('TonMultipleSale'),
-    //     deployFunctionCode: getDeployFunctionCode('TonMultipleSale'),
-    //     deployType: Marketplace.DeployTypes.SIMPLE,
-    //     deployFee: toNano('0.05'),
-    //     otherData: TonMultipleSaleDeployData.fromConfig(
-    //         toNano('0.4'),    // minPrice
-    //         400,            // commissionFactor (4%)
-    //         toNano('200'),   // maxCommission
-    //         600             // minDuration (5 minutes)
-    //     ),
-    // });
-    // marketplaceConfig.deployInfos.set(Marketplace.DeployOpCodes.JETTON_MULTIPLE_SALE, {
-    //     dealCode: await compile('JettonMultipleSale'),
-    //     deployFunctionCode: getDeployFunctionCode('JettonMultipleSale'),
-    //     deployType: Marketplace.DeployTypes.SIMPLE,
-    //     deployFee: toNano('0.05'),
-    //     otherData: JettonSimpleSaleDeployData.fromConfig(
-    //         2n * 10n ** 6n,    // minPriceUsdt
-    //         400,               // commissionFactorUsdt (4%)
-    //         800n * 10n ** 6n,  // maxCommissionUsdt
-    //         300,               // minDuration (5 minutes)
+            20n * 10n ** 3n,   // minPriceWeb3
+            200,               // commissionFactorWeb3 (2%)
+            8000n * 10n ** 3n, // minDuration (5 minutes)
+            300                // minDuration (5 minutes)
+        ),
+    });
+    marketplaceConfig.deployInfos.set(Marketplace.DeployOpCodes.TON_MULTIPLE_SALE, {
+        dealCode: await compile('TonMultipleSale'),
+        deployFunctionCode: getDeployFunctionCode('TonMultipleSale'),
+        deployType: Marketplace.DeployTypes.SIMPLE,
+        deployFee: toNano('0.05'),
+        otherData: TonMultipleSaleDeployData.fromConfig(
+            toNano('0.4'),    // minPrice
+            400,            // commissionFactor (4%)
+            toNano('200'),   // maxCommission
+            600             // minDuration (5 minutes)
+        ),
+    });
+    marketplaceConfig.deployInfos.set(Marketplace.DeployOpCodes.JETTON_MULTIPLE_SALE, {
+        dealCode: await compile('JettonMultipleSale'),
+        deployFunctionCode: getDeployFunctionCode('JettonMultipleSale'),
+        deployType: Marketplace.DeployTypes.SIMPLE,
+        deployFee: toNano('0.05'),
+        otherData: JettonSimpleSaleDeployData.fromConfig(
+            2n * 10n ** 6n,    // minPriceUsdt
+            400,               // commissionFactorUsdt (4%)
+            800n * 10n ** 6n,  // maxCommissionUsdt
+            300,               // minDuration (5 minutes)
 
-    //         20n * 10n ** 3n,    // minPriceWeb3
-    //         200,               // commissionFactorWeb3 (2%)
-    //         8000n * 10n ** 3n, // minDuration (5 minutes)
-    //         300                // minDuration (5 minutes)
-    //     ),
-    // });
+            20n * 10n ** 3n,    // minPriceWeb3
+            200,               // commissionFactorWeb3 (2%)
+            8000n * 10n ** 3n, // minDuration (5 minutes)
+            300                // minDuration (5 minutes)
+        ),
+    });
 
 
     // marketplaceConfig.deployInfos.set(Marketplace.DeployOpCodes.TON_SIMPLE_AUCTION, {

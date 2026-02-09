@@ -251,10 +251,10 @@ export class JettonSimpleSale extends DefaultContract {
             domainName: stack.readCell().beginParse().loadStringTail(),
             isTgUsername: stack.readBoolean(),
             jettonWalletAddress: stack.readAddressOpt(),
-            hotUntil: stack.readNumber(),
-            coloredUntil: stack.readNumber(),
             autoRenewCooldown: stack.readNumber(),
             autoRenewIterations: stack.readNumber(),
+            hotUntil: stack.readNumber(),
+            coloredUntil: stack.readNumber(),
             jettonMinterAddress: stack.readAddress(),
         }
     }

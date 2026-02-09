@@ -94,7 +94,7 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     // Deploy sale contract
     val msg = createMessage<FillUpBalanceMessage>({
         bounce: false,
-        value: TONS_DEPLOY_TON_SIMPLE_SALE + autoRenewReserve,
+        value: TONS_DEPLOY_TON_SIMPLE_SALE + autoRenewReserve + autoRenewPrepay,
         dest: saleAddress,
         body: FillUpBalanceMessage { queryId: args.commonArgs.queryId }
     });

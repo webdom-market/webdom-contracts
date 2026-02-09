@@ -212,10 +212,10 @@ export class JettonMultipleSale extends DefaultContract {
             buyerAddress: stack.readAddressOpt(),
             tonsToReserve: stack.readNumber(),
             jettonWalletAddress: stack.readAddress(),
-            hotUntil: stack.readNumber(),
-            coloredUntil: stack.readNumber(),
             autoRenewCooldown: stack.readNumber(),
             autoRenewIterations: stack.readNumber(),
+            hotUntil: stack.readNumber(),
+            coloredUntil: stack.readNumber(),
             jettonMinterAddress: stack.readAddress(),
         }
     }

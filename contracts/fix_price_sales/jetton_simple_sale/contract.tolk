@@ -85,7 +85,19 @@ fun onInternalMessage(in: InMessage): void {
                 
                 // Send excess to seller
                 var storage2: StorageDs2 = lazy storage.ds2.load();
-                val msgValue: coins = contract.getOriginalBalance() - getRequiredReserve(storage2.autoRenewIterations);
+                val msgValue: coins = contract.getOriginalBalance() - getRequiredReserve(storage2.autoRenewIterations) - storage2.autoRenewIterations * TONS_AUTORENEW_MARKETPLACE_FEE;
+                if (storage2.autoRenewIterations > 0) {
+                    createMessage<AutoRenewPrepayMessage>({
+                        bounce: false,
+                        value: storage2.autoRenewIterations * TONS_AUTORENEW_MARKETPLACE_FEE,
+                        dest: MARKETPLACE_ADDRESS,
+                        body: AutoRenewPrepayMessage {
+                            queryId: msg.queryId,
+                            ownerAddress: storage.sellerAddress,
+                            iterations: storage2.autoRenewIterations
+                        }
+                    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+                }
                 if (msgValue > TONS_MIN_EXCESS) {
                     createMessage<CommentMessage>({
                         bounce: false,
@@ -450,11 +462,11 @@ get fun get_storage_data() {
         storage.domainNameCell,
         storage.isTgUsername,
         storage.jettonWalletAddress,
+        storage2.autoRenewCooldown,
+        storage2.autoRenewIterations,
 
         storage.hotUntil,
         storage.coloredUntil,
-        storage2.autoRenewCooldown,
-        storage2.autoRenewIterations,
 
         storage2.jettonMinterAddress,
         contract.getCode().hash()
