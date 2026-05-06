@@ -63,6 +63,7 @@ export const OpCodes = {
     SET_SUBSCRIPTIONS: 0x6f36a835,
     CHANGE_MOVE_UP_PRICE: 0x6713a0dc,
     CHANGE_PROMOTION_PRICE: 0x9ac90881,
+    CHANGE_SUBSCRIPTIONS_INFO: 0x3dfe2cf2,
 }
 
 export const Tons = {

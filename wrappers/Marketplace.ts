@@ -251,6 +251,9 @@ export class Marketplace extends DefaultContract {
     static changePromotionPriceMessage(newPrice: Dictionary<number, PromotionPricesValue>, queryId: number = 0) {
         return beginCell().storeUint(OpCodes.CHANGE_PROMOTION_PRICE, 32).storeUint(queryId, 64).storeDict(newPrice, Dictionary.Keys.Uint(32), promotionPricesValueParser()).endCell();
     }
+    static changeSubscriptionsInfoMessage(newInfo: Dictionary<number, Dictionary<number, bigint>>, queryId: number = 0) {
+        return beginCell().storeUint(OpCodes.CHANGE_SUBSCRIPTIONS_INFO, 32).storeUint(queryId, 64).storeDict(newInfo, Dictionary.Keys.Uint(8), subscriptionInfoValueParser()).endCell();
+    }
 
     async sendBuySubscription(provider: ContractProvider, via: Sender, subscriptionLevel: number, subscriptionPeriod: number, subscriptionPrice: bigint, queryId: number = 0) {
         await provider.internal(via, {
@@ -279,7 +282,7 @@ export class Marketplace extends DefaultContract {
 
     async sendUpdateDeployInfo(provider: ContractProvider, via: Sender, updatesDict: Dictionary<number, DeployInfoValue>, queryId: number = 0) {
         await provider.internal(via, {
-            value: toNano('0.01'),
+            value: toNano('0.03'),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: Marketplace.updateDeployInfoMessage(updatesDict, queryId),
             bounce: true,
@@ -309,6 +312,15 @@ export class Marketplace extends DefaultContract {
             value: toNano('0.01'),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: Marketplace.changePromotionPriceMessage(newPrice, queryId),
+            bounce: true,
+        });
+    }
+
+    async sendChangeSubscriptionsInfo(provider: ContractProvider, via: Sender, newInfo: Dictionary<number, Dictionary<number, bigint>>, queryId: number = 0) {
+        await provider.internal(via, {
+            value: toNano('0.01'),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: Marketplace.changeSubscriptionsInfoMessage(newInfo, queryId),
             bounce: true,
         });
     }

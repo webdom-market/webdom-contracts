@@ -1,6 +1,6 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract, Treasury } from '@ton/sandbox';
 import { Address, beginCell, Cell, contractAddress, Dictionary, toNano } from '@ton/core';
-import { DeployData, DeployInfoValue, deployInfoValueParser, Marketplace, MarketplaceConfig, marketplaceConfigToCell, PromotionPricesValue, promotionPricesValueParser, userSubscriptionValueParser } from '../wrappers/Marketplace';
+import { DeployData, DeployInfoValue, deployInfoValueParser, Marketplace, MarketplaceConfig, marketplaceConfigToCell, PromotionPricesValue, promotionPricesValueParser, subscriptionInfoValueParser, userSubscriptionValueParser } from '../wrappers/Marketplace';
 import { MarketplaceDeployer } from '../wrappers/MarketplaceDeployer';
 import { readFileSync } from 'fs';
 import '@ton/test-utils';
@@ -1479,6 +1479,25 @@ describe('Marketplace', () => {
         marketplaceConfig = await marketplace.getStorageData();
         expect(marketplaceConfig.userSubscriptions!.get(buyer.address)!.endTime).toEqual(blockchain.now! + ONE_DAY * 30);
         expect(marketplaceConfig.userSubscriptions!.get(seller.address)!.endTime).toEqual(blockchain.now! + ONE_DAY * 60);
+    });
+
+    it('should change subscriptions info', async () => {
+        const newSubscriptionLevel1 = Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.BigUint(64));
+        newSubscriptionLevel1.set(ONE_DAY * 30, toNano('77'));
+
+        const newSubscriptionLevel2 = Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.BigUint(64));
+        newSubscriptionLevel2.set(ONE_DAY * 30, toNano('111'));
+        newSubscriptionLevel2.set(ONE_DAY * 365, toNano('999'));
+
+        const newSubscriptionsInfo = Dictionary.empty(Dictionary.Keys.Uint(8), subscriptionInfoValueParser());
+        newSubscriptionsInfo.set(1, newSubscriptionLevel1);
+        newSubscriptionsInfo.set(2, newSubscriptionLevel2);
+
+        transactionRes = await marketplace.sendChangeSubscriptionsInfo(admin.getSender(), newSubscriptionsInfo);
+        expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
+        marketplaceConfig = await marketplace.getStorageData();
+        expect(marketplaceConfig.subscriptionsInfo!.get(1)!.get(ONE_DAY * 30)).toEqual(toNano('77'));
+        expect(marketplaceConfig.subscriptionsInfo!.get(2)!.get(ONE_DAY * 365)).toEqual(toNano('999'));
     });
 
     /* OTHER TESTS */

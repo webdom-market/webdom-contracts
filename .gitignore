@@ -25,3 +25,7 @@ Session.vim
 # contracts-func
 
 docs
+.omx/
+.omc/
+.agents/
+skills-lock.json
