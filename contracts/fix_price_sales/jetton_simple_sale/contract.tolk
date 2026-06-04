@@ -1,3 +1,4 @@
+import "../../imports/gas";
 import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
 import "../../imports/constants"
@@ -39,7 +40,9 @@ fun cancelDeal(mutate storage: Storage, domainAddress: address, queryId: uint64)
 
 @inline
 fun getRequiredReserve(autoRenewIterations: uint8): coins {
-    return TONS_MIN_RESERVE_FOR_AUTOCANCEL + TONS_AUTORENEW_LOCK_PER_ITER * autoRenewIterations;
+    // Sale's own one-year storage (computed) + the lean transfer-out cost. The domain's own storage
+    // is pre-funded at deposit (domainRefillFee), so the transfer-out stays lean.
+    return saleStorageReserve(ONE_YEAR) + nftTransferFee() + autoRenewLockPerIter() * autoRenewIterations;
 }
 
 @inline
@@ -83,9 +86,10 @@ fun onInternalMessage(in: InMessage): void {
                 storage.state = STATE_ACTIVE;
                 storage.save();
                 
-                // Send excess to seller
+                // Forward the marketplace auto-renew prepay (if any). The deploy value is sized to the
+                // computed reserve + activation gas, so there is no meaningful excess to return — any
+                // tiny surplus just stays on the sale's balance.
                 var storage2: StorageDs2 = lazy storage.ds2.load();
-                val msgValue: coins = contract.getOriginalBalance() - getRequiredReserve(storage2.autoRenewIterations) - storage2.autoRenewIterations * TONS_AUTORENEW_MARKETPLACE_FEE;
                 if (storage2.autoRenewIterations > 0) {
                     createMessage<AutoRenewPrepayMessage>({
                         bounce: false,
@@ -97,14 +101,6 @@ fun onInternalMessage(in: InMessage): void {
                             iterations: storage2.autoRenewIterations
                         }
                     }).send(SEND_MODE_PAY_FEES_SEPARATELY);
-                }
-                if (msgValue > TONS_MIN_EXCESS) {
-                    createMessage<CommentMessage>({
-                        bounce: false,
-                        value: msgValue,
-                        dest: storage.sellerAddress,
-                        body: CommentMessage { comment: "Domain sale deployed successfully" }
-                    }).send(SEND_MODE_REGULAR);
                 }
 
                 return;
@@ -131,7 +127,7 @@ fun onInternalMessage(in: InMessage): void {
                 assert(in.senderAddress == storage.jettonWalletAddress) throw EXC_INCORRECT_SENDER;
                 assert(storage.state == STATE_ACTIVE && storage.validUntil > nowTs) throw EXC_DEAL_NOT_ACTIVE;
                 assert(storage.isTgUsername || storage.lastRenewalTime > nowTs - (ONE_YEAR - ONE_DAY)) throw EXC_DOMAIN_EXPIRED;
-                assert(in.valueCoins >= TONS_JETTON_SIMPLE_PURCHASE) throw EXC_OUT_OF_GAS;
+                assert(in.valueCoins >= jettonSimplePurchaseFee()) throw EXC_OUT_OF_GAS;
                 assert(msg.transferredJettons >= storage.price) throw EXC_NOT_ENOUGH_JETTONS;
 
                 // Return excess jettons to buyer (used when jettons were received via dedust swap)
@@ -247,7 +243,7 @@ fun onInternalMessage(in: InMessage): void {
             var storage2: StorageDs2 = lazy storage.ds2.load();
             assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
             assert(!storage.isTgUsername) throw EXC_UNSUPPORTED_OP;
-            assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN) throw EXC_OUT_OF_GAS;
+            assert(in.valueCoins >= TONS_RENEW_REQUEST + renewDomainFee()) throw EXC_OUT_OF_GAS;
 
             // Reserve minimum balance for auto-cancellation
             reserveToncoinsOnBalance(getRequiredReserve(storage2.autoRenewIterations), RESERVE_MODE_EXACT_AMOUNT);
@@ -255,9 +251,9 @@ fun onInternalMessage(in: InMessage): void {
             // Send renewal transaction to domain contract
             createMessage({
                 bounce: false,
-                value: TONS_RENEW_DOMAIN,
+                value: renewDomainFee(),
                 dest: storage2.domainAddress,
-            }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+            }).send(SEND_MODE_REGULAR);
             
             // Send renewal fee to marketplace
             createMessage<RenewalFeeMessage>({
@@ -293,7 +289,7 @@ fun onInternalMessage(in: InMessage): void {
 
             val addIterations: uint8 = msg.autoRenewIterations - storage2.autoRenewIterations;
             if (addIterations > 0) {
-                val topUpReserve: coins = (TONS_AUTORENEW_LOCK_PER_ITER + TONS_AUTORENEW_MARKETPLACE_FEE) * addIterations;
+                val topUpReserve: coins = (autoRenewLockPerIter() + TONS_AUTORENEW_MARKETPLACE_FEE) * addIterations;
                 assert(in.valueCoins >= topUpReserve + TONS_AUTORENEW_TOPUP_GAS_BUFFER) throw EXC_OUT_OF_GAS;
             }
 
@@ -417,7 +413,7 @@ fun onExternalMessage(in: InMessage): void {
 
         acceptExternalMessage();
         val gasToReserve: coins = getRequiredReserve(storage2.autoRenewIterations - 1);
-        if (contract.getOriginalBalance() < gasToReserve + TONS_RENEW_DOMAIN || storage.lastRenewalTime <= nowTs - (ONE_YEAR - ONE_HOUR)) {
+        if (contract.getOriginalBalance() < gasToReserve + renewDomainFee() || storage.lastRenewalTime <= nowTs - (ONE_YEAR - ONE_HOUR)) {
             cancelDeal(mutate storage, storage2.domainAddress, queryId);
             return;
         }
@@ -429,9 +425,9 @@ fun onExternalMessage(in: InMessage): void {
 
         createMessage({
             bounce: false,
-            value: TONS_RENEW_DOMAIN,
+            value: renewDomainFee(),
             dest: storage2.domainAddress,
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+        }).send(SEND_MODE_REGULAR);
         return;
     }
 

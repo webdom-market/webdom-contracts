@@ -1,4 +1,5 @@
 import "../../imports/constants";
+import "../../imports/gas";
 import "../../marketplace/types";
 import "../../marketplace/constants";
 import "../constants";
@@ -20,7 +21,13 @@ struct TonSimpleSaleDeployPayload {
     autoRenewIterations: uint8;
 }
 
-const TONS_DEPLOY_TON_SIMPLE_SALE = TONS_NFT_TRANSFER + TONS_MIN_RESERVE * 2 + ton("0.005");
+// Sale-contract funding at deploy: enough to transfer the domain out later (nftTransferFee) + the
+// sale's own one-year storage rent (computed) + the activation handler's compute (computed). The
+// DOMAIN's own year of storage is funded separately, in the deposit transfer below (domainRefillFee).
+@inline
+fun deployTonSimpleSaleValue(): coins {
+    return nftTransferFee() + saleStorageReserve(ONE_YEAR) + gasFee(GAS_SALE_DEPLOY);
+}
 
 fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     var deployInfo = TonSimpleSaleDeployInfo.fromSlice(args.commonArgs.deployInfoSlice);
@@ -46,7 +53,7 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
         mulDivFloor(payload.price, deployInfo.commissionFactor, COMMISSION_DIVIDER),
         deployInfo.maxCommission
     ), COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
-    val autoRenewReserve: coins = TONS_AUTORENEW_LOCK_PER_ITER * payload.autoRenewIterations;
+    val autoRenewReserve: coins = autoRenewLockPerIter() * payload.autoRenewIterations;
     val autoRenewPrepay: coins = TONS_AUTORENEW_MARKETPLACE_FEE * payload.autoRenewIterations;
 
     val data = (Storage {
@@ -77,10 +84,13 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     };
     val saleAddressBuilder = saleAddress.buildAddress();
 
-    // Transfer NFT to the sale contract
+    // Transfer NFT to the sale contract. responseAddress is addr_none and forwardTonAmount is 0, so
+    // the domain item RETAINS the whole value (it sends nothing back). We send domainRefillFee() =
+    // transfer + one year of the item's storage, so the domain holds ~1 TON + a year of rent and can
+    // never drain below its min_tons_for_storage reserve for the life of the sale.
     createMessage({
         bounce: false,
-        value: TONS_NFT_TRANSFER,
+        value: domainRefillFee(),
         dest: args.domainAddress,
         body: NftTransferMessageBuilder<CommentMessage> {
             queryId: 0,
@@ -94,15 +104,15 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     // Deploy sale contract
     val msg = createMessage<FillUpBalanceMessage>({
         bounce: false,
-        value: TONS_DEPLOY_TON_SIMPLE_SALE + autoRenewReserve + autoRenewPrepay,
+        value: deployTonSimpleSaleValue() + autoRenewReserve + autoRenewPrepay,
         dest: saleAddress,
         body: FillUpBalanceMessage { queryId: args.commonArgs.queryId }
     });
 
-    val requiredGas: coins = TONS_DEPLOY_TON_SIMPLE_SALE
+    val requiredGas: coins = deployTonSimpleSaleValue()
                              + autoRenewReserve
                              + autoRenewPrepay  // не учитывается в collected fees но в целом это не критично
-                             + TONS_NFT_TRANSFER
+                             + domainRefillFee()  // the domain deposit value (transfer + 1yr domain storage)
                              + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
     
     return requiredGas;

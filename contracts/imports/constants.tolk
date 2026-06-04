@@ -59,19 +59,14 @@ const OP_WITHDRAW_DOMAIN: uint32        = 0x00dc315b;
 /* TON VALUES */
 const TONS_MIN_RESERVE: coins           = ton("0.015");
 const TONS_MIN_EXCESS: coins            = ton("0.005");
-const TONS_NFT_TRANSFER: coins          = ton("0.03");
 const TONS_JETTON_TRANSFER: coins       = ton("0.05");
-const TONS_BURN_JETTON: coins           = ton("0.05");
-const TONS_RENEW_DOMAIN: coins          = ton("0.02");
 const TONS_RENEW_REQUEST: coins         = ton("0.1");
-const TONS_AUTORENEW_TX_PER_ITER: coins = ton("0.04");
 const TONS_AUTORENEW_MARKETPLACE_FEE: coins = ton("0.1");
 const TONS_AUTORENEW_TOPUP_GAS_BUFFER: coins = ton("0.01");
 const TONS_PURCHASE_NOTIFICATION: coins = ton("0.03");
 const TONS_OFFER_NOTIFICATION: coins    = ton("0.1");
 const TONS_DECLINE_REWARD: coins        = ton("0.01");
 const TONS_NOTIFY_MARKETPLACE: coins    = ton("0.01");
-const TONS_GET_JETTON_WALLET: coins     = ton("0.02");
 
 
 /* EXCEPTIONS */

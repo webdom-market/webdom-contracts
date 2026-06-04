@@ -1,5 +1,6 @@
 import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
+import "../../imports/gas"
 import "../../imports/constants"
 import "../../imports/messages"
 import "../../imports/utils"
@@ -39,7 +40,10 @@ fun cancelDeal(mutate storage: Storage, queryId: uint64): void {
 
 @inline
 fun getRequiredReserve(autoRenewIterations: uint8): coins {
-    return TONS_MIN_RESERVE_FOR_AUTOCANCEL + TONS_AUTORENEW_LOCK_PER_ITER * autoRenewIterations;
+    // Base autocancel reserve = the sale's own one-year storage rent (computed) + the cost to send
+    // the domain NFT back on cancel (nftTransferFee). The domain's own storage is pre-funded at deposit,
+    // so the transfer-out stays lean. Auto-renew lock adds per iteration.
+    return saleStorageReserve(ONE_YEAR) + nftTransferFee() + autoRenewLockPerIter() * autoRenewIterations;
 }
 
 @inline
@@ -123,7 +127,7 @@ fun onInternalMessage(in: InMessage): void {
         RenewDomainMessage => {
             assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
             assert(!storage.isTgUsername) throw EXC_UNSUPPORTED_OP;
-            assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN) throw EXC_OUT_OF_GAS;
+            assert(in.valueCoins >= TONS_RENEW_REQUEST + renewDomainFee()) throw EXC_OUT_OF_GAS;
                         
             // Reserve minimum balance for auto-cancellation
             reserveToncoinsOnBalance(getRequiredReserve(autoRenewData.autoRenewIterations), RESERVE_MODE_EXACT_AMOUNT);
@@ -131,9 +135,9 @@ fun onInternalMessage(in: InMessage): void {
             // Send renewal transaction to domain contract
             createMessage({
                 bounce: false,
-                value: TONS_RENEW_DOMAIN,
+                value: renewDomainFee(),
                 dest: storage.domainAddress,
-            }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+            }).send(SEND_MODE_REGULAR);
             
             // Send renewal fee to marketplace
             createMessage<RenewalFeeMessage>({
@@ -167,8 +171,8 @@ fun onInternalMessage(in: InMessage): void {
 
             val addIterations: uint8 = msg.autoRenewIterations - autoRenewData.autoRenewIterations;
             if (addIterations > 0) {
-                val topUpReserve: coins = (TONS_AUTORENEW_LOCK_PER_ITER + TONS_AUTORENEW_MARKETPLACE_FEE) * addIterations;
-                assert(in.valueCoins >= topUpReserve + TONS_AUTORENEW_TOPUP_GAS_BUFFER) throw EXC_OUT_OF_GAS;
+                val topUpReserve: coins = (autoRenewLockPerIter() + TONS_AUTORENEW_MARKETPLACE_FEE) * addIterations;
+                assert(in.valueCoins >= topUpReserve + gasFee(GAS_AUTORENEW_TOPUP)) throw EXC_OUT_OF_GAS;
             }
 
             if (msg.newValidUntil != null) {
@@ -265,7 +269,7 @@ fun onInternalMessage(in: InMessage): void {
                     val nowTs: uint32 = blockchain.now();
                     assert(storage.state == STATE_ACTIVE && storage.validUntil > nowTs) throw EXC_DEAL_NOT_ACTIVE;  // check that sale is active 
                     assert(storage.isTgUsername || storage.lastRenewalTime > nowTs - (ONE_YEAR - ONE_DAY)) throw EXC_DOMAIN_EXPIRED;
-                    assert(in.valueCoins >= storage.price + TONS_TON_SIMPLE_PURCHASE) throw EXC_OUT_OF_GAS;  // check msg value is enough to pay for the sale
+                    assert(in.valueCoins >= storage.price + tonSimplePurchaseFee()) throw EXC_OUT_OF_GAS;  // check msg value is enough to pay for the sale
 
                     // Send marketplace commission
                     createMessage<CommentMessage>({
@@ -359,7 +363,7 @@ fun onExternalMessage(in: InMessage): void {
 
         acceptExternalMessage();
         val gasToReserve: coins = getRequiredReserve(autoRenewData.autoRenewIterations - 1);
-        if (contract.getOriginalBalance() < gasToReserve + TONS_RENEW_DOMAIN || storage.lastRenewalTime <= nowTs - (ONE_YEAR - ONE_HOUR)) {
+        if (contract.getOriginalBalance() < gasToReserve + renewDomainFee() || storage.lastRenewalTime <= nowTs - (ONE_YEAR - ONE_HOUR)) {
             cancelDeal(mutate storage, queryId);
             return;
         }
@@ -371,9 +375,9 @@ fun onExternalMessage(in: InMessage): void {
 
         createMessage({
             bounce: false,
-            value: TONS_RENEW_DOMAIN,
+            value: renewDomainFee(),
             dest: storage.domainAddress,
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+        }).send(SEND_MODE_REGULAR);
         return;
     }
 

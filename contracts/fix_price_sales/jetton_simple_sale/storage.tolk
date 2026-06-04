@@ -8,7 +8,7 @@ struct StorageDs2 {
 }
 
 // Jetton Simple Sale contract storage structure
-struct Storage {
+struct Storage {  // 267 + 267 + 124 + 2 + 124 + 32 + 32 + 32 + 1 + 32 + 32 = 945 bits
     jettonWalletAddress: address; // Address of the jetton wallet
     sellerAddress: address;       // Address of the domain seller
     price: coins;                 // Sale price in jettons
