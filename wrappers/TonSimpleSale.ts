@@ -77,8 +77,14 @@ export function tonSimpleSaleConfigToCell(config: TonSimpleSaleConfig): Cell {
 }
 
 export class TonSimpleSale extends DefaultContract {
-    static PURCHASE = 70000000n; 
-    static AUTORENEW_STORAGE_PER_YEAR = 35000000n;
+    static PURCHASE = 130000000n;  // >= tonSimplePurchaseFee() classic ~0.1116 (domainRefillFee-based, not lean)
+    // Client-side funding estimates. The contract computes renew/lock dynamically:
+    //   renewDomainFee() = storage(1yr, .ton domain) + renew compute + forward
+    //   auto-renew lock  = sale storage(1yr) + renewDomainFee() + trigger compute
+    // These static values cover the pessimistic CLASSIC prices the sandbox uses (far less on
+    // current mainnet). A real frontend should compute them from live network prices.
+    static RENEW_DOMAIN_FEE = 80000000n;          // >= renewDomainFee classic 0.066777
+    static AUTORENEW_STORAGE_PER_YEAR = 80000000n; // covers sale storage + domain renewDomainFee per iter
     static STATE_UNINIT = 0;
     static STATE_ACTIVE = 1;
     static STATE_COMPLETED = 2;
@@ -168,6 +174,7 @@ export class TonSimpleSale extends DefaultContract {
     async sendExternalCancel(provider: ContractProvider, queryId: number = 0) {
         await provider.external(beginCell().storeUint(OpCodes.CANCEL_DEAL, 32).storeUint(queryId, 64).endCell());
     }
+
     
     static renewDomainMessage(queryId: number = 0, newValidUntil: number = 0) {
         let tmp = beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64);
@@ -222,7 +229,7 @@ export class TonSimpleSale extends DefaultContract {
 
     async sendRenewDomain(provider: ContractProvider, via: Sender, queryId: number = 0) {
         await provider.internal(via, {
-            value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN,
+            value: Tons.RENEW_REQUEST + TonSimpleSale.RENEW_DOMAIN_FEE,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: TonSimpleSale.renewDomainMessage(queryId)
         });

@@ -62,6 +62,27 @@ export class Domain implements Contract {
         });
     }
 
+    static changeDnsRecordMessage(key: bigint, value: Maybe<Cell> = null, queryId: number = 0) {
+        const body = beginCell()
+            .storeUint(OpCodes.CHANGE_DNS_RECORD, 32)
+            .storeUint(queryId, 64)
+            .storeUint(key, 256);
+        // A present value ref => set the record; no ref => delete the record.
+        if (value) {
+            body.storeRef(value);
+        }
+        return body.endCell();
+    }
+
+    async sendChangeDnsRecord(provider: ContractProvider, via: Sender, key: bigint,
+                              value: Maybe<Cell> = null, queryId: number = 0, value_ton: bigint = toNano("0.02")) {
+        await provider.internal(via, {
+            value: value_ton,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: Domain.changeDnsRecordMessage(key, value, queryId)
+        });
+    }
+
     static startAuctionMessage(queryId: number = 0) {
         return beginCell().storeUint(OpCodes.DNS_BALANCE_RELEASE, 32).storeUint(queryId, 64).endCell();
     }
@@ -80,7 +101,7 @@ export class Domain implements Contract {
     
     async sendChangeContent(provider: ContractProvider, via: Sender, content: Cell, queryId: number = 0) {
         await provider.internal(via, {
-            value: toNano("0.01"),
+            value: toNano("0.001"),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: Domain.changeContentMessage(content, queryId)
         });

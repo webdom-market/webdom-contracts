@@ -79,8 +79,8 @@ export function multipleJettonSaleConfigToCell(config: JettonMultipleSaleConfig)
 }
 
 export class JettonMultipleSale extends DefaultContract {
-    static TON_PURCHASE = 60000000n; 
-    static AUTORENEW_STORAGE_PER_YEAR = 35000000n;
+    static TON_PURCHASE = 140000000n;  // per domain >= nftTransferFee(0.0761)+notification(0.03)+margin
+    static AUTORENEW_STORAGE_PER_YEAR = 50000000n;
     static STATE_UNINIT = 0;
     static STATE_ACTIVE = 1;
     static STATE_COMPLETED = 2;
@@ -139,7 +139,7 @@ export class JettonMultipleSale extends DefaultContract {
 
     async sendRenewDomain(provider: ContractProvider, via: Sender, domainsNumber: number, queryId: number = 0) {
         await provider.internal(via, {
-            value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN * BigInt(domainsNumber),
+            value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN_FEE * BigInt(domainsNumber),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).storeBit(0).endCell()
         });
@@ -173,7 +173,7 @@ export class JettonMultipleSale extends DefaultContract {
         queryId: number = 0,
         newValidUntil: number = 0,
         value: bigint = Tons.AUTORENEW_TOPUP_GAS_BUFFER + Tons.MIN_EXCESS + BigInt(autoRenewIterations) *
-            (JettonMultipleSale.AUTORENEW_STORAGE_PER_YEAR + Tons.AUTORENEW_TX_PER_ITER * BigInt(domainsNumber) + Tons.AUTORENEW_MARKETPLACE_FEE),
+            (JettonMultipleSale.AUTORENEW_STORAGE_PER_YEAR + Tons.AUTORENEW_LOCK_PER_DOMAIN * BigInt(domainsNumber) + Tons.AUTORENEW_MARKETPLACE_FEE),
     ) {
         await provider.internal(via, {
             value,

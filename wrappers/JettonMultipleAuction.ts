@@ -113,7 +113,7 @@ export class JettonMultipleAuction extends DefaultContract {
     }
 
     static getTonsToEndAuction(domainsNumber: number) {
-        return (Tons.NFT_TRANSFER + Tons.PURCHASE_NOTIFICATION + toNano('0.01')) * BigInt(domainsNumber) + toNano('0.02') + Tons.JETTON_TRANSFER * 3n + JettonMultipleAuction.TONS_MIN_TON_FOR_STORAGE;
+        return (Tons.DOMAIN_REFILL_FEE + Tons.PURCHASE_NOTIFICATION + toNano('0.01')) * BigInt(domainsNumber) + toNano('0.02') + Tons.JETTON_TRANSFER * 3n + JettonMultipleAuction.TONS_MIN_TON_FOR_STORAGE;
     }
 
     async sendStopAuction(provider: ContractProvider, via: Sender, queryId: number = 0) {
@@ -125,7 +125,7 @@ export class JettonMultipleAuction extends DefaultContract {
 
     async sendRenewDomain(provider: ContractProvider, via: Sender, domainsNumber: number, queryId: number = 0) {
         await provider.internal(via, {
-            value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN * BigInt(domainsNumber),
+            value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN_FEE * BigInt(domainsNumber),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).endCell()
         });

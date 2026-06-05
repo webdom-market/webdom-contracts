@@ -1,34 +1,34 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract, Treasury } from '@ton/sandbox';
 import { Address, beginCell, Cell, contractAddress, Dictionary, toNano } from '@ton/core';
-import { DeployData, DeployInfoValue, deployInfoValueParser, Marketplace, MarketplaceConfig, marketplaceConfigToCell, PromotionPricesValue, promotionPricesValueParser, subscriptionInfoValueParser, userSubscriptionValueParser } from '../wrappers/Marketplace';
-import { MarketplaceDeployer } from '../wrappers/MarketplaceDeployer';
+import { DeployData, DeployInfoValue, deployInfoValueParser, Marketplace, MarketplaceConfig, marketplaceConfigToCell, PromotionPricesValue, promotionPricesValueParser, subscriptionInfoValueParser, userSubscriptionValueParser } from '../../wrappers/Marketplace';
+import { MarketplaceDeployer } from '../../wrappers/MarketplaceDeployer';
 import { readFileSync } from 'fs';
 import '@ton/test-utils';
 import { compile, sleep } from '@ton/blueprint';
-import { TonSimpleSale, TonSimpleSaleDeployData, TonSimpleSaleConfig, tonSimpleSaleConfigToCell } from '../wrappers/TonSimpleSale';
-import { JettonSimpleSale, JettonSimpleSaleDeployData } from '../wrappers/JettonSimpleSale';
-import { TonSimpleAuction, TonSimpleAuctionDeployData } from '../wrappers/TonSimpleAuction';
-import { JettonSimpleAuction, JettonSimpleAuctionDeployData } from '../wrappers/JettonSimpleAuction';
-import { Domain } from '../wrappers/Domain';
+import { TonSimpleSale, TonSimpleSaleDeployData, TonSimpleSaleConfig, tonSimpleSaleConfigToCell } from '../../wrappers/TonSimpleSale';
+import { JettonSimpleSale, JettonSimpleSaleDeployData } from '../../wrappers/JettonSimpleSale';
+import { TonSimpleAuction, TonSimpleAuctionDeployData } from '../../wrappers/TonSimpleAuction';
+import { JettonSimpleAuction, JettonSimpleAuctionDeployData } from '../../wrappers/JettonSimpleAuction';
+import { Domain } from '../../wrappers/Domain';
 
-import { JettonMinter } from '../wrappers/JettonMinter';
-import { JettonWallet } from '../wrappers/JettonWallet';
+import { JettonMinter } from '../../wrappers/JettonMinter';
+import { JettonWallet } from '../../wrappers/JettonWallet';
 
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { Addresses, COMMISSION_DIVIDER, Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../wrappers/helpers/constants';
-import { TonMultipleSale, TonMultipleSaleDeployData } from '../wrappers/TonMultipleSale';
-import { TonSimpleOffer, TonSimpleOfferDeployData } from '../wrappers/TonSimpleOffer';
-import { DomainSwap, DomainSwapDeployData } from '../wrappers/DomainSwap';
-import { stringValueParser } from '../wrappers/helpers/DefaultContract';
-import { JettonSimpleOffer, JettonSimpleOfferDeployData } from '../wrappers/JettonSimpleOffer';
-import { JettonMultipleSale, JettonMultipleSaleDeployData } from '../wrappers/JettonMultipleSale';
-import { TgUsernamesCollectionConfig } from '../wrappers/TgUsernamesCollection';
-import { TgUsernamesCollection } from '../wrappers/TgUsernamesCollection';
-import { TonMultipleAuction, TonMultipleAuctionDeployData } from '../wrappers/TonMultipleAuction';
-import { JettonMultipleAuction } from '../wrappers/JettonMultipleAuction';
-import { MultipleOfferDeployData, MultipleOffer, domainInOfferValue } from '../wrappers/MultipleOffer';
-import { getDeployFunctionCode } from '../wrappers/helpers/getDeployFunctionCode';
-import { packStateInit } from '../wrappers/helpers/dnsUtils';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { Addresses, COMMISSION_DIVIDER, Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../../wrappers/helpers/constants';
+import { TonMultipleSale, TonMultipleSaleDeployData } from '../../wrappers/TonMultipleSale';
+import { TonSimpleOffer, TonSimpleOfferDeployData } from '../../wrappers/TonSimpleOffer';
+import { DomainSwap, DomainSwapDeployData } from '../../wrappers/DomainSwap';
+import { stringValueParser } from '../../wrappers/helpers/DefaultContract';
+import { JettonSimpleOffer, JettonSimpleOfferDeployData } from '../../wrappers/JettonSimpleOffer';
+import { JettonMultipleSale, JettonMultipleSaleDeployData } from '../../wrappers/JettonMultipleSale';
+import { TgUsernamesCollectionConfig } from '../../wrappers/TgUsernamesCollection';
+import { TgUsernamesCollection } from '../../wrappers/TgUsernamesCollection';
+import { TonMultipleAuction, TonMultipleAuctionDeployData } from '../../wrappers/TonMultipleAuction';
+import { JettonMultipleAuction } from '../../wrappers/JettonMultipleAuction';
+import { MultipleOfferDeployData, MultipleOffer, domainInOfferValue } from '../../wrappers/MultipleOffer';
+import { getDeployFunctionCode } from '../../wrappers/helpers/getDeployFunctionCode';
+import { packStateInit } from '../../wrappers/helpers/dnsUtils';
 
 
 describe('Marketplace', () => {
@@ -85,7 +85,7 @@ describe('Marketplace', () => {
         
         // tonShoppingCartCode = await compile('TonShoppingCart');
         DomainSwapCode = await compile('DomainSwap');
-    }, 10000);
+    }, 120000);  // cold-compiling ~20 contracts exceeds the old 10s limit (matches the gas specs)
 
     let blockchain: Blockchain;
     let admin: SandboxContract<TreasuryContract>;
@@ -660,7 +660,7 @@ describe('Marketplace', () => {
                 DOMAIN_NAMES[0],
                 TonSimpleSale.deployPayload(price, validUntil),
             ),
-            toNano('0.2')  // 0.059 returns
+            toNano('0.3')  // classic-priced deploy now funds a full year of domain storage (domainRefillFee); excess returns
         );
         expect(transactionRes.transactions.length).toEqual(7);
         expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
@@ -1541,7 +1541,7 @@ describe('Marketplace', () => {
         transactionRes = await domains[0].sendTransfer(
             seller.getSender(), marketplace.address, seller.address, 
             Marketplace.deployDealWithNftTransferPayload(seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE, DOMAIN_NAMES[0], beginCell().storeCoins(price).storeUint(validUntil, 32).endCell(), secretKey, blockchain.now!, COMMISSION_DIVIDER * 0.05),
-            toNano('0.2')  // 0.059 returns
+            toNano('0.3')  // classic-priced deploy now funds a full year of domain storage (domainRefillFee); excess returns
         );
         expect(transactionRes.transactions.length).toEqual(7);
         expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
@@ -1619,7 +1619,7 @@ describe('Marketplace', () => {
         transactionRes = await domains[0].sendTransfer(
             seller.getSender(), marketplace.address, seller.address, 
             Marketplace.deployDealWithNftTransferPayload(seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE, DOMAIN_NAMES[0], beginCell().storeCoins(price).storeUint(validUntil, 32).endCell(), secretKey, blockchain.now!, COMMISSION_DIVIDER * 0.05),
-            toNano('0.2')  // 0.059 returns
+            toNano('0.3')  // classic-priced deploy now funds a full year of domain storage (domainRefillFee); excess returns
         );
         expect(transactionRes.transactions.length).toEqual(7);
         expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
@@ -1694,7 +1694,7 @@ describe('Marketplace', () => {
         transactionRes = await marketplace.sendDeployDeal(
             buyer.getSender(), 
             deployData.completionCommission + toNano('0.05') + toNano("0.17"),  // 0.162 + completionCommission + deployFee required
-            Marketplace.DeployOpCodes.DOMAIN_SWAP, 
+            Marketplace.DeployOpCodes.DOMAIN_SWAP,
             DomainSwap.deployPayload(domains.slice(0, 2).map(d => d.address), leftPaymentTotal, rightParticipantAddress, domains.slice(2).map(d => d.address), rightPaymentTotal, validUntil, needsAlert)
         );
 

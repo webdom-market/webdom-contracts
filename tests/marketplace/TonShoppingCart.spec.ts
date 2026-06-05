@@ -1,16 +1,16 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core';
-import { DomainInfoValue, domainInfoValueParser, ShoppingCartSwapInfo, TonShoppingCart, TonShoppingCartConfig } from '../wrappers/TonShoppingCart';
+import { DomainInfoValue, domainInfoValueParser, ShoppingCartSwapInfo, TonShoppingCart, TonShoppingCartConfig } from '../../wrappers/TonShoppingCart';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { Domain, DomainConfig } from '../wrappers/Domain';
-import { MIN_PRICE_START_TIME, ONE_DAY, Tons } from '../wrappers/helpers/constants';
-import { TonSimpleSale, TonSimpleSaleConfig } from '../wrappers/TonSimpleSale';
-import { createDedustPools } from './helpers/createDedustPools';
-import { JettonMinter } from '../wrappers/JettonMinter';
-import { JettonWallet } from '../wrappers/JettonWallet';
-import { JettonSimpleSale, JettonSimpleSaleConfig } from '../wrappers/JettonSimpleSale';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { Domain, DomainConfig } from '../../wrappers/Domain';
+import { MIN_PRICE_START_TIME, ONE_DAY, Tons } from '../../wrappers/helpers/constants';
+import { TonSimpleSale, TonSimpleSaleConfig } from '../../wrappers/TonSimpleSale';
+import { createDedustPools } from '../helpers/createDedustPools';
+import { JettonMinter } from '../../wrappers/JettonMinter';
+import { JettonWallet } from '../../wrappers/JettonWallet';
+import { JettonSimpleSale, JettonSimpleSaleConfig } from '../../wrappers/JettonSimpleSale';
 
 
 describe('TonShoppingCart', () => {

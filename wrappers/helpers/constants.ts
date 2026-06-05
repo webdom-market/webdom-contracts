@@ -72,13 +72,27 @@ export const Tons = {
     NFT_TRANSFER: 30000000n,
     JETTON_TRANSFER: 50000000n,
     RENEW_DOMAIN: 20000000n,
+    // Client funding estimates for the now-computed domain fees. Transfers are LEAN (compute+forward;
+    // the item keeps its own ~1-TON storage reserve); storage is funded by renewDomainFee (.ton only)
+    // and, on fixed-value multiple-payout transfers, by domainRefillFee (transfer + 1yr .ton storage).
+    // Sized for the pessimistic CLASSIC sandbox prices; a real frontend computes from live prices.
+    RENEW_DOMAIN_FEE: 90000000n,           // >= renewDomainFee classic 0.066777
+    AUTORENEW_LOCK_PER_DOMAIN: 130000000n, // >= renewDomainFee + gasFee(50000) classic ~0.0868
     RENEW_REQUEST: 100000000n,
     AUTORENEW_TX_PER_ITER: 40000000n,
     AUTORENEW_MARKETPLACE_FEE: 100000000n,
     AUTORENEW_TOPUP_GAS_BUFFER: 10000000n,
     OFFER_NOTIFICATION: 100000000n,
-    END_TON_AUCTION: 70000000n,
-    END_JETTON_AUCTION: 210000000n,
+    // EXACT classic-price value of on-chain nftTransferFee() = gasFee(16000) + 2*forwardFee(1023,1).
+    NFT_TRANSFER_FEE: 8098400n,
+    // EXACT classic-price value of domainRefillFee() = nftTransferFee() + storageFee(1yr, .ton size).
+    // Used by the multiple-auction/sale fixed-value payout paths to keep the item funded for storage.
+    DOMAIN_REFILL_FEE: 72756018n,
+    // END_*_AUCTION mirror the on-chain TONS_END_*_AUCTION() (simple auctions, CARRY_ALL) at classic:
+    //   END_TON = PURCHASE_NOTIFICATION(0.03) + nftTransferFee(0.0081) + gasFee(GAS_MULTIPLE_PURCHASE_PER_DOMAIN)
+    //   END_JETTON = END_TON + 2*JETTON_TRANSFER + NOTIFY_MARKETPLACE
+    END_TON_AUCTION: 41298400n,
+    END_JETTON_AUCTION: 151298400n,
     NOTIFY_BIDDER: 5000000n,
     MIN_BID_INCREMENT: 100000000n,
     DECLINE_REWARD: 10000000n,
@@ -131,3 +145,14 @@ export const ONE_YEAR = 366 * ONE_DAY;
 export const COMMISSION_DIVIDER = 10000;
 export const AUCTION_START_TIME = 1659171600;
 export const MIN_PRICE_START_TIME = AUCTION_START_TIME + 2592000 * 22 + 1;
+
+// --- CLASSIC-price mirrors of the on-chain auction reserves (contracts/auctions/constants.tolk) ---
+// Verified EXACT vs GasProbe: storageFee classic = ceil((cells*500 + bits) * ONE_YEAR / 65536).
+export function storageFeeClassic(bits: number, cells: number): bigint {
+    return ((BigInt(cells) * 500n + BigInt(bits)) * BigInt(ONE_YEAR) + 65535n) / 65536n;
+}
+export const gasFeeClassic = (units: number): bigint => BigInt(units) * 400n; // classic gas price 400 nT/unit
+// simpleAuctionStorageReserve() = storageFee(ONE_YEAR, 44000, 80) = 40531641n
+export const SIMPLE_AUCTION_STORAGE = storageFeeClassic(44000, 80);
+// multiAuctionStorageReserve(ONE_YEAR, n) = storageFee(ONE_YEAR, 50000+320n, 95+3n)
+export const multiAuctionStorageReserve = (n: number): bigint => storageFeeClassic(50000 + 320 * n, 95 + 3 * n);

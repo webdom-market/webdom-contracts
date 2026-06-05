@@ -1,13 +1,13 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, toNano } from '@ton/core';
-import { TonSimpleSale, TonSimpleSaleConfig } from '../wrappers/TonSimpleSale';
+import { TonSimpleSale, TonSimpleSaleConfig } from '../../wrappers/TonSimpleSale';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { Domain, DomainConfig } from '../wrappers/Domain';
-import { getIndexByDomainName } from '../wrappers/helpers/dnsUtils';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../wrappers/helpers/constants';
-import { jettonsToString } from '../wrappers/helpers/functions';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { Domain, DomainConfig } from '../../wrappers/Domain';
+import { getIndexByDomainName } from '../../wrappers/helpers/dnsUtils';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../../wrappers/helpers/constants';
+import { jettonsToString } from '../../wrappers/helpers/functions';
 
 describe('TonSimpleSale', () => {
     let fixPriceSaleCode: Cell;
@@ -159,7 +159,7 @@ describe('TonSimpleSale', () => {
             blockchain.now! += timeSpent;
             let newValidUntil = Math.ceil(blockchain.now! + ONE_DAY * Math.random() * 700 / checks);
             transactionRes = await tonSimpleSale.sendChangePrice(seller.getSender(), newPrice, newValidUntil);
-            if (newValidUntil < Math.max(blockchain.now! + 600, tonSimpleSaleConfig.validUntil)) {
+            if (tonSimpleSaleConfig.lastRenewalTime + ONE_YEAR - ONE_DAY < newValidUntil || newValidUntil < Math.max(blockchain.now! + 600, tonSimpleSaleConfig.validUntil)) {
                 expect(transactionRes.transactions).toHaveTransaction({
                     from: seller.address,
                     to: tonSimpleSale.address,
@@ -179,16 +179,28 @@ describe('TonSimpleSale', () => {
         }
     });
 
-    it("should set max validUntil", async () => {
-        const maxValidUntil = 0xffffffff;
+    it("should cap validUntil at the domain lifetime for .ton domains", async () => {
+        tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
+        const maxValidUntil = tonSimpleSaleConfig.lastRenewalTime
+            + tonSimpleSaleConfig.autoRenewCooldown! * tonSimpleSaleConfig.autoRenewIterations!
+            + ONE_YEAR - ONE_DAY;
+
+        // setting exactly the cap succeeds
         transactionRes = await tonSimpleSale.sendChangePrice(seller.getSender(), tonSimpleSaleConfig.price, maxValidUntil);
         expect(transactionRes.transactions).not.toHaveTransaction({
             from: seller.address,
             to: tonSimpleSale.address,
             exitCode: Exceptions.INCORRECT_VALID_UNTIL
         });
-        tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
-        expect(tonSimpleSaleConfig.validUntil).toEqual(maxValidUntil);
+        expect((await tonSimpleSale.getStorageData()).validUntil).toEqual(maxValidUntil);
+
+        // setting one second beyond the cap is rejected
+        transactionRes = await tonSimpleSale.sendChangePrice(seller.getSender(), tonSimpleSaleConfig.price, maxValidUntil + 1);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: seller.address,
+            to: tonSimpleSale.address,
+            exitCode: Exceptions.INCORRECT_VALID_UNTIL
+        });
     });
 
     it("should renew domain", async () => {
@@ -224,9 +236,14 @@ describe('TonSimpleSale', () => {
     })
 
     it("should reject purchase when domain is expired by renewal time", async () => {
-        await tonSimpleSale.sendChangePrice(seller.getSender(), tonSimpleSaleConfig.price, 0xffffffff);
+        // Prepay auto-renew so validUntil may legitimately extend past the domain's renewal-time expiry
+        // (under the cap an iterations=0 sale's validUntil ends exactly at that boundary, so the only way
+        // to reach the DOMAIN_EXPIRED guard with validUntil still in the future is via prepaid iterations).
+        await tonSimpleSale.sendSetAutoRenewParams(seller.getSender(), ONE_DAY * 30, 2);
         tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
+        // Past the renewal-time expiry (lastRenewal + ONE_YEAR - ONE_DAY) but still within validUntil
         blockchain.now! = tonSimpleSaleConfig.lastRenewalTime + ONE_YEAR;
+        expect(tonSimpleSaleConfig.validUntil).toBeGreaterThan(blockchain.now!);
         transactionRes = await tonSimpleSale.sendPurchase(buyer.getSender(), tonSimpleSaleConfig.price);
         expect(transactionRes.transactions).toHaveTransaction({
             from: buyer.address,

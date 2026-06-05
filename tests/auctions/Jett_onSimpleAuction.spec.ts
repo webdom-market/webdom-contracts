@@ -1,16 +1,16 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, toNano } from '@ton/core';
-import { JettonSimpleAuction, JettonSimpleAuctionConfig } from '../wrappers/JettonSimpleAuction';
+import { JettonSimpleAuction, JettonSimpleAuctionConfig } from '../../wrappers/JettonSimpleAuction';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { DomainConfig } from '../wrappers/Domain';
-import { Domain } from '../wrappers/Domain';
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { domainToNotification, TonSimpleSaleConfig } from '../wrappers/TonSimpleSale';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_TON, OpCodes, Tons } from '../wrappers/helpers/constants';
-import { jettonsToString } from '../wrappers/helpers/functions';
-import { JettonMinter } from '../wrappers/JettonMinter';
-import { JettonWallet } from '../wrappers/JettonWallet';
+import { DomainConfig } from '../../wrappers/Domain';
+import { Domain } from '../../wrappers/Domain';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { domainToNotification, TonSimpleSaleConfig } from '../../wrappers/TonSimpleSale';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_TON, OpCodes, Tons } from '../../wrappers/helpers/constants';
+import { jettonsToString } from '../../wrappers/helpers/functions';
+import { JettonMinter } from '../../wrappers/JettonMinter';
+import { JettonWallet } from '../../wrappers/JettonWallet';
 
 
 describe('JettonSimpleAuction', () => {

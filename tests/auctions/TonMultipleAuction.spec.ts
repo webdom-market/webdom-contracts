@@ -1,12 +1,12 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core';
-import { TonMultipleAuction, TonMultipleAuctionConfig } from '../wrappers/TonMultipleAuction';
+import { TonMultipleAuction, TonMultipleAuctionConfig } from '../../wrappers/TonMultipleAuction';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { Domain, DomainConfig } from '../wrappers/Domain';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../wrappers/helpers/constants';
-import { abs, min, max } from './helpers/common';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { Domain, DomainConfig } from '../../wrappers/Domain';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../../wrappers/helpers/constants';
+import { abs, min, max } from '../helpers/common';
 
 describe('TonMultipleAuction', () => {
     let tonMultipleAuctionCode: Cell;
@@ -52,7 +52,7 @@ describe('TonMultipleAuction', () => {
 
     async function sendDomainsToAuction() {
         for (let domain of domains) {
-            transactionRes = await domain.sendTransfer(seller.getSender(), tonMultipleAuction.address, seller.address, null, toNano('0.07'));
+            transactionRes = await domain.sendTransfer(seller.getSender(), tonMultipleAuction.address, seller.address, null, toNano('0.1'));
             domainConfigs.push(await domain.getStorageData());
         }
     }
