@@ -1683,6 +1683,98 @@ describe('Marketplace', () => {
     });
 
 
+    describe('AUDIT-deploy-nontg', () => {
+        // domains[0] = "viqex.t.me" (TG username, owned by seller)
+        // domains[1] = "test100000000.ton" (NON-TG .ton, owned by seller)
+        it('AUDIT: TON simple sale deploy - TG (control) succeeds, non-TG should also succeed', async () => {
+            const price = toNano('5000');
+            const validUntil = blockchain.now! + 300; // within [minDuration, ~1yr]
+
+            // CONTROL: TG username (.t.me) -> isTgUsername branch -> succeeds today
+            let tgRes = await domains[0].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
+                    DOMAIN_NAMES[0], TonSimpleSale.deployPayload(price, validUntil)),
+                toNano('0.3'));
+            const tgOwner = (await domains[0].getStorageData()).ownerAddress!.toString();
+            const tgWentToSale = tgOwner !== seller.address.toString();
+            console.log('AUDIT TON: TG deploy -> domain owner is sale?', tgWentToSale, 'exitCodes:',
+                tgRes.transactions.map((t: any) => t.description?.computePhase?.exitCode));
+
+            // SUBJECT: non-TG .ton, identical valid params
+            let res = await domains[1].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
+                    DOMAIN_NAMES[1], TonSimpleSale.deployPayload(price, validUntil)),
+                toNano('0.3'));
+            const owner = (await domains[1].getStorageData()).ownerAddress!.toString();
+            const wentToSale = owner !== seller.address.toString();
+            console.log('AUDIT TON: non-TG deploy -> domain owner is sale?', wentToSale, 'exitCodes:',
+                res.transactions.map((t: any) => t.description?.computePhase?.exitCode));
+            const hasIncorrectValidUntil = res.transactions.some(
+                (t: any) => t.description?.computePhase?.exitCode === Exceptions.INCORRECT_VALID_UNTIL);
+            console.log('AUDIT TON: non-TG deploy threw INCORRECT_VALID_UNTIL(49)?', hasIncorrectValidUntil);
+
+            // A valid non-TG deploy MUST activate the sale exactly like the TG control.
+            expect(tgWentToSale).toBe(true);
+            expect(wentToSale).toBe(true);
+        });
+
+        it('AUDIT: TON simple sale validUntil cap is enforced for non-TG (over-cap rejected)', async () => {
+            const price = toNano('5000');
+            // iterations=0 => cap = now + ONE_YEAR - ONE_DAY. Ask for 2 years -> must be rejected.
+            const overCap = blockchain.now! + 2 * ONE_YEAR;
+            let res = await domains[1].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
+                    DOMAIN_NAMES[1], TonSimpleSale.deployPayload(price, overCap)),
+                toNano('0.3'));
+            const owner = (await domains[1].getStorageData()).ownerAddress!.toString();
+            const wentToSale = owner !== seller.address.toString();
+            const hasIncorrectValidUntil = res.transactions.some(
+                (t: any) => t.description?.computePhase?.exitCode === Exceptions.INCORRECT_VALID_UNTIL);
+            console.log('AUDIT CAP TON: over-cap non-TG -> wentToSale?', wentToSale, 'threw 49?', hasIncorrectValidUntil);
+            expect(wentToSale).toBe(false); // domain returns to seller; sale NOT created
+        });
+
+        it('AUDIT: TON simple sale TG username is EXEMPT from cap (huge validUntil ok)', async () => {
+            const price = toNano('5000');
+            const huge = blockchain.now! + 5 * ONE_YEAR; // way past 1 year; TG exempt
+            let res = await domains[0].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
+                    DOMAIN_NAMES[0], TonSimpleSale.deployPayload(price, huge)),
+                toNano('0.3'));
+            const owner = (await domains[0].getStorageData()).ownerAddress!.toString();
+            const wentToSale = owner !== seller.address.toString();
+            console.log('AUDIT CAP TON: TG huge-validUntil -> wentToSale?', wentToSale);
+            expect(wentToSale).toBe(true);
+        });
+
+        it('AUDIT: Jetton simple sale deploy - non-TG should succeed', async () => {
+            const price = 100n * 10n ** 3n;
+            const validUntil = blockchain.now! + 300;
+            const isWeb3 = true;
+            let res = await domains[1].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.JETTON_SIMPLE_SALE,
+                    DOMAIN_NAMES[1], JettonSimpleSale.deployPayload(isWeb3, price, validUntil)),
+                toNano('0.3'));
+            const owner = (await domains[1].getStorageData()).ownerAddress!.toString();
+            const wentToSale = owner !== seller.address.toString();
+            const hasIncorrectValidUntil = res.transactions.some(
+                (t: any) => t.description?.computePhase?.exitCode === Exceptions.INCORRECT_VALID_UNTIL);
+            console.log('AUDIT JETTON: non-TG deploy -> domain owner is sale?', wentToSale,
+                'threw INCORRECT_VALID_UNTIL(49)?', hasIncorrectValidUntil);
+            expect(wentToSale).toBe(true);
+        });
+    });
+
     it ('should deploy multiple domains swap', async () => {
         let deployData = marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.DOMAIN_SWAP)!.otherData as DomainSwapDeployData;
         let leftPaymentTotal = toNano('1000');

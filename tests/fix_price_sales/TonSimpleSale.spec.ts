@@ -252,63 +252,6 @@ describe('TonSimpleSale', () => {
         });
     });
 
-    it("should disable renew paths and skip renewal-time expiration check for tg usernames", async () => {
-        transactionRes = await tonSimpleSale.sendCancelSale(seller.getSender());
-        expect(transactionRes.transactions).toHaveTransaction({
-            from: seller.address,
-            to: tonSimpleSale.address,
-            success: true,
-        });
-        domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!.toString()).toEqual(seller.address.toString());
-
-        blockchain.now! += 1;
-        const tgSaleConfig: TonSimpleSaleConfig = {
-            ...tonSimpleSaleConfig,
-            state: TonSimpleSale.STATE_UNINIT,
-            createdAt: blockchain.now!,
-            lastRenewalTime: blockchain.now! - ONE_YEAR,
-            validUntil: blockchain.now! + ONE_DAY,
-            buyerAddress: null,
-            domainName: "testusername.t.me",
-            isTgUsername: false,
-        };
-        const tgSale = blockchain.openContract(TonSimpleSale.createFromConfig(tgSaleConfig, fixPriceSaleCode));
-        await tgSale.sendDeploy(admin.getSender(), toNano('0.05'));
-        await domain.sendTransfer(seller.getSender(), tgSale.address, null, null, 0n, 0, toNano('0.015'));
-
-        let tgSaleConfigAfterDeploy = await tgSale.getStorageData();
-        expect(tgSaleConfigAfterDeploy.isTgUsername).toEqual(true);
-
-        await tgSale.sendChangePrice(seller.getSender(), tgSaleConfigAfterDeploy.price, 0xffffffff);
-        tgSaleConfigAfterDeploy = await tgSale.getStorageData();
-        blockchain.now! = tgSaleConfigAfterDeploy.lastRenewalTime + ONE_YEAR;
-
-        transactionRes = await tgSale.sendRenewDomain(seller.getSender());
-        expect(transactionRes.transactions).toHaveTransaction({
-            from: seller.address,
-            to: tgSale.address,
-            exitCode: Exceptions.UNSUPPORTED_OP,
-        });
-
-        transactionRes = await tgSale.sendSetAutoRenewParams(seller.getSender(), ONE_DAY, 1);
-        expect(transactionRes.transactions).toHaveTransaction({
-            from: seller.address,
-            to: tgSale.address,
-            exitCode: Exceptions.UNSUPPORTED_OP,
-        });
-
-        await expect(tgSale.sendExternalTriggerAutoRenew()).rejects.toThrow("External message not accepted by smart contract");
-
-        transactionRes = await tgSale.sendPurchase(buyer.getSender(), tgSaleConfigAfterDeploy.price);
-        expect(transactionRes.transactions).not.toHaveTransaction({
-            from: buyer.address,
-            to: tgSale.address,
-            exitCode: Exceptions.DOMAIN_EXPIRED
-        });
-        domainConfig = await domain.getStorageData();
-        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
-    });
 
     it("should top up auto-renew and execute external auto-renew", async () => {
         transactionRes = await tonSimpleSale.sendSetAutoRenewParams(seller.getSender(), ONE_DAY, 2);

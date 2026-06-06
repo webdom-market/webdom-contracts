@@ -2,10 +2,6 @@ import "constants"
 import "messages"
 import "@stdlib/tvm-lowlevel"
 
-// todo проверить что работает
-fun loadData(): void
-    asm "1 CALLDICT"
-
 
 struct (0xe2d2d211) SetCodeAdminMessage {
     queryId: uint64;
@@ -105,7 +101,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
                 bounce: false,
                 value: 0,
                 dest: ADMIN_ADDRESS,
-                body: CommentMessage { comment: "TON withrawal" }
+                body: CommentMessage { comment: "TON withdrawal" }
             }).send(SEND_MODE_CARRY_ALL_BALANCE);
             throw 0;
         }
@@ -122,7 +118,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
                     toAddress: ADMIN_ADDRESS,
                     responseAddress: ADMIN_ADDRESS,
                     forwardTonAmount: 1,
-                    forwardPayload: (CommentMessage { comment: "Jetton withrawal" }).toCell()
+                    forwardPayload: (CommentMessage { comment: "Jetton withdrawal" }).toCell()
                 }
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             throw 0;
@@ -139,7 +135,7 @@ fun handleAdminMessage(senderAddress: address, inMsgBody: slice, permissions: Pe
                     toAddress: ADMIN_ADDRESS,
                     responseAddress: ADMIN_ADDRESS,
                     forwardTonAmount: 1,
-                    forwardPayload: (CommentMessage { comment: "Domain withrawal" }).toCell()
+                    forwardPayload: (CommentMessage { comment: "Domain withdrawal" }).toCell()
                 }
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             throw 0;
