@@ -39,17 +39,10 @@ fun cancelDeal(mutate storage: Storage, domainAddress: address, queryId: uint64)
 }
 
 @inline
-fun getRequiredReserve(autoRenewIterations: uint8): coins {
-    // Sale's own one-year storage (computed) + the lean transfer-out cost. The domain's own storage
-    // is pre-funded at deposit (domainRefillFee), so the transfer-out stays lean.
-    return saleStorageReserve(ONE_YEAR) + nftTransferFee() + autoRenewLockPerIter() * autoRenewIterations;
-}
-
-@inline
-fun isTgUsername(domainNameCell: cell): bool {
-    var domainNameSlice = domainNameCell.beginParse();
-    return domainNameSlice.remainingBitsCount() >= 5 * 8 &&
-           domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+fun getRequiredReserve(autoRenewIterations: uint8, autoRenewCooldown: uint32): coins {
+    // Sale's own 1yr storage + lean transfer-out cost (domain storage is pre-funded at deposit via
+    // domainRefillFee). Auto-renew lock adds one cooldown of storage per iteration.
+    return saleStorageReserve(ONE_YEAR) + nftTransferFee() + autoRenewLockPerIter(autoRenewCooldown) * autoRenewIterations;
 }
 
 
@@ -82,13 +75,11 @@ fun onInternalMessage(in: InMessage): void {
                 
                 // Set jetton wallet and activate sale
                 storage.jettonWalletAddress = msg.jettonWalletAddress;
-                storage.isTgUsername = isTgUsername(storage.domainNameCell);
                 storage.state = STATE_ACTIVE;
                 storage.save();
                 
-                // Forward the marketplace auto-renew prepay (if any). The deploy value is sized to the
-                // computed reserve + activation gas, so there is no meaningful excess to return — any
-                // tiny surplus just stays on the sale's balance.
+                // Forward marketplace auto-renew prepay (if any). Deploy value is sized to reserve +
+                // activation gas, so any tiny surplus just stays on the sale's balance.
                 var storage2: StorageDs2 = lazy storage.ds2.load();
                 if (storage2.autoRenewIterations > 0) {
                     createMessage<AutoRenewPrepayMessage>({
@@ -174,7 +165,7 @@ fun onInternalMessage(in: InMessage): void {
                         queryId: msg.queryId,
                         jettonAmount: storage.price - storage.commission,
                         toAddress: storage.sellerAddress,
-                        responseAddress: msg.fromAddress,
+                        responseAddress: storage.sellerAddress,
                         forwardTonAmount: 1,
                         forwardPayload: getPayoutNotificationBody(storage.domainNameCell)
                     }
@@ -212,7 +203,18 @@ fun onInternalMessage(in: InMessage): void {
         ChangePriceMessage => {
             var storage2: StorageDs2 = lazy storage.ds2.load();
             assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;  // check that sender is seller
-            assert(msg.newValidUntil >= max(blockchain.now() + 300, storage.validUntil)) throw EXC_INCORRECT_VALID_UNTIL;  // check that new validity period is greater than current
+            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
+            
+            // Check that new validUntil time is greater than current time and less than domain expiration time
+            assert(msg.newValidUntil >= max(blockchain.now() + 600, storage.validUntil)) throw EXC_INCORRECT_VALID_UNTIL;  // check that new validity period is greater than current
+            if (!storage.isTgUsername) {
+                // Cap sale validity at the domain's guaranteed lifetime (last renewal + prepaid auto-renew + ~1yr).
+                // TG usernames never expire, so they are exempt.
+                val maxValidUntil = storage.lastRenewalTime + storage2.autoRenewCooldown * storage2.autoRenewIterations + ONE_YEAR - ONE_DAY;
+                assert(msg.newValidUntil <= maxValidUntil) throw EXC_INCORRECT_VALID_UNTIL;
+            }
+        
+            assert(msg.newPrice > 0) throw EXC_INCORRECT_PRICE;
 
             // Determine jetton display parameters
             var (oneJetton, symbol) = storage2.jettonMinterAddress == WEB3_ADDRESS ? (1000, "WEB3") : (1000000, "USDT");
@@ -243,10 +245,11 @@ fun onInternalMessage(in: InMessage): void {
             var storage2: StorageDs2 = lazy storage.ds2.load();
             assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
             assert(!storage.isTgUsername) throw EXC_UNSUPPORTED_OP;
+            assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that sale is active
             assert(in.valueCoins >= TONS_RENEW_REQUEST + renewDomainFee()) throw EXC_OUT_OF_GAS;
 
             // Reserve minimum balance for auto-cancellation
-            reserveToncoinsOnBalance(getRequiredReserve(storage2.autoRenewIterations), RESERVE_MODE_EXACT_AMOUNT);
+            reserveToncoinsOnBalance(getRequiredReserve(storage2.autoRenewIterations, storage2.autoRenewCooldown), RESERVE_MODE_EXACT_AMOUNT);
 
             // Send renewal transaction to domain contract
             createMessage({
@@ -264,15 +267,15 @@ fun onInternalMessage(in: InMessage): void {
             }).send(SEND_MODE_CARRY_ALL_BALANCE);
             
             // Calculate new validity period
-            var newValidUntil: uint32;
+            val maxValidUntil = blockchain.now() + storage2.autoRenewCooldown * storage2.autoRenewIterations + ONE_YEAR - ONE_DAY;
             if (msg.newValidUntil != null) {
-                newValidUntil = max(msg.newValidUntil, storage.validUntil);
+                assert(msg.newValidUntil <= maxValidUntil) throw EXC_INCORRECT_VALID_UNTIL;
+                storage.validUntil = max(msg.newValidUntil, storage.validUntil);
             } else {
-                newValidUntil = max(blockchain.now() + ONE_YEAR - ONE_DAY, storage.validUntil);
+                storage.validUntil = maxValidUntil;
             }
 
             // Update storage with new renewal time
-            storage.validUntil = newValidUntil;
             storage.lastRenewalTime = blockchain.now();
             storage.save();
 
@@ -289,16 +292,17 @@ fun onInternalMessage(in: InMessage): void {
 
             val addIterations: uint8 = msg.autoRenewIterations - storage2.autoRenewIterations;
             if (addIterations > 0) {
-                val topUpReserve: coins = (autoRenewLockPerIter() + TONS_AUTORENEW_MARKETPLACE_FEE) * addIterations;
-                assert(in.valueCoins >= topUpReserve + TONS_AUTORENEW_TOPUP_GAS_BUFFER) throw EXC_OUT_OF_GAS;
+                val topUpReserve: coins = (autoRenewLockPerIter(msg.autoRenewCooldown) + TONS_AUTORENEW_MARKETPLACE_FEE) * addIterations;
+                assert(in.valueCoins >= topUpReserve + gasFee(GAS_AUTORENEW_TOPUP)) throw EXC_OUT_OF_GAS;
             }
 
+            val maxValidUntil: int = storage.lastRenewalTime + msg.autoRenewCooldown * msg.autoRenewIterations + ONE_YEAR - ONE_DAY;
             if (msg.newValidUntil != null) {
-                assert(msg.newValidUntil! >= max(blockchain.now() + 600, storage.validUntil)) throw EXC_INCORRECT_VALID_UNTIL;
-                storage.validUntil = msg.newValidUntil!;
+                assert(msg.newValidUntil <= maxValidUntil && msg.newValidUntil >= storage.validUntil) throw EXC_INCORRECT_VALID_UNTIL;
+                storage.validUntil = msg.newValidUntil;
             }
             else {
-                storage.validUntil = max(storage.validUntil, storage.lastRenewalTime + msg.autoRenewCooldown * msg.autoRenewIterations + ONE_YEAR - ONE_DAY);
+                storage.validUntil = maxValidUntil;
             }
 
             storage2.autoRenewCooldown = msg.autoRenewCooldown;
@@ -306,7 +310,7 @@ fun onInternalMessage(in: InMessage): void {
             storage.ds2 = storage2.toCell();
             storage.save();
 
-            reserveToncoinsOnBalance(getRequiredReserve(storage2.autoRenewIterations), RESERVE_MODE_EXACT_AMOUNT);
+            reserveToncoinsOnBalance(getRequiredReserve(storage2.autoRenewIterations, storage2.autoRenewCooldown), RESERVE_MODE_EXACT_AMOUNT);
 
             if (addIterations > 0) {
                 createMessage<AutoRenewPrepayMessage>({
@@ -338,7 +342,6 @@ fun onInternalMessage(in: InMessage): void {
 
             // Cancel the sale
             storage.state = STATE_CANCELLED;
-            storage.validUntil = min(storage.validUntil, blockchain.now());
             storage.save();
             commitContractDataAndActions();
 
@@ -371,15 +374,12 @@ fun onInternalMessage(in: InMessage): void {
         }
 
         else => {
-            if (in.body.remainingBitsCount() >= 32) {
-                var op: uint32 = in.body.loadUint(32);
-                if ((op == 0 && in.body.bitsEqual("cancel")) || op == OP_CANCEL_DEAL) {
-                    assert(in.senderAddress == storage.sellerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
-                    // Handle sale cancellation if op == OP_CANCEL_DEAL or msgBody == "cancel"
-                    var storage2: StorageDs2 = lazy storage.ds2.load();
-                    cancelDeal(mutate storage, storage2.domainAddress, 0);
-                    return;
-                }
+            var (op, queryId) = loadOpAndQueryId(mutate in.body);
+            if (op == OP_CANCEL_DEAL) {
+                assert(in.senderAddress == storage.sellerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+                var storage2: StorageDs2 = lazy storage.ds2.load();
+                cancelDeal(mutate storage, storage2.domainAddress, queryId);
+                return;
             }
             throw EXC_UNSUPPORTED_OP;
         }
@@ -412,7 +412,7 @@ fun onExternalMessage(in: InMessage): void {
         assert(storage.lastRenewalTime <= nowTs - storage2.autoRenewCooldown) throw 0xfffe;
 
         acceptExternalMessage();
-        val gasToReserve: coins = getRequiredReserve(storage2.autoRenewIterations - 1);
+        val gasToReserve: coins = getRequiredReserve(storage2.autoRenewIterations - 1, storage2.autoRenewCooldown);
         if (contract.getOriginalBalance() < gasToReserve + renewDomainFee() || storage.lastRenewalTime <= nowTs - (ONE_YEAR - ONE_HOUR)) {
             cancelDeal(mutate storage, storage2.domainAddress, queryId);
             return;

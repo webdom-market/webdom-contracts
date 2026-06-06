@@ -12,10 +12,10 @@ import "constants"
     - storage rent   -> calculateStorageFee  (config 18)
 
   Inputs are MEASURED units (gas units; message bits/cells; contract bits/cells), sized from
-  tests/GasResearch*.spec.ts. We pass a measured contract size rather than calling CDATASIZE at
+  tests/fix_price_sales/GasResearch*.spec.ts. We pass a measured contract size rather than calling CDATASIZE at
   runtime: CDATASIZE walks every code+data cell (~66 here) and costs ~7k gas per call — wasteful
   on a hot/high-stakes path. The size is a fixed property of the compiled contract (asserted in
-  tests/GasSize.spec.ts); only the *price* is dynamic.
+  tests/fix_price_sales/SaleGasSize.spec.ts); only the *price* is dynamic.
 
   Excluded (not a gas/storage/forward cost, so there is no live price to track): the jetton wallet
   floor (TONS_JETTON_TRANSFER) and marketplace business fees.
@@ -42,7 +42,7 @@ fun storageFee(seconds: int, bits: int, cells: int): coins {
 
 
 /* ---- Domain (TON DNS item / TG username) fee helpers ---- */
-// Measured (tests/TransferGas.spec.ts) at 50 DNS records, code+data, per item type:
+// Measured (tests/shared/TransferGas.spec.ts) at 50 DNS records, code+data, per item type:
 //   TON DNS domain : 10,855 transfer gas ; 195 cells / 28,232 bits
 //   TG username    :  9,526 transfer gas ; 199 cells / 33,359 bits
 // The item ITSELF guarantees it always keeps >= min_tons_for_storage (~1 TON) — its transfer handler

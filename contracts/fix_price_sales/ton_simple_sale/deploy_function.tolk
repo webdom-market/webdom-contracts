@@ -1,5 +1,6 @@
 import "../../imports/constants";
 import "../../imports/gas";
+import "../../imports/utils";
 import "../../marketplace/types";
 import "../../marketplace/constants";
 import "../constants";
@@ -44,16 +45,20 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     }
     
     assert(payload.price >= deployInfo.minPrice) throw(EXC_PRICE_TOO_LOW);
-    // todo для тг юзерок разрешать validUntil большой
-    assert(payload.validUntil >= blockchain.now() + deployInfo.minDuration &&
-          (payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY || payload.autoRenewIterations > 0)) throw(EXC_INCORRECT_VALID_UNTIL);
+    
+    val isTgUsername: bool = checkTgUsername(args.domainNameCell);
+    assert(payload.validUntil >= blockchain.now() + deployInfo.minDuration) throw EXC_INCORRECT_VALID_UNTIL;
+    if (!isTgUsername) {
+        val maxValidUntil = blockchain.now() + payload.autoRenewIterations * payload.autoRenewCooldown + ONE_YEAR - ONE_DAY;
+        assert(payload.validUntil <= maxValidUntil) throw EXC_INCORRECT_VALID_UNTIL;
+    }
     assert((payload.autoRenewCooldown >= ONE_DAY) && (payload.autoRenewCooldown <= ONE_YEAR - ONE_DAY)) throw(EXC_INCORRECT_VALID_UNTIL);
 
     val commission: int = mulDivFloor(min(
         mulDivFloor(payload.price, deployInfo.commissionFactor, COMMISSION_DIVIDER),
         deployInfo.maxCommission
     ), COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
-    val autoRenewReserve: coins = autoRenewLockPerIter() * payload.autoRenewIterations;
+    val autoRenewReserve: coins = autoRenewLockPerIter(payload.autoRenewCooldown) * payload.autoRenewIterations;
     val autoRenewPrepay: coins = TONS_AUTORENEW_MARKETPLACE_FEE * payload.autoRenewIterations;
 
     val data = (Storage {
@@ -67,7 +72,7 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
         validUntil: payload.validUntil,
         buyerAddressCell: null,
         domainNameCell: args.domainNameCell,
-        isTgUsername: false,
+        isTgUsername: isTgUsername,
         hotUntil: 0,
         coloredUntil: 0,
         autoRenewData: (AutoRenewData {

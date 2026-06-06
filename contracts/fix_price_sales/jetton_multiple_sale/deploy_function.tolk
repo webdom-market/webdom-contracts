@@ -55,7 +55,7 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
     
     assert(payload.price >= deployInfo.minPrice) throw EXC_PRICE_TOO_LOW;
     assert((payload.validUntil >= blockchain.now() + deployInfo.minDuration) &&
-           (payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY || payload.autoRenewIterations > 0)) throw EXC_INCORRECT_VALID_UNTIL;
+           (payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY + payload.autoRenewIterations * payload.autoRenewCooldown)) throw EXC_INCORRECT_VALID_UNTIL;
     assert((payload.autoRenewCooldown >= ONE_DAY) && (payload.autoRenewCooldown <= ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_VALID_UNTIL;
 
     var commission = mulDivFloor(

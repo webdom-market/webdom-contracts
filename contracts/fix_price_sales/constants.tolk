@@ -1,33 +1,25 @@
 import "../imports/constants";
 import "../imports/gas";
 
-// Per-domain purchase/finalize handler compute, MEASURED in tests/TriggerGas.spec.ts: the multiple
-// sale's purchase loop is ~11,450 gas fixed + ~3,620 gas per domain. Charged per domain (×N), so the
-// per-domain budget below + the nftTransferFee() margin amortize the fixed base. ~2.2x the slope.
+// Per-domain purchase handler compute (TriggerGas.spec.ts): ~11,745 fixed + ~3,618/domain.
+// Charged per domain (×N); this budget + nftTransferFee() margin amortize the base. ~2.2x the slope.
 const GAS_MULTIPLE_PURCHASE_PER_DOMAIN: int = 8000;
 
-// Fixed (NON-per-domain) compute base of the JETTON multiple-purchase handler, MEASURED in
-// tests/JettonPurchaseGas.spec.ts: ~11,380 gas on the normal path, ~13,705 gas on the heavier
-// dedust/excess-return branch (loads the forward-payload ref, parses the real sender, builds a third
-// jetton message). 20000 is ~1.5x that worst-case branch. The per-domain compute is covered
-// separately by the per-domain budget TONS_TON_SIMPLE_PURCHASE()*N; this only funds the fixed base.
+// Fixed compute base of the JETTON multiple-purchase handler (JettonPurchaseGas.spec.ts): ~11,620 normal,
+// ~13,945 on the dedust/excess-return branch (third jetton message). 20000 is ~1.43x worst case.
+// Per-domain compute is funded separately; this only covers the fixed base.
 const GAS_JETTON_MULTIPLE_PURCHASE_BASE: int = 20000;
 
-// Fixed (NON-per-domain) compute base of the TON multiple-purchase handler, MEASURED in
-// tests/TriggerGas.spec.ts: ~11,510 gas fixed + ~3,620 gas per domain. The per-domain budget
-// (gasFee(GAS_MULTIPLE_PURCHASE_PER_DOMAIN)*N) only covers the slope; this funds the fixed base so the
-// purchase completes even at small N (N=1,2) where the base is not amortized. ~1.6x the measured base.
+// Fixed compute base of the TON multiple-purchase handler (TriggerGas.spec.ts): ~11,745 fixed + ~3,618/domain.
+// Per-domain budget covers the slope; this funds the base so small N (1,2) stays funded. ~1.53x measured.
 const GAS_TON_MULTIPLE_PURCHASE_BASE: int = 18000;
 
-// One domain's purchase cost: the buyer notification tip (TONS_PURCHASE_NOTIFICATION) + the
-// NFT-transfer fee (domain transfer compute + 2 onward forwards, computed) + the sale/auction
-// handler's per-domain compute (gasFee of the 8000-gas GAS_MULTIPLE_PURCHASE_PER_DOMAIN budget).
+// One domain's purchase cost: buyer notification tip + domain refill (transfer + 2 forwards + one year
+// storage — multiple sales don't pre-fund domains) + the handler's per-domain compute.
 @inline fun TONS_PURCHASE_PER_DOMAIN(): coins { return TONS_PURCHASE_NOTIFICATION + domainRefillFee() + gasFee(GAS_MULTIPLE_PURCHASE_PER_DOMAIN); }
-// Fixed jetton overhead of a multiple purchase: the three jetton sends (excess-return + commission +
-// seller payout) + the marketplace tip + the handler's computed fixed compute base (gasFee of the
-// 20000-gas GAS_JETTON_MULTIPLE_PURCHASE_BASE).
+// Fixed jetton overhead of a multiple purchase: 3 jetton sends (excess-return + commission + seller
+// payout) + marketplace tip + the handler's fixed compute base.
 @inline fun TONS_JETTON_MULTIPLE_PURCHASE(): coins { return TONS_JETTON_TRANSFER * 3 + TONS_NOTIFY_MARKETPLACE + gasFee(GAS_JETTON_MULTIPLE_PURCHASE_BASE); }
-@inline fun TONS_MIN_RESERVE_FOR_AUTOCANCEL(): coins { return TONS_MIN_RESERVE * 2 + nftTransferFee(); }
 
 
 fun SALE_CANCEL_NOTIFICATION(): cell 

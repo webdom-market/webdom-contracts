@@ -62,7 +62,6 @@ const TONS_MIN_EXCESS: coins            = ton("0.005");
 const TONS_JETTON_TRANSFER: coins       = ton("0.05");
 const TONS_RENEW_REQUEST: coins         = ton("0.1");
 const TONS_AUTORENEW_MARKETPLACE_FEE: coins = ton("0.1");
-const TONS_AUTORENEW_TOPUP_GAS_BUFFER: coins = ton("0.01");
 const TONS_PURCHASE_NOTIFICATION: coins = ton("0.03");
 const TONS_OFFER_NOTIFICATION: coins    = ton("0.1");
 const TONS_DECLINE_REWARD: coins        = ton("0.01");

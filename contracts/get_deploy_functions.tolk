@@ -3,15 +3,14 @@ fun deployFunctionCell(): cell
     asm """<{
     DECLPROC builder.storeStrFloat()
       DECLPROC builder.storeStrJettons()
-      DECLPROC calculateWeb3WalletAddress()
-      DECLPROC calculateUsdtWalletAddress()
       DECLPROC forceSameWorkchain()
       DECLPROC getPayoutNotificationBody()
       DECLPROC loadOpAndQueryId()
-      DECLPROC domainNameToAddress()
-      DECLPROC tgUsernameToAddress()
+      DECLPROC checkTgUsername()
       DECLPROC Storage.load()
       DECLPROC Storage.save()
+      DECLPROC domainRefillFee()
+      DECLPROC cancelGasBudget()
       builder.storeStrFloat() PROCINLINE:<{	//  self number tenPowDecimals
         TUCK                    	//  self tenPowDecimals number tenPowDecimals
         DIVMOD                  	//  self tenPowDecimals intPart decPart
@@ -122,62 +121,6 @@ fun deployFunctionCell(): cell
         s1 s2 XCHG              	//  self symbol '6
         STSLICE                 	//  self '6
       }>
-      calculateWeb3WalletAddress() PROCINLINE:<{	//  ownerAddress web3WalletCode
-        NEWC                    	//  ownerAddress web3WalletCode '3
-        x{0} STSLICECONST       	//  ownerAddress web3WalletCode '3
-        s1 s2 XCHG              	//  web3WalletCode ownerAddress '3
-        STB                     	//  web3WalletCode '3
-        x{800BCFB13B3494CA795F167E94C52640B273E64B78229A15DB992A844E26F351AE9_} PUSHSLICE	//  web3WalletCode '3 '7
-        STSLICER                	//  web3WalletCode '3
-        OVER                    	//  web3WalletCode '3 web3WalletCode
-        STREFR                  	//  web3WalletCode '3
-        ENDC                    	//  web3WalletCode data
-            DUP2            // code data code data
-            HASHCU
-            SWAP
-            HASHCU          // code data dataHash codeHash
-            SWAP2           // dataHash codeHash code data
-            CDEPTH
-            SWAP
-            CDEPTH          // dataHash codeHash dataDepth codeDepth
-            NEWC
-            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
-            16 STU                 // store codeDepth
-            16 STU                 // store dataDepth
-            256 STU                // store codeHash
-            256 STU                // store dataHash
-            ONE HASHEXT_SHA256  	//  '21
-        NEWC                    	//  '21 '20
-        b{10000000000} STSLICECONST	//  '21 '20
-        256 STU                 	//  '20
-      }>
-      calculateUsdtWalletAddress() PROCINLINE:<{	//  ownerAddress usdtWalletCode
-        NEWC                    	//  ownerAddress usdtWalletCode '4
-        x{00} STSLICECONST      	//  ownerAddress usdtWalletCode '4
-        s1 s2 XCHG              	//  usdtWalletCode ownerAddress '4
-        STB                     	//  usdtWalletCode '4
-        x{8014D1EFF27038AD5F4C11D80A60DDB3D9C5485BA4E2826E9EA6BAA56FBBFF4119B_} PUSHSLICE	//  usdtWalletCode '4 '8
-        STSLICER                	//  usdtWalletCode '4
-        ENDC                    	//  usdtWalletCode data
-            DUP2            // code data code data
-            HASHCU
-            SWAP
-            HASHCU          // code data dataHash codeHash
-            SWAP2           // dataHash codeHash code data
-            CDEPTH
-            SWAP
-            CDEPTH          // dataHash codeHash dataDepth codeDepth
-            NEWC
-            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
-            16 STU                 // store codeDepth
-            16 STU                 // store dataDepth
-            256 STU                // store codeHash
-            256 STU                // store dataHash
-            ONE HASHEXT_SHA256  	//  '21
-        NEWC                    	//  '21 '20
-        b{10000000000} STSLICECONST	//  '21 '20
-        256 STU                 	//  '20
-      }>
       forceSameWorkchain() PROCINLINE:<{	//  addr
         REWRITESTDADDR
         DROP                    	//  wc
@@ -241,64 +184,21 @@ fun deployFunctionCell(): cell
           s0 s2 XCHG            	//  inMsgBody op queryId
         }>                      	//  inMsgBody op queryId
       }>
-      domainNameToAddress() PROCINLINE:<{	//  domainName domainCode
-        SWAP                    	//  domainCode domainName
-        HASHSU                  	//  domainCode domainIndex
-        NEWC                    	//  domainCode domainIndex '5
-        256 STU                 	//  domainCode '5
-        x{801266F4F9970315CF7C6A89F6248C29AEDE38C16D877343F0F402CD339FB6114D1_} PUSHSLICE	//  domainCode '5 '8
-        STSLICER                	//  domainCode '5
-        ENDC                    	//  domainCode data
-            DUP2            // code data code data
-            HASHCU
-            SWAP
-            HASHCU          // code data dataHash codeHash
-            SWAP2           // dataHash codeHash code data
-            CDEPTH
-            SWAP
-            CDEPTH          // dataHash codeHash dataDepth codeDepth
-            NEWC
-            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
-            16 STU                 // store codeDepth
-            16 STU                 // store dataDepth
-            256 STU                // store codeHash
-            256 STU                // store dataHash
-            ONE HASHEXT_SHA256  	//  '21
-        NEWC                    	//  '21 '20
-        b{10000000000} STSLICECONST	//  '21 '20
-        256 STU                 	//  '20
-      }>
-      tgUsernameToAddress() PROCINLINE:<{	//  tgUsername tgUsernameCode
-        SWAP                    	//  tgUsernameCode tgUsername
-        SHA256U                 	//  tgUsernameCode usernameIndex
-        NEWC                    	//  tgUsernameCode usernameIndex '5
-        SWAP
-        NEWC                    	//  tgUsernameCode '5 usernameIndex '6
-        256 STU                 	//  tgUsernameCode '5 '6
-        x{8007495287F55129699983DBD292B2CAE425A2659E0074CC60DFC1E236EF321FA85_} PUSHSLICE	//  tgUsernameCode '5 '6 '9
-        STSLICER                	//  tgUsernameCode '5 '6
-        ENDC                    	//  tgUsernameCode '5 '11
-        STREFR                  	//  tgUsernameCode '5
-        b{0} STSLICECONST       	//  tgUsernameCode '5
-        ENDC                    	//  tgUsernameCode data
-            DUP2            // code data code data
-            HASHCU
-            SWAP
-            HASHCU          // code data dataHash codeHash
-            SWAP2           // dataHash codeHash code data
-            CDEPTH
-            SWAP
-            CDEPTH          // dataHash codeHash dataDepth codeDepth
-            NEWC
-            x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
-            16 STU                 // store codeDepth
-            16 STU                 // store dataDepth
-            256 STU                // store codeHash
-            256 STU                // store dataHash
-            ONE HASHEXT_SHA256  	//  '27
-        NEWC                    	//  '27 '26
-        b{10000000000} STSLICECONST	//  '27 '26
-        256 STU                 	//  '26
+      checkTgUsername() PROCINLINE:<{	//  domainNameCell
+        CTOS                    	//  domainNameSlice
+        DUP                     	//  domainNameSlice domainNameSlice
+        SBITS                   	//  domainNameSlice '3
+        39 GTINT                	//  domainNameSlice '7
+        IF:<{                   	//  domainNameSlice
+          40 PUSHINT            	//  domainNameSlice '11
+          SDCUTLAST             	//  '12
+          x{2e742e6d65} PUSHSLICE	//  '12 '13
+          SDEQ                  	//  '14
+          0 NEQINT              	//  '8
+        }>ELSE<{                	//  domainNameSlice
+          DROP                  	// 
+          0 PUSHINT             	//  '8=0
+        }>
       }>
       Storage.load() PROC:<{      	// 
         c4 PUSH                 	//  '0
@@ -319,181 +219,267 @@ fun deployFunctionCell(): cell
         LDREF                   	//  '4 '5 '7 '9 '10 '11 '13 '15 '17 '19 '20 '22 '24 '25 s
         ENDS                    	//  '4 '5 '7 '9 '10 '11 '13 '15 '17 '19 '20 '22 '24 '25
       }>
-      Storage.save() PROCINLINE:<{	//  self.sellerAddress self.domainsDict self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil self.coloredUntil self.autoRenewData
+      Storage.save() PROCINLINE:<{	//  self.sellerAddress self.domainsDict self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.jettonWalletAddress self.hotUntil self.coloredUntil self.ds2
         s0 s13 XCHG
-        NEWC                    	//  self.autoRenewData self.domainsDict self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil self.coloredUntil self.sellerAddress b
-        STSLICE                 	//  self.autoRenewData self.domainsDict self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil self.coloredUntil b
-        s1 s12 XCHG             	//  self.autoRenewData self.coloredUntil self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil self.domainsDict b
-        STOPTREF                	//  self.autoRenewData self.coloredUntil self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.hotUntil b
-        s1 s10 XCHG             	//  self.autoRenewData self.coloredUntil self.hotUntil self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress self.domainsTotal b
-        8 STU                   	//  self.autoRenewData self.coloredUntil self.hotUntil self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.buyerAddress b
-        s1 s8 XCHG              	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.domainsReceived b
-        8 STU                   	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil b
-        s0 s6 XCHG2             	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.commission self.state self.createdAt self.lastRenewalTime b self.price
-        STGRAMS                 	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.commission self.state self.createdAt self.lastRenewalTime b
-        s0 s4 XCHG2             	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime self.state self.createdAt b self.commission
-        STGRAMS                 	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime self.state self.createdAt b
-        s1 s2 XCHG              	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime self.createdAt self.state b
-        2 STU                   	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime self.createdAt b
-        32 STU                  	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil self.lastRenewalTime b
-        32 STU                  	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress self.validUntil b
-        32 STU                  	//  self.autoRenewData self.coloredUntil self.hotUntil self.buyerAddress b
-        STSLICE                 	//  self.autoRenewData self.coloredUntil self.hotUntil b
-        32 STU                  	//  self.autoRenewData self.coloredUntil b
-        32 STU                  	//  self.autoRenewData b
+        NEWC                    	//  self.ds2 self.domainsDict self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.jettonWalletAddress self.hotUntil self.coloredUntil self.sellerAddress b
+        STSLICE                 	//  self.ds2 self.domainsDict self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.jettonWalletAddress self.hotUntil self.coloredUntil b
+        s1 s12 XCHG             	//  self.ds2 self.coloredUntil self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.jettonWalletAddress self.hotUntil self.domainsDict b
+        STOPTREF                	//  self.ds2 self.coloredUntil self.domainsTotal self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.jettonWalletAddress self.hotUntil b
+        s1 s10 XCHG             	//  self.ds2 self.coloredUntil self.hotUntil self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.jettonWalletAddress self.domainsTotal b
+        8 STU                   	//  self.ds2 self.coloredUntil self.hotUntil self.domainsReceived self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.jettonWalletAddress b
+        s1 s8 XCHG              	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil self.domainsReceived b
+        8 STU                   	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.price self.commission self.state self.createdAt self.lastRenewalTime self.validUntil b
+        s0 s6 XCHG2             	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.validUntil self.commission self.state self.createdAt self.lastRenewalTime b self.price
+        STGRAMS                 	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.validUntil self.commission self.state self.createdAt self.lastRenewalTime b
+        s0 s4 XCHG2             	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.validUntil self.lastRenewalTime self.state self.createdAt b self.commission
+        STGRAMS                 	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.validUntil self.lastRenewalTime self.state self.createdAt b
+        s1 s2 XCHG              	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.validUntil self.lastRenewalTime self.createdAt self.state b
+        2 STU                   	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.validUntil self.lastRenewalTime self.createdAt b
+        32 STU                  	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.validUntil self.lastRenewalTime b
+        32 STU                  	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress self.validUntil b
+        32 STU                  	//  self.ds2 self.coloredUntil self.hotUntil self.jettonWalletAddress b
+        STSLICE                 	//  self.ds2 self.coloredUntil self.hotUntil b
+        32 STU                  	//  self.ds2 self.coloredUntil b
+        32 STU                  	//  self.ds2 b
         STREF                   	//  b
         ENDC                    	//  '24
         c4 POP                  	// 
       }>
+      domainRefillFee() PROCINLINE:<{	// 
+        16000 PUSHINT           	//  '1=16000
+        0 PUSHINT               	//  '1=16000 '3=0
+        GETGASFEE               	//  '2
+        10 PUSHPOW2DEC          	//  '2 '5=1023
+        1 PUSHINT               	//  '2 '5=1023 '6=1
+        SWAP
+        0 PUSHINT               	//  '2 '6=1 '5=1023 '8=0
+        GETFORWARDFEE           	//  '2 '7
+        1 LSHIFT#               	//  '2 '11
+        ADD                     	//  '0
+        31622400 PUSHINT        	//  '0 '20
+        34000 PUSHINT           	//  '0 '20 '21=34000
+        200 PUSHINT             	//  '0 '20 '21=34000 '22=200
+        s0 s2 XCHG
+        0 PUSHINT               	//  '0 '22=200 '21=34000 '20 '24=0
+        GETSTORAGEFEE           	//  '0 '13
+        ADD                     	//  '26
+      }>
+      cancelGasBudget() PROCINLINE:<{	//  domainsTotal
+        10000 PUSHINT           	//  domainsTotal '1=10000
+        5000 PUSHINT
+        ROT                     	//  '1=10000 '2=5000 domainsTotal
+        MUL                     	//  '1=10000 '3
+        ADD                     	//  '4
+        0 PUSHINT               	//  '4 '6=0
+        GETGASFEE               	//  '5
+      }>
 
     // Main deploy function content:
 	//  args.fromAddress args.payloadSlice args.deployInfoSlice args.code args.commissionDiscount args.queryId args.publicKey args.contractCodes
-    2DROP                   	//  args.fromAddress payloadSlice lazyS args.code args.commissionDiscount args.queryId
-    s0 s4 XCHG              	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payloadSlice
-    LDDICT                  	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount '24 payloadSlice
-    LDGRAMS                 	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount '24 '27 payloadSlice
-    32 LDU                  	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount '24 '27 '31 payloadSlice
-    31536000 PUSHINT        	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount '24 '27 '31 payloadSlice '44
-    0 PUSHINT               	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0
-    s2 PUSH                 	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0 payloadSlice
-    SBITS                   	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0 '46
-    0 GTINT                 	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0 '48
-    IF:<{                   	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0
-      2DROP                 	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payloadSlice
-      32 LDU                	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewCooldown payloadSlice
-      8 PLDU                	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewCooldown payload.autoRenewIterations
-      SWAP                  	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations payload.autoRenewCooldown
+    NIP                     	//  args.fromAddress payloadSlice args.deployInfoSlice args.code args.commissionDiscount args.queryId args.contractCodes
+    s0 s5 XCHG              	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payloadSlice
+    1 LDI                   	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId '17 payloadSlice
+    LDDICT                  	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId '17 '20 payloadSlice
+    LDGRAMS                 	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId '17 '20 '23 payloadSlice
+    32 LDU                  	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId '17 '20 '23 '27 payloadSlice
+    31536000 PUSHINT        	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId '17 '20 '23 '27 payloadSlice '40
+    0 PUSHINT               	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0
+    s2 PUSH                 	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0 payloadSlice
+    SBITS                   	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0 '42
+    0 GTINT                 	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0 '44
+    IF:<{                   	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payloadSlice payload.autoRenewCooldown payload.autoRenewIterations=0
+      2DROP                 	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payloadSlice
+      32 LDU                	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewCooldown payloadSlice
+      8 PLDU                	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewCooldown payload.autoRenewIterations
+      SWAP                  	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations payload.autoRenewCooldown
     }>ELSE<{
-      s2 POP                	//  args.fromAddress args.queryId lazyS args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations=0 payload.autoRenewCooldown
+      s2 POP                	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations=0 payload.autoRenewCooldown
     }>
-    s0 s7 XCHG              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations lazyS
-    LDGRAMS                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice lazyS
-    16 LDU                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor lazyS
-    LDGRAMS                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission lazyS
-    32 PLDU                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration
-    s6 s3 PUXC              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission payload.price deployInfo.minPrice
-    GEQ                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission '64
-    70 THROWIFNOT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission
-    NOW                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission '67
-    s0 s3 XCHG2             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '67 deployInfo.minDuration
-    ADD                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '68
-    s4 PUSH                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '68 payload.validUntil
-    LEQ                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '69
-    IF:<{                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
-      NOW                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '71
-      31622400 PUSHINT      	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '71 '78
-      ADD                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '79
-      86400 PUSHINT         	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '79 '84
-      SUB                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '85
-      s4 PUSH               	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '85 payload.validUntil
-      GEQ                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '86
-      IF:<{                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
-        -1 PUSHINT          	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '87=-1
-      }>ELSE<{              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
-        s2 PUSH             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor payload.autoRenewIterations
-        0 GTINT             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '90
-        0 NEQINT            	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '87
+    s5 PUSH                 	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations payload.autoRenewCooldown payload.isWeb3
+    IF:<{                   	//  args.fromAddress args.contractCodes args.deployInfoSlice args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations payload.autoRenewCooldown
+      s0 s9 XCHG            	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations args.deployInfoSlice
+      PLDREF                	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '59
+      CTOS                  	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations s
+      LDGRAMS               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '64 s
+      16 LDU                	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '64 '66 s
+      LDGRAMS               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '64 '66 '67 s
+      32 LDU                	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '64 '66 '67 '69 s
+      ENDS                  	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration
+      s10 PUSH              	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration args.commissionDiscount
+      0 NEQINT              	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration '71
+      IF:<{                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration
+        10000 PUSHINT
+        s11 POP             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount=10000 args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration
+      }>                    	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration
+    }>ELSE<{                	//  args.fromAddress args.contractCodes s args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations payload.autoRenewCooldown
+      s0 s9 XCHG            	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations s
+      LDGRAMS               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '76 s
+      16 LDU                	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '76 '78 s
+      LDGRAMS               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '76 '78 '79 s
+      32 PLDU               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minPrice deployInfo.commissionFactor deployInfo.maxCommission deployInfo.minDuration
+    }>
+    s6 s3 PUXC              	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission payload.price deployInfo.minPrice
+    GEQ                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission '83
+    70 THROWIFNOT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission
+    NOW                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.minDuration deployInfo.commissionFactor deployInfo.maxCommission '86
+    s0 s3 XCHG2             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '86 deployInfo.minDuration
+    ADD                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '87
+    s4 PUSH                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '87 payload.validUntil
+    LEQ                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '88
+    IF:<{                   	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+      NOW                   	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '90
+      31622400 PUSHINT      	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '90 '97
+      ADD                   	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '98
+      86400 PUSHINT         	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '98 '103
+      SUB                   	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '104
+      s4 PUSH               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '104 payload.validUntil
+      GEQ                   	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '105
+      IF:<{                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+        -1 PUSHINT          	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '106=-1
+      }>ELSE<{              	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+        s2 PUSH             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor payload.autoRenewIterations
+        0 GTINT             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '109
+        0 NEQINT            	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '106
       }>
-      0 NEQINT              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '70
-    }>ELSE<{                	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
-      0 PUSHINT             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '70=0
+      0 NEQINT              	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '89
+    }>ELSE<{                	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+      0 PUSHINT             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '89=0
     }>
-    49 THROWIFNOT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
-    s8 PUSH
-    86400 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor payload.autoRenewCooldown '102
-    GEQ                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '103
-    IF:<{                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
-      s8 PUSH
-      31536000 PUSHINT      	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor payload.autoRenewCooldown '117
-      LEQ                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '118
-      0 NEQINT              	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '104
-    }>ELSE<{                	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
-      0 PUSHINT             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '104=0
+    49 THROWIFNOT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+    s10 PUSH
+    86400 PUSHINT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor payload.autoRenewCooldown '121
+    GEQ                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '122
+    IF:<{                   	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+      s10 PUSH
+      31536000 PUSHINT      	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor payload.autoRenewCooldown '136
+      LEQ                   	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '137
+      0 NEQINT              	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '123
+    }>ELSE<{                	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+      0 PUSHINT             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor '123=0
     }>
-    49 THROWIFNOT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
+    49 THROWIFNOT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission deployInfo.commissionFactor
     s4 s(-1) PUXC
-    10000 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission payload.price deployInfo.commissionFactor '124=10000
-    MULDIV                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission '125
-    MIN                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '126
-    10000 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code args.commissionDiscount payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '126 '127=10000
-    s0 s6 XCHG2             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code '126 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '127=10000 args.commissionDiscount
-    SUB                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code '126 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '128
-    s1 s5 XCHG
-    10000 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil '126 '128 '129=10000
-    MULDIV                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission
-    0 PUSHINT               	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal=0
+    10000 PUSHINT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission payload.price deployInfo.commissionFactor '143=10000
+    MULDIV                  	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations deployInfo.maxCommission '144
+    MIN                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '145
+    10000 PUSHINT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code args.commissionDiscount args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '145 '146=10000
+    s0 s8 XCHG2             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code '145 args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '146=10000 args.commissionDiscount
+    SUB                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code '145 args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil payload.autoRenewIterations '147
+    s1 s7 XCHG
+    10000 PUSHINT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil '145 '147 '148=10000
+    MULDIV                  	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission
+    0 PUSHINT               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal=0
     s4 PUSH
-    267 PUSHINT             	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal=0 payload.domainsAddresses '136=267
+    267 PUSHINT             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal=0 payload.domainsAddresses '155=267
     DICTMIN
-    NULLSWAPIFNOT2          	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal=0 received domainAddress found
+    NULLSWAPIFNOT2          	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal=0 received domainAddress found
     WHILE:<{
-    }>DO<{                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal received domainAddress
-      s0 s2 XCHG            	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress received domainsTotal
-      INC                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress received domainsTotal
-      b{0} PUSHSLICE        	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress received domainsTotal '143
-      s1 s2 XCHG            	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress domainsTotal received '143
-      SDEQ                  	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress domainsTotal '144
-      47 THROWIFNOT         	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainAddress domainsTotal
+    }>DO<{                  	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal received domainAddress
+      s0 s2 XCHG            	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainAddress received domainsTotal
+      INC                   	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainAddress received domainsTotal
+      b{0} PUSHSLICE        	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainAddress received domainsTotal '162
+      s1 s2 XCHG            	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainAddress domainsTotal received '162
+      SDEQ                  	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainAddress domainsTotal '163
+      47 THROWIFNOT         	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainAddress domainsTotal
       s1 s5 XCPU
-      267 PUSHINT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal domainAddress payload.domainsAddresses '146=267
+      267 PUSHINT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal domainAddress payload.domainsAddresses '165=267
       DICTGETNEXT
-      NULLSWAPIFNOT2        	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal received domainAddress found
-    }>                      	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal received domainAddress
-    2DROP                   	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal
-    DUP                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal domainsTotal
-    0 GTINT                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '152
-    71 THROWIFNOT           	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal
-    35000000 PUSHINT        	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '156=35000000
-    40000000 PUSHINT        	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '156=35000000 '157=40000000
-    s2 PUSH                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '156=35000000 '157=40000000 domainsTotal
-    MUL                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '156=35000000 '158
-    ADD                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '155
-    s6 PUSH                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '155 payload.autoRenewIterations
-    MUL                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve
-    100000000 PUSHINT       	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve '162=100000000
-    s7 PUSH                 	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve '162=100000000 payload.autoRenewIterations
-    MUL                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay
-    NOW                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167
-    NOW                     	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '168
-    b{00} PUSHSLICE         	//  args.fromAddress args.queryId payload.autoRenewCooldown args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '168 '169
-    s0 s12 XCHG
-    NEWC                    	//  args.fromAddress args.queryId '169 args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '168 payload.autoRenewCooldown b
-    32 STU                  	//  args.fromAddress args.queryId '169 args.code payload.autoRenewIterations payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '168 b
-    s1 s10 XCHG             	//  args.fromAddress args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 payload.autoRenewIterations b
-    8 STU                   	//  args.fromAddress args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 b
-    ENDC                    	//  args.fromAddress args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 '176
-    s0 s13 XCHG
-    NEWC                    	//  '176 args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 args.fromAddress b
-    STSLICE                 	//  '176 args.queryId '169 args.code '168 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '167 b
-    s1 s8 XCHG              	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay payload.domainsAddresses b
-    STOPTREF                	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay b
-    s1 s3 XCHG              	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission autoRenewPrepay autoRenewReserve domainsTotal b
-    8 STU                   	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission autoRenewPrepay autoRenewReserve b
-    x{00} STSLICECONST      	//  '176 args.queryId '169 args.code '168 '167 payload.price payload.validUntil commission autoRenewPrepay autoRenewReserve b
-    s0 s5 XCHG2             	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil commission autoRenewPrepay b payload.price
-    STGRAMS                 	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil commission autoRenewPrepay b
-    ROT                     	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil autoRenewPrepay b commission
-    STGRAMS                 	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil autoRenewPrepay b
-    b{00} STSLICECONST      	//  '176 args.queryId '169 args.code '168 '167 autoRenewReserve payload.validUntil autoRenewPrepay b
-    s1 s4 XCHG              	//  '176 args.queryId '169 args.code '168 autoRenewPrepay autoRenewReserve payload.validUntil '167 b
-    32 STU                  	//  '176 args.queryId '169 args.code '168 autoRenewPrepay autoRenewReserve payload.validUntil b
-    s1 s4 XCHG              	//  '176 args.queryId '169 args.code payload.validUntil autoRenewPrepay autoRenewReserve '168 b
-    32 STU                  	//  '176 args.queryId '169 args.code payload.validUntil autoRenewPrepay autoRenewReserve b
-    s1 s3 XCHG              	//  '176 args.queryId '169 args.code autoRenewReserve autoRenewPrepay payload.validUntil b
-    32 STU                  	//  '176 args.queryId '169 args.code autoRenewReserve autoRenewPrepay b
-    s1 s4 XCHG              	//  '176 args.queryId autoRenewPrepay args.code autoRenewReserve '169 b
-    STSLICE                 	//  '176 args.queryId autoRenewPrepay args.code autoRenewReserve b
+      NULLSWAPIFNOT2        	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal received domainAddress found
+    }>                      	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal received domainAddress
+    2DROP                   	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal
+    DUP                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal domainsTotal
+    0 GTINT                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '171
+    71 THROWIFNOT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal
+    DUP
+    7 PUSHPOW2              	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal domainsTotal '174=128
+    LESS                    	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '175
+    75 THROWIFNOT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal
+    50000 PUSHINT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '180=50000
+    320 PUSHINT             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '180=50000 '181=320
+    s2 PUSH                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '180=50000 '181=320 domainsTotal
+    MUL                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '180=50000 '182
+    ADD                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '183
+    OVER                    	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '183 domainsTotal
+    3 MULCONST              	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '183 '186
+    90 ADDCONST             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '183 '187
+    s1 s11 XCPU
+    0 PUSHINT               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '187 '183 payload.autoRenewCooldown '189=0
+    GETSTORAGEFEE           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179
+    31622400 PUSHINT        	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '199
+    34000 PUSHINT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '199 '200=34000
+    200 PUSHINT             	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '199 '200=34000 '201=200
+    s0 s2 XCHG
+    0 PUSHINT               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '201=200 '200=34000 '199 '203=0
+    GETSTORAGEFEE           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '192
+    8000 PUSHINT            	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '192 '205=8000
+    0 PUSHINT               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '192 '205=8000 '207=0
+    GETGASFEE               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '192 '206
+    ADD                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '209
+    10 PUSHPOW2DEC          	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '209 '210=1023
+    1 PUSHINT               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '209 '210=1023 '211=1
+    SWAP
+    0 PUSHINT               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '209 '211=1 '210=1023 '213=0
+    GETFORWARDFEE           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '209 '212
+    ADD                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '191
+    s2 PUSH                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '191 domainsTotal
+    MUL                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '179 '216
+    ADD                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '217
+    12000 PUSHINT           	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '217 '218=12000
+    5000 PUSHINT            	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '217 '218=12000 '219=5000
+    s3 PUSH                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '217 '218=12000 '219=5000 domainsTotal
+    MUL                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '217 '218=12000 '220
+    ADD                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '217 '221
+    0 PUSHINT               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '217 '221 '223=0
+    GETGASFEE               	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '217 '222
+    ADD                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '178
+    s8 PUSH                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal '178 payload.autoRenewIterations
+    MUL                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve
+    100000000 PUSHINT       	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve '228=100000000
+    s9 PUSH                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve '228=100000000 payload.autoRenewIterations
+    MUL                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay
+    NOW                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233
+    NOW                     	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234
+    b{00} PUSHSLICE         	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234 '235
+    b{00} PUSHSLICE         	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234 '235 '238
+    s11 PUSH
+    x{800BCFB13B3494CA795F167E94C52640B273E64B78229A15DB992A844E26F351AE9_} PUSHSLICE
+    x{8014D1EFF27038AD5F4C11D80A60DDB3D9C5485BA4E2826E9EA6BAA56FBBFF4119B_} PUSHSLICE	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234 '235 '238 payload.isWeb3 '240 '241
+    CONDSEL                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234 '235 '238 '239
+    SWAP
+    NEWC                    	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234 '235 '239 '238 b
+    STSLICE                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234 '235 '239 b
+    STSLICE                 	//  args.fromAddress args.contractCodes payload.autoRenewCooldown args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234 '235 b
+    s1 s15 XCHG             	//  args.fromAddress args.contractCodes '235 args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234 payload.autoRenewCooldown b
+    32 STU                  	//  args.fromAddress args.contractCodes '235 args.code payload.autoRenewIterations args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '234 b
+    s1 s12 XCHG             	//  args.fromAddress args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 payload.autoRenewIterations b
+    8 STU                   	//  args.fromAddress args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 b
+    ENDC                    	//  args.fromAddress args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 '246
+    s0 s15 XCHG
+    NEWC                    	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 args.fromAddress b
+    STSLICE                 	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 payload.domainsAddresses payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay '233 b
+    s1 s8 XCHG              	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay payload.domainsAddresses b
+    STOPTREF                	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay b
+    s3 PUSH                 	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay b domainsTotal
+    8 STUR                  	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay b
+    x{00} STSLICECONST      	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 payload.price payload.validUntil commission domainsTotal autoRenewReserve autoRenewPrepay b
+    s0 s6 XCHG2             	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 autoRenewPrepay payload.validUntil commission domainsTotal autoRenewReserve b payload.price
+    STGRAMS                 	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 autoRenewPrepay payload.validUntil commission domainsTotal autoRenewReserve b
+    s0 s3 XCHG2             	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 autoRenewPrepay payload.validUntil autoRenewReserve domainsTotal b commission
+    STGRAMS                 	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 autoRenewPrepay payload.validUntil autoRenewReserve domainsTotal b
+    b{00} STSLICECONST      	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 '233 autoRenewPrepay payload.validUntil autoRenewReserve domainsTotal b
+    s1 s5 XCHG              	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 domainsTotal autoRenewPrepay payload.validUntil autoRenewReserve '233 b
+    32 STU                  	//  '246 args.contractCodes '235 args.code '234 args.queryId payload.isWeb3 domainsTotal autoRenewPrepay payload.validUntil autoRenewReserve b
+    s1 s7 XCHG              	//  '246 args.contractCodes '235 args.code autoRenewReserve args.queryId payload.isWeb3 domainsTotal autoRenewPrepay payload.validUntil '234 b
+    32 STU                  	//  '246 args.contractCodes '235 args.code autoRenewReserve args.queryId payload.isWeb3 domainsTotal autoRenewPrepay payload.validUntil b
+    32 STU                  	//  '246 args.contractCodes '235 args.code autoRenewReserve args.queryId payload.isWeb3 domainsTotal autoRenewPrepay b
+    s1 s7 XCHG              	//  '246 args.contractCodes autoRenewPrepay args.code autoRenewReserve args.queryId payload.isWeb3 domainsTotal '235 b
+    STSLICE                 	//  '246 args.contractCodes autoRenewPrepay args.code autoRenewReserve args.queryId payload.isWeb3 domainsTotal b
     0 PUSHINT
-    64 STUR                 	//  '176 args.queryId autoRenewPrepay args.code autoRenewReserve b
-    s1 s5 XCHG              	//  autoRenewReserve args.queryId autoRenewPrepay args.code '176 b
-    STREF                   	//  autoRenewReserve args.queryId autoRenewPrepay args.code b
-    ENDC                    	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2
-    50000000 PUSHINT        	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '202=50000000
-    s5 PUSH                 	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '202=50000000 autoRenewReserve
-    ADD                     	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203
-    NEWC                    	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b
-    b{01000010000000000} STSLICECONST	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b
-    2OVER                   	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2
+    64 STUR                 	//  '246 args.contractCodes autoRenewPrepay args.code autoRenewReserve args.queryId payload.isWeb3 domainsTotal b
+    s1 s8 XCHG              	//  domainsTotal args.contractCodes autoRenewPrepay args.code autoRenewReserve args.queryId payload.isWeb3 '246 b
+    STREF                   	//  domainsTotal args.contractCodes autoRenewPrepay args.code autoRenewReserve args.queryId payload.isWeb3 b
+    ENDC                    	//  domainsTotal args.contractCodes autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2
+    s4 s0 PUSH2             	//  domainsTotal args.contractCodes autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2
                      // code data
         DUP2            // code data code data
         HASHCU
@@ -509,27 +495,151 @@ fun deployFunctionCell(): cell
         16 STU                 // store dataDepth
         256 STU                // store codeHash
         256 STU                // store dataHash
-        ONE HASHEXT_SHA256  	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b '228
-    256 STUR                	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 '203 b
-    SWAP                    	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 b '203
-    STGRAMS                 	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 b
-    140 PUSHINT
-    113 STUR                	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2 b
-    s1 s2 XCHG              	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot2 saleAddress.stateInit.USlot1 b
-    STREF                   	//  autoRenewReserve args.queryId autoRenewPrepay saleAddress.stateInit.USlot2 b
-    STREF                   	//  autoRenewReserve args.queryId autoRenewPrepay b
-    x{0609e47b} STSLICECONST	//  autoRenewReserve args.queryId autoRenewPrepay b
-    s1 s2 XCHG              	//  autoRenewReserve autoRenewPrepay args.queryId b
-    64 STU                  	//  autoRenewReserve autoRenewPrepay b
-    ENDC                    	//  autoRenewReserve autoRenewPrepay msg
-    50000000 PUSHINT        	//  autoRenewReserve autoRenewPrepay msg '259=50000000
-    s0 s3 XCHG2             	//  msg autoRenewPrepay '259=50000000 autoRenewReserve
-    ADD                     	//  msg autoRenewPrepay '260
-    ADD                     	//  msg '261
+        ONE HASHEXT_SHA256  	//  domainsTotal args.contractCodes autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 '276
+    NEWC                    	//  domainsTotal args.contractCodes autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 '276 '275
+    b{10000000000} STSLICECONST	//  domainsTotal args.contractCodes autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 '276 '275
+    256 STU                 	//  domainsTotal args.contractCodes autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 saleAddressBuilder
+    s0 s7 XCHG              	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 args.contractCodes
+    CTOS                    	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 lazyS
+    LDREF                   	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 '303 lazyS
+    NIP                     	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 lazyS
+    LDREF                   	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 '304 lazyS
+    NIP                     	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 lazyS
+    LDREF                   	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode lazyS
+    PLDREF                  	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode
+    31622400 PUSHINT        	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '315
+    50000 PUSHINT           	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '315 '317=50000
+    320 PUSHINT             	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '315 '317=50000 '318=320
+    s12 PUSH                	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '315 '317=50000 '318=320 domainsTotal
+    MUL                     	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '315 '317=50000 '319
+    ADD                     	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '315 '320
+    s11 PUSH                	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '315 '320 domainsTotal
+    3 MULCONST              	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '315 '320 '323
+    90 ADDCONST             	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '315 '320 '324
+    s0 s2 XCHG
+    0 PUSHINT               	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '324 '320 '315 '326=0
+    GETSTORAGEFEE           	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '316
+    s6 PUSH                 	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '316 autoRenewReserve
+    ADD                     	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '328
+    s8 PUSH                 	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '328 autoRenewPrepay
+    ADD                     	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '329
+    NEWC                    	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '329 '334
+    x{0609e47b} STSLICECONST	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve args.queryId payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '329 '334
+    s1 s6 XCHG              	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode args.queryId '334
+    64 STU                  	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 payload.isWeb3 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode '334
+    s0 s4 XCHG              	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode payload.isWeb3
+    IF:<{                   	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode
+      DROP                  	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode
+      NEWC                  	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode '342
+      x{0} STSLICECONST     	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode '342
+      s1 s8 XCHG            	//  domainsTotal contractCodes.web3WalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 saleAddressBuilder '342
+      STB                   	//  domainsTotal contractCodes.web3WalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 '342
+      x{800BCFB13B3494CA795F167E94C52640B273E64B78229A15DB992A844E26F351AE9_} PUSHSLICE	//  domainsTotal contractCodes.web3WalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 '342 '346
+      STSLICER              	//  domainsTotal contractCodes.web3WalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 '342
+      s7 PUSH               	//  domainsTotal contractCodes.web3WalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 '342 contractCodes.web3WalletCode
+      STREFR                	//  domainsTotal contractCodes.web3WalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 '342
+      ENDC                  	//  domainsTotal contractCodes.web3WalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 data
+      s1 s7 XCHG            	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 contractCodes.web3WalletCode data
+                       // code data
+          DUP2            // code data code data
+          HASHCU
+          SWAP
+          HASHCU          // code data dataHash codeHash
+          SWAP2           // dataHash codeHash code data
+          CDEPTH
+          SWAP
+          CDEPTH          // dataHash codeHash dataDepth codeDepth
+          NEWC
+          x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
+          16 STU                 // store codeDepth
+          16 STU                 // store dataDepth
+          256 STU                // store codeHash
+          256 STU                // store dataHash
+          ONE HASHEXT_SHA256	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 '360
+      NEWC                  	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 '360 '359
+      b{10000000000} STSLICECONST	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 '360 '359
+      256 STU               	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 '339
+    }>ELSE<{                	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 contractCodes.web3WalletCode contractCodes.usdtWalletCode
+      NIP                   	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 contractCodes.usdtWalletCode
+      NEWC                  	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 contractCodes.usdtWalletCode '382
+      x{00} STSLICECONST    	//  domainsTotal saleAddressBuilder autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 contractCodes.usdtWalletCode '382
+      s1 s8 XCHG            	//  domainsTotal contractCodes.usdtWalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 saleAddressBuilder '382
+      STB                   	//  domainsTotal contractCodes.usdtWalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 '382
+      x{8014D1EFF27038AD5F4C11D80A60DDB3D9C5485BA4E2826E9EA6BAA56FBBFF4119B_} PUSHSLICE	//  domainsTotal contractCodes.usdtWalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 '382 '386
+      STSLICER              	//  domainsTotal contractCodes.usdtWalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 '382
+      ENDC                  	//  domainsTotal contractCodes.usdtWalletCode autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 saleAddress.stateInit.USlot2 data
+      s1 s7 XCHG            	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 contractCodes.usdtWalletCode data
+                       // code data
+          DUP2            // code data code data
+          HASHCU
+          SWAP
+          HASHCU          // code data dataHash codeHash
+          SWAP2           // dataHash codeHash code data
+          CDEPTH
+          SWAP
+          CDEPTH          // dataHash codeHash dataDepth codeDepth
+          NEWC
+          x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
+          16 STU                 // store codeDepth
+          16 STU                 // store dataDepth
+          256 STU                // store codeHash
+          256 STU                // store dataHash
+          ONE HASHEXT_SHA256	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 '399
+      NEWC                  	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 '399 '398
+      b{10000000000} STSLICECONST	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 '399 '398
+      256 STU               	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334 '339
+    }>
+    STBR                    	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '334
+    ENDC                    	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '419
+    NEWC                    	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '419 b
+    b{01000010000000000} STSLICECONST	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '419 b
+    s4 s6 PUSH2             	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '419 b saleAddress.stateInit.USlot1 saleAddress.stateInit.USlot2
+                     // code data
+        DUP2            // code data code data
+        HASHCU
+        SWAP
+        HASHCU          // code data dataHash codeHash
+        SWAP2           // dataHash codeHash code data
+        CDEPTH
+        SWAP
+        CDEPTH          // dataHash codeHash dataDepth codeDepth
+        NEWC
+        x{020134} STSLICECONST // store refs_descriptor | bits_descriptor | data
+        16 STU                 // store codeDepth
+        16 STU                 // store dataDepth
+        256 STU                // store codeHash
+        256 STU                // store dataHash
+        ONE HASHEXT_SHA256  	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '419 b '441
+    256 STUR                	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '329 '419 b
+    ROT                     	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '419 b '329
+    STGRAMS                 	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '419 b
+    141 PUSHINT
+    113 STUR                	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay saleAddress.stateInit.USlot1 autoRenewReserve '419 b
+    s1 s3 XCHG              	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay '419 autoRenewReserve saleAddress.stateInit.USlot1 b
+    STREF                   	//  domainsTotal saleAddress.stateInit.USlot2 autoRenewPrepay '419 autoRenewReserve b
+    s1 s4 XCHG              	//  domainsTotal autoRenewReserve autoRenewPrepay '419 saleAddress.stateInit.USlot2 b
+    STREF                   	//  domainsTotal autoRenewReserve autoRenewPrepay '419 b
+    STREF                   	//  domainsTotal autoRenewReserve autoRenewPrepay b
+    ENDC                    	//  domainsTotal autoRenewReserve autoRenewPrepay msg
+    31622400 PUSHINT        	//  domainsTotal autoRenewReserve autoRenewPrepay msg '475
+    50000 PUSHINT           	//  domainsTotal autoRenewReserve autoRenewPrepay msg '475 '477=50000
+    320 PUSHINT             	//  domainsTotal autoRenewReserve autoRenewPrepay msg '475 '477=50000 '478=320
+    s6 PUSH                 	//  domainsTotal autoRenewReserve autoRenewPrepay msg '475 '477=50000 '478=320 domainsTotal
+    MUL                     	//  domainsTotal autoRenewReserve autoRenewPrepay msg '475 '477=50000 '479
+    ADD                     	//  domainsTotal autoRenewReserve autoRenewPrepay msg '475 '480
+    s0 s5 XCHG              	//  '480 autoRenewReserve autoRenewPrepay msg '475 domainsTotal
+    3 MULCONST              	//  '480 autoRenewReserve autoRenewPrepay msg '475 '483
+    90 ADDCONST             	//  '480 autoRenewReserve autoRenewPrepay msg '475 '484
+    s0 s5 s5 XCHG3
+    0 PUSHINT               	//  msg autoRenewReserve autoRenewPrepay '484 '480 '475 '486=0
+    GETSTORAGEFEE           	//  msg autoRenewReserve autoRenewPrepay '476
+    ROT                     	//  msg autoRenewPrepay '476 autoRenewReserve
+    ADD                     	//  msg autoRenewPrepay '488
+    ADD                     	//  msg '489
     SWAP
-    1 PUSHINT               	//  '261 msg '262=1
-    SENDMSG                 	//  '261 '263
-    ADD                     	//  '264
+    1 PUSHINT               	//  '489 msg '490=1
+    SENDMSG                 	//  '489 '491
+    ADD                     	//  '492
 }>c PUSHREF""";
  
 

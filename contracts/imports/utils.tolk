@@ -189,3 +189,11 @@ fun loadOpAndQueryId(mutate inMsgBody: slice): (uint32, uint64) {
     }
     return (op, queryId);
 }
+
+
+@inline
+fun checkTgUsername(domainNameCell: cell): bool {
+    var domainNameSlice = domainNameCell.beginParse();
+    return domainNameSlice.remainingBitsCount() >= 5 * 8 &&
+           domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+}

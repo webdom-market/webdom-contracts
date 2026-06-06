@@ -1,26 +1,26 @@
 import "../../imports/constants"
 import "../../imports/gas"
 
-// External auto-renew trigger compute, MEASURED in tests/TriggerGas.spec.ts: ~7,200 gas fixed
-// (load storage, asserts, reserve calc) + ~2,560 gas per domain (one dict step + one renew message).
-// Padded ~1.6x base / ~2x per-domain — generous since the keeper-driven trigger has no retry path.
-// (The per-domain renewal VALUE it sends is priced separately as renewDomainFee below.)
+// External auto-renew trigger compute (TriggerGas.spec.ts): ~7,042 fixed + ~2,647/domain.
+// Padded ~1.7x base / ~1.9x per-domain — generous, the keeper trigger has no retry path.
+// (Per-domain renewal VALUE is priced separately as renewDomainFee below.)
 const GAS_AUTORENEW_TRIGGER_BASE: int  = 12000;
 const GAS_AUTORENEW_TX_PER_DOMAIN: int = 5000;
+// SetAutoRenewParams top-up handler's own compute — buffer above the newly-locked iterations so this
+// tx's compute stays funded after reserveToncoinsOnBalance. MEASURED ~11,683 gas (0->2 iters, 4-domain
+// bundle; handler doesn't iterate the dict, so independent of domain count); 18000 is ~1.5x.
+const GAS_AUTORENEW_TOPUP: int          = 18000;
 
-// Measured multiple-sale contract size (code + data) for storage-rent computation, with padding.
-// Measured (tests/GasSize.spec.ts): TON code 76c/44190b, base(0 domains) 77c/44784b, jetton code
-// 79c/46011b; the domains dict adds ~+2 cells / +261 bits per domain. We pad base to 90c/48000b and
-// per-domain to 3c/320b so the model dominates BOTH variants at up to 50 domains. Asserted in GasSize.
+// Multiple-sale contract size (code+data) for storage rent, padded. Measured (SaleGasSize.spec.ts):
+// TON code 76c/47824b, base(0 domains) 77c/48418b, jetton code 78c/49003b; domains dict adds ~+2 cells
+// / +261 bits per domain. Padded so the model dominates BOTH variants up to 50 domains.
 const MULTI_SALE_BASE_CELLS: int       = 90;
-const MULTI_SALE_BASE_BITS: int        = 50000;  // measured base ~48,160b after cancel-gas/cooldown additions; padded
+const MULTI_SALE_BASE_BITS: int        = 50000;  // measured base ~48,418b, padded
 const MULTI_SALE_PER_DOMAIN_CELLS: int = 3;
 const MULTI_SALE_PER_DOMAIN_BITS: int  = 320;
 
-// The sale contract's OWN storage rent for `seconds`, scaling with the number of domains it holds
-// (the domains dict). Computed from the measured contract size (MULTI_SALE_BASE_* plus the per-domain
-// growth) at the live storage price, so it tracks the real on-chain cost: ~0.046 TON/yr at 1 domain,
-// rising to ~0.089 TON/yr at 50 domains (at the classic basechain storage price).
+// Sale's own storage rent for `seconds`, scaling with domain count. From measured size at live price:
+// ~0.046 TON/yr at 1 domain rising to ~0.089 TON/yr at 50 (classic basechain price).
 @inline
 fun saleStorageReserve(seconds: int, domainsTotal: int): coins {
     return storageFee(
@@ -30,11 +30,9 @@ fun saleStorageReserve(seconds: int, domainsTotal: int): coins {
     );
 }
 
-// External-cancel COMPUTE, MEASURED in tests/AuditCancelGas.spec.ts: ~6,400 gas fixed + ~3,610 gas
-// per domain (the return loop builds one NFT-transfer per received domain). The cancel carries NO
-// incoming value, so the contract must hold this compute itself ON TOP of domainRefillFee()*N. The
-// reserve (getTonsToReserve) budgets it so a maximally storage-drained sale can still return EVERY
-// domain instead of silently skipping one via SEND_MODE_IGNORE_ERRORS. Padded ~1.6x base / ~1.4x slope.
+// External-cancel compute (CancelGas.spec.ts): ~6,581 fixed + ~3,612/domain (return loop builds one
+// NFT-transfer per domain). Cancel carries NO incoming value, so the contract holds this compute on top
+// of domainRefillFee()*N; the reserve budgets it so a drained sale returns EVERY domain. ~1.5x / ~1.4x.
 const GAS_CANCEL_BASE: int       = 10000;
 const GAS_CANCEL_PER_DOMAIN: int = 5000;
 
@@ -43,10 +41,9 @@ fun cancelGasBudget(domainsTotal: int): coins {
     return gasFee(GAS_CANCEL_BASE + GAS_CANCEL_PER_DOMAIN * domainsTotal);
 }
 
-// Per iteration: the sale's own storage for ONE cooldown period (the sale only lives until validUntil,
-// which auto-renew extends by `autoRenewCooldown` per iteration — NOT a full year per iteration) + the
-// computed per-domain renewal value for every domain + the trigger's own compute (fixed base +
-// per-domain). Every term tracks live prices.
+// Per iteration: sale's own storage for ONE cooldown period (auto-renew extends validUntil by
+// autoRenewCooldown per iteration, NOT a full year) + per-domain renewal value × all domains + the
+// trigger's own compute (base + per-domain). Every term tracks live prices.
 @inline
 fun getAutoRenewLockPerIter(domainsTotal: uint8, autoRenewCooldown: uint32): coins {
     return saleStorageReserve(autoRenewCooldown, domainsTotal)

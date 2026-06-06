@@ -13,9 +13,8 @@ import "storage"
 import "messages"
 import "constants"
 
-// Cancel the multiple sale and return all received domains back to the seller
-// - Iterates over all domains and transfers only those that were actually received
-// - Sends a final notification and carries all remaining balance to the seller
+// Cancel the sale, returning every received domain to the seller, then notify and carry the
+// remaining balance to them.
 @inline
 fun cancelSale(mutate storage: Storage, queryId: uint64, cancelReason: slice) {
     setGasLimitToMaximum();
@@ -40,7 +39,7 @@ fun cancelSale(mutate storage: Storage, queryId: uint64, cancelReason: slice) {
                     forwardTonAmount: 1,
                     forwardPayload: null
                 }
-            }).send(SEND_MODE_REGULAR | SEND_MODE_IGNORE_ERRORS);
+            }).send(SEND_MODE_REGULAR);
         }
         (domainAddress, domainReceived, found) = storage.domainsDict.sDictGetNext(267, domainAddress!);
     }
@@ -71,12 +70,13 @@ fun onBouncedMessage(in: InMessageBounced) {
 // Calculate TON amount to reserve 
 @inline
 fun getTonsToReserve(domainsTotal: uint8, autoRenewIterations: uint8, autoRenewCooldown: uint32, nothrow: bool): int {
-    val tonsForAutoCancel = (domainRefillFee() * domainsTotal + saleStorageReserve(ONE_YEAR, domainsTotal) + cancelGasBudget(domainsTotal)) as coins;  // Balance required to cancel the sale via external message (domain returns + own storage + cancel compute)
+    val tonsForAutoCancel = (domainRefillFee() * domainsTotal + saleStorageReserve(ONE_YEAR, domainsTotal) + cancelGasBudget(domainsTotal)) as coins;  // External-cancel budget: domain returns + own storage + cancel compute
     val tonsForAutoRenew = (getAutoRenewLockPerIter(domainsTotal, autoRenewCooldown) * autoRenewIterations) as coins;
     val tonsToReserve = tonsForAutoCancel + tonsForAutoRenew;
     assert( contract.getOriginalBalance() >= tonsToReserve || nothrow) throw EXC_OUT_OF_GAS;
     return tonsToReserve as int;
 }
+
 
 fun onInternalMessage(in: InMessage): void {
     forceSameWorkchain(in.senderAddress);
@@ -239,7 +239,7 @@ fun onInternalMessage(in: InMessage): void {
                 }
 
                 // Send seller payout with unused TONs
-                var sellerTonExcesses = contract.getOriginalBalance() - in.valueCoins - storageFees();
+                var sellerTonExcesses = contract.getOriginalBalance() - in.valueCoins;
                 createMessage({
                     bounce: false,
                     value: TONS_JETTON_TRANSFER + sellerTonExcesses,
@@ -271,9 +271,13 @@ fun onInternalMessage(in: InMessage): void {
             assert(in.senderAddress == storage.sellerAddress) throw EXC_INCORRECT_SENDER;
             assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
             
-            var newCommission = mulDivFloor(msg.newPrice, storage.commission, storage.price);
+            // Check that new validUntil time is greater than current time and less than domain expiration time
+            val maxValidUntil = storage.lastRenewalTime + storage2.autoRenewCooldown * storage2.autoRenewIterations + ONE_YEAR - ONE_DAY;
             assert((msg.newValidUntil >= max(blockchain.now() + 600, storage.validUntil)) && 
-                   (msg.newValidUntil <= storage.lastRenewalTime + ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_VALID_UNTIL;
+                   (msg.newValidUntil <= maxValidUntil)) throw EXC_INCORRECT_VALID_UNTIL;
+            
+            assert(msg.newPrice > 0) throw EXC_INCORRECT_PRICE;
+            var newCommission = mulDivFloor(msg.newPrice, storage.commission, storage.price);
 
             storage.validUntil = msg.newValidUntil;
             storage.price = msg.newPrice;
@@ -324,15 +328,15 @@ fun onInternalMessage(in: InMessage): void {
                 body: RenewalFeeMessage { queryId: msg.queryId, ownerAddress: storage.sellerAddress }
             }).send(SEND_MODE_CARRY_ALL_BALANCE);
 
-            // Set new validUntil time
-            var newValidUntil: uint32;
+            // Calculate new validity period
+            val maxValidUntil = blockchain.now() + storage2.autoRenewCooldown * storage2.autoRenewIterations + ONE_YEAR - ONE_DAY;
             if (msg.newValidUntil != null) {
-                newValidUntil = max(msg.newValidUntil, storage.validUntil);
+                assert(msg.newValidUntil <= maxValidUntil) throw EXC_INCORRECT_VALID_UNTIL;
+                storage.validUntil = max(msg.newValidUntil, storage.validUntil);
             } else {
-                newValidUntil = max(blockchain.now() + ONE_YEAR - ONE_DAY, storage.validUntil);
+                storage.validUntil = maxValidUntil;
             }
             
-            storage.validUntil = newValidUntil;
             storage.lastRenewalTime = blockchain.now();
             storage.save();
             return;
@@ -347,15 +351,16 @@ fun onInternalMessage(in: InMessage): void {
             val addIterations: uint8 = msg.autoRenewIterations - storage2.autoRenewIterations;
             if (addIterations > 0) {
                 val topUpReserve: coins = (getAutoRenewLockPerIter(storage.domainsTotal, msg.autoRenewCooldown) + TONS_AUTORENEW_MARKETPLACE_FEE) * addIterations;
-                assert(in.valueCoins >= topUpReserve + TONS_AUTORENEW_TOPUP_GAS_BUFFER) throw EXC_OUT_OF_GAS;
+                assert(in.valueCoins >= topUpReserve + gasFee(GAS_AUTORENEW_TOPUP)) throw EXC_OUT_OF_GAS;
             }
 
+            val maxValidUntil: int = storage.lastRenewalTime + msg.autoRenewCooldown * msg.autoRenewIterations + ONE_YEAR - ONE_DAY;
             if (msg.newValidUntil != null) {
-                assert(msg.newValidUntil! >= max(blockchain.now() + 600, storage.validUntil)) throw EXC_INCORRECT_VALID_UNTIL;
-                storage.validUntil = msg.newValidUntil!;
+                assert(msg.newValidUntil <= maxValidUntil && msg.newValidUntil >= storage.validUntil) throw EXC_INCORRECT_VALID_UNTIL;
+                storage.validUntil = msg.newValidUntil;
             }
             else {
-                storage.validUntil = max(storage.validUntil, storage.lastRenewalTime + msg.autoRenewCooldown * msg.autoRenewIterations + ONE_YEAR - ONE_DAY);
+                storage.validUntil = maxValidUntil;
             }
 
             storage2.autoRenewCooldown = msg.autoRenewCooldown;
@@ -406,14 +411,12 @@ fun onInternalMessage(in: InMessage): void {
         }
 
         else => {
-            if (in.body.remainingBitsCount() >= 32) {
-                var op = in.body.loadUint(32);
-                if ((op == 0 && in.body.bitsEqual("cancel")) || op == OP_CANCEL_DEAL) {
-                    assert(in.senderAddress == storage.sellerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
-                    // Handle sale cancellation
-                    cancelSale(mutate storage,  0, "Sale cancelled");
-                    return;
-                }
+            var (op, queryId) = loadOpAndQueryId(mutate in.body);
+            if (op == OP_CANCEL_DEAL) {
+                assert(in.senderAddress == storage.sellerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+                // Handle sale cancellation
+                cancelSale(mutate storage,  queryId, "Sale cancelled");
+                return;
             }
             throw EXC_UNSUPPORTED_OP;
         }
@@ -421,7 +424,7 @@ fun onInternalMessage(in: InMessage): void {
 }
 
 fun onExternalMessage(in: InMessage): void {
-    var storage: Storage = Storage.load();
+    var storage: Storage = lazy Storage.load();
     var storage2: StorageDs2 = lazy storage.ds2.load();
     var nowTs: uint32 = blockchain.now();
     

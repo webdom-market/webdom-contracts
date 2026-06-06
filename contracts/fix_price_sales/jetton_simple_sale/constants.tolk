@@ -1,24 +1,23 @@
 import "../../imports/constants"
 import "../../imports/gas"
 
-// Compute gas (gas units) for the jetton purchase handler (JettonsTransferNotification path), MEASURED
-// in tests/JettonSimplePurchaseGas.spec.ts: ~14,340 gas normal, ~17,460 gas on the heavier
-// dedust/excess branch (parses the forward payload, then emits a THIRD jetton send to return excess
-// on top of the marketplace commission + seller payout + domain transfer). 25000 is ~1.4x that
-// worst case — the same margin the TON sale's GAS_TON_SIMPLE_PURCHASE keeps over its measured worst.
+// Jetton purchase handler compute (JettonsTransferNotification path, JettonSimplePurchaseGas.spec.ts):
+// ~14,426 normal, ~17,540 on the dedust/excess branch (THIRD jetton send to return excess). 25000 is
+// ~1.4x worst case — same margin as the TON sale's GAS_TON_SIMPLE_PURCHASE.
 const GAS_JETTON_SIMPLE_PURCHASE: int = 25000;
-// Compute gas (gas units) for the unattended auto-renew trigger handler, mirroring the TON simple
-// sale (tests/GasResearch*.spec.ts): external auto-renew trigger ~6,500 gas (worst case = cancel
-// branch ~9,500). Margin kept generous for the unattended keeper-driven trigger (no retry path).
+// Unattended auto-renew trigger compute, mirroring the TON simple sale: ~6,500 gas (worst case = cancel
+// branch ~9,500, CancelGas.spec.ts). Generous margin for the keeper trigger (no retry path).
 const GAS_AUTORENEW_TX_PER_ITER: int = 15000;
-// Activation handler (DeployAndSetWallet: STATE_UNINIT -> STATE_ACTIVE); 10000 is ~2x the TON
-// sale's measured ~4,770 gas (tests/DeployGas.spec.ts), the extra headroom covering the jetton
-// handler's additional wallet-address field.
-const GAS_SALE_DEPLOY: int = 10000;
+// SetAutoRenewParams top-up handler's own compute — buffer above the newly-locked iterations so this
+// tx's compute stays funded after reserveToncoinsOnBalance. MEASURED ~10,124 gas (0->2 iters,
+// validUntil-derived branch); 15000 is ~1.5x, matching the TON simple sale's identical handler.
+const GAS_AUTORENEW_TOPUP: int = 15000;
+// Activation handler (DeployAndSetWallet: STATE_UNINIT -> STATE_ACTIVE); 8000 is ~2x the TON sale's
+// measured ~4,287 gas (DeployGas.spec.ts), headroom for the jetton handler's extra wallet-address field.
+const GAS_SALE_DEPLOY: int = 8000;
 
-// Contract size (code+data) for storage-rent computation. The jetton simple sale mirrors the TON
-// one in shape/size, so it reuses the same bounds: 66 cells / 36,000 bits measured for TonSimpleSale
-// (asserted in tests/GasSize.spec.ts), padded to 80c / 40,000b.
+// Contract size (code+data) for storage rent. Mirrors the TON simple sale, reusing its bounds: measured
+// 68c / 37,637b for TonSimpleSale (SaleGasSize.spec.ts), padded to 80c / 40,000b.
 const SALE_STORAGE_CELLS: int = 80;
 const SALE_STORAGE_BITS: int  = 40000;
 
@@ -27,8 +26,8 @@ fun saleStorageReserve(seconds: int): coins {
     return storageFee(seconds, SALE_STORAGE_BITS, SALE_STORAGE_CELLS);
 }
 
-// Value a buyer attaches beyond the price = the NFT transfer to the domain (compute+forward,
-//   computed) + new-owner notification + the sale handler's own compute + its payout forward.
+// Value a buyer attaches beyond the price: NFT transfer to the domain + new-owner notification + the
+// handler's own compute + 3 jetton sends (excess-return + commission + seller payout) + marketplace notify.
 @inline
 fun jettonSimplePurchaseFee(): coins {
     return nftTransferFee() + TONS_PURCHASE_NOTIFICATION
@@ -36,11 +35,12 @@ fun jettonSimplePurchaseFee(): coins {
          + TONS_JETTON_TRANSFER * 3 + TONS_NOTIFY_MARKETPLACE
 }
 
-// Per-iteration auto-renew lock = one year of the SALE's own storage + the domain renewal cost
-//   (renewDomainFee: domain storage+compute+forward) + the trigger handler's own compute gas.
+// Per-iteration auto-renew lock = sale's own storage for ONE cooldown period (auto-renew extends
+// validUntil by autoRenewCooldown per iteration, NOT a full year) + domain renewal cost (renewDomainFee)
+// + the trigger handler's own compute. Mirrors the multiple sale's getAutoRenewLockPerIter (sans domainsTotal=1).
 @inline
-fun autoRenewLockPerIter(): coins {
-    return saleStorageReserve(ONE_YEAR)
+fun autoRenewLockPerIter(autoRenewCooldown: uint32): coins {
+    return saleStorageReserve(autoRenewCooldown)
          + renewDomainFee()
          + gasFee(GAS_AUTORENEW_TX_PER_ITER);
 }
