@@ -29,3 +29,6 @@ docs
 .omc/
 .agents/
 skills-lock.json
+
+.acton
+.claude

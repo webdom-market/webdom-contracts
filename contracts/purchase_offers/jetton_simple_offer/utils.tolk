@@ -8,13 +8,14 @@ import "storage"
 
 fun acceptOffer(mutate storage: Storage, domainAddress: address, buyerAddress: address, sellerMsgValue: coins, queryId: uint64): void {
     setGasLimitToMaximum();
+    val jettonWalletAddr: address = storage.jettonWalletAddress!;
     
     // Send marketplace commission
     if (storage.commission > 0) {
         createMessage({
             bounce: false,
             value: TONS_JETTON_TRANSFER + TONS_NOTIFY_MARKETPLACE,
-            dest: storage.jettonWalletAddress,
+            dest: jettonWalletAddr,
             body: SendJettonsMessage<cell> {
                 queryId: queryId,
                 jettonAmount: storage.commission,
@@ -30,7 +31,7 @@ fun acceptOffer(mutate storage: Storage, domainAddress: address, buyerAddress: a
     createMessage({
         bounce: false,
         value: TONS_JETTON_TRANSFER + sellerMsgValue,  // Gas for offer execution is always paid by offer creator
-        dest: storage.jettonWalletAddress,
+        dest: jettonWalletAddr,
         body: SendJettonsMessage<cell> {
             queryId: queryId,
             jettonAmount: storage.price,
@@ -62,6 +63,7 @@ fun acceptOffer(mutate storage: Storage, domainAddress: address, buyerAddress: a
 
 
 fun cancelOffer(mutate storage: Storage, domainAddress: address, buyerAddress: address, sellerMsgValue: coins, cancellationComment: slice, queryId: uint64): void {
+    val jettonWalletAddr: address = storage.jettonWalletAddress!;
     if (storage.sellerPrice > 0) {
         // Reject counterproposal and return seller's NFT. Use domainRefillFee() (transfer + one year
         // of storage), not a bare transfer: the idle item may have drained below its ~1-TON
@@ -98,7 +100,7 @@ fun cancelOffer(mutate storage: Storage, domainAddress: address, buyerAddress: a
     createMessage({
         bounce: false,
         value: 0,
-        dest: storage.jettonWalletAddress,
+        dest: jettonWalletAddr,
         body: SendJettonsMessage<cell> {
             queryId: queryId,
             jettonAmount: storage.price + storage.commission,

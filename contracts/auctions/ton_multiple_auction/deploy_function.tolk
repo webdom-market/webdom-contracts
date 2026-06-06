@@ -64,7 +64,7 @@ fun deployTonMultipleAuction(args: SimpleDeployArgs): int {
 
         lastBidValue: 0,
         lastBidTime: 0,
-        lastBidderAddress: createAddressNone(),
+        lastBidderAddress: null,
 
         domainsDict: payload.domainsAddresses,
         domainsTotal: domainsTotal,

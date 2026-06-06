@@ -73,7 +73,7 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
     val autoRenewPrepay: coins = TONS_AUTORENEW_MARKETPLACE_FEE * payload.autoRenewIterations;
 
     val data = (Storage {
-        jettonWalletAddress: createAddressNone(),
+        jettonWalletAddress: null,
         sellerAddress: args.commonArgs.fromAddress,
         price: payload.price,
         state: STATE_UNINIT,
@@ -88,7 +88,7 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
         ds2: (StorageDs2 {
             domainAddress: args.domainAddress,
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
-            buyerAddress: createAddressNone(),
+            buyerAddress: null,
             autoRenewCooldown: payload.autoRenewCooldown,
             autoRenewIterations: payload.autoRenewIterations,
         }).toCell(),
@@ -112,9 +112,9 @@ fun deployJettonSimpleSale(args: DeployWithNftTransferArgs): int {
         body: NftTransferMessageBuilder<CommentMessage> {
             queryId: 0,
             toAddress: saleAddressBuilder,
-            responseAddress: createAddressNone(),
+            responseAddress: null,
             forwardTonAmount: 0,
-            forwardPayload: CommentMessage { comment: "Sale on webdom.market" }
+            forwardPayload: CommentMessage { comment: "Sale on webdom.market".literalSlice() }
         }
     }).send(SEND_MODE_REGULAR);
 

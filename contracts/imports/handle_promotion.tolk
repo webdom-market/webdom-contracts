@@ -9,7 +9,7 @@ fun handleMakeHot<T>(mutate storage: T, promotionUntil: uint32, queryId: uint64,
     } else {
         storage.hotUntil = promotionUntil;
     }
-    storage.save();
+    contract.setData(storage.toCell());  // inlined Storage.save(): generic T can not resolve a concrete Storage.save under Tolk 1.4
 
     createMessage<ExcessesMessage>({
         bounce: false,
@@ -27,7 +27,7 @@ fun handleMakeColored<T>(mutate storage: T, promotionUntil: uint32, queryId: uin
     } else {
         storage.coloredUntil = promotionUntil;
     }
-    storage.save();
+    contract.setData(storage.toCell());  // inlined Storage.save(): generic T can not resolve a concrete Storage.save under Tolk 1.4
     
     createMessage<ExcessesMessage>({
         bounce: false,

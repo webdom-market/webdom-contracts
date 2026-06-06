@@ -17,7 +17,7 @@ struct Storage {  // 267 + 1 + 8 + 8 + 124 + 124 + 2 + 32 + 32 + 32 + 267 + 32 +
     lastRenewalTime: uint32;          // Last domain renewal timestamp
     validUntil: uint32;               // Sale expiration timestamp
 
-    buyerAddress: address;            // Address of the buyer (set when sale is completed)
+    buyerAddress: address?;           // Address of the buyer (set when sale is completed)
 
     hotUntil: uint32;                 // Hot promotion end timestamp
     coloredUntil: uint32;             // Colored promotion end timestamp

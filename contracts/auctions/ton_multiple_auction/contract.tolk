@@ -20,6 +20,7 @@ import "../../fix_price_sales/constants"
 @inline
 fun endAuctionSuccess(mutate storage: Storage, maxCommission: int, queryId: uint64, additionalSellerTons: coins) {
     setGasLimitToMaximum();
+    val lastBidderAddr: address = storage.lastBidderAddress!;
     var commission = min(mulDivFloor(storage.lastBidValue, storage.commissionFactor, COMMISSION_DIVIDER), maxCommission);
     
     // Send marketplace commission
@@ -27,7 +28,7 @@ fun endAuctionSuccess(mutate storage: Storage, maxCommission: int, queryId: uint
         bounce: false,
         value: commission,
         dest: MARKETPLACE_ADDRESS,
-        body: CommentMessage { comment: "Marketplace commission" }
+        body: CommentMessage { comment: "Marketplace commission".literalSlice() }
     }).send(SEND_MODE_REGULAR);
     
     // Send seller payout
@@ -35,7 +36,7 @@ fun endAuctionSuccess(mutate storage: Storage, maxCommission: int, queryId: uint
         bounce: false,
         value: storage.lastBidValue - commission + additionalSellerTons,
         dest: storage.sellerAddress,
-        body: CommentMessage { comment: "Payout for multiple domains auction on webdom.market" }
+        body: CommentMessage { comment: "Payout for multiple domains auction on webdom.market".literalSlice() }
     }).send(SEND_MODE_REGULAR);
 
     // Transfer domains
@@ -48,8 +49,8 @@ fun endAuctionSuccess(mutate storage: Storage, maxCommission: int, queryId: uint
             dest: domainAddress! as address,
             body: NftTransferMessage<cell> {
                 queryId: queryId,
-                toAddress: storage.lastBidderAddress,
-                responseAddress: storage.lastBidderAddress,
+                toAddress: lastBidderAddr,
+                responseAddress: lastBidderAddr,
                 forwardTonAmount: TONS_PURCHASE_NOTIFICATION,
                 forwardPayload: BUYER_NOTIFICATION()
             }
@@ -64,8 +65,8 @@ fun endAuctionSuccess(mutate storage: Storage, maxCommission: int, queryId: uint
         dest: domainAddress! as address,
         body: NftTransferMessage<cell> {
             queryId: queryId,
-            toAddress: storage.lastBidderAddress,
-            responseAddress: storage.lastBidderAddress,
+            toAddress: lastBidderAddr,
+            responseAddress: lastBidderAddr,
             forwardTonAmount: TONS_PURCHASE_NOTIFICATION,
             forwardPayload: BUYER_NOTIFICATION()
         }
@@ -193,7 +194,7 @@ fun onInternalMessage(in: InMessage) {
                         bounce: false,
                         value: 0,
                         dest: storage.sellerAddress,
-                        body: CommentMessage { comment: "Multiple auction on webdom.market is active" }
+                        body: CommentMessage { comment: "Multiple auction on webdom.market is active".literalSlice() }
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
                 storage.save();
@@ -299,7 +300,7 @@ fun onInternalMessage(in: InMessage) {
                         createMessage({
                             bounce: false,
                             value: prevTonBalance,
-                            dest: storage.lastBidderAddress,
+                            dest: storage.lastBidderAddress!,
                             body: OUTBID_NOTIFICATION()
                         }).send(SEND_MODE_REGULAR);
                     }
@@ -330,7 +331,7 @@ fun onInternalMessage(in: InMessage) {
                             bounce: false,
                             value: TONS_NOTIFY_BIDDER,
                             dest: senderAddress,
-                            body: CommentMessage { comment: "Bid placed successfully" }
+                            body: CommentMessage { comment: "Bid placed successfully".literalSlice() }
                         }).send(SEND_MODE_REGULAR);
                     }
                     
@@ -346,7 +347,7 @@ fun onInternalMessage(in: InMessage) {
                         dest: senderAddress,
                         body: CommentMessage { 
                             comment: beginCell()
-                                .storeSlice("Error. Code ")
+                                .storeSlice("Error. Code ".literalSlice())
                                 .storeNumber10(e)
                             .endCell().beginParse()
                         }
@@ -360,14 +361,14 @@ fun onInternalMessage(in: InMessage) {
             if (op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
                 if (storage.lastBidValue == 0) {  // Cancel auction if it hasn't started yet
                     assert(senderAddress == storage.sellerAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
-                    endAuctionFailed(mutate storage, queryId, "Multiple auction on webdom.market was cancelled");
+                    endAuctionFailed(mutate storage, queryId, "Multiple auction on webdom.market was cancelled".literalSlice());
                     return;
                 } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
                     var additionalSellerTons: coins;
                     if (senderAddress == storage.sellerAddress) {
                         additionalSellerTons = in.valueCoins;  // Seller doesn't pay gas fees for finalizing the auction
                     } else {
-                        assert(senderAddress == storage.lastBidderAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+                        assert((storage.lastBidderAddress != null && senderAddress == storage.lastBidderAddress!) || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                         additionalSellerTons = 0;
                     }
                     val storage2 = lazy storage.ds2.load();
@@ -385,7 +386,7 @@ fun onInternalMessage(in: InMessage) {
 
 
 // Allow anyone to finalize ended auctions via external message
-fun onExternalMessage(in: InMessage) {
+fun onExternalMessage(inMsg: slice) {
     var storage = Storage.load();
     
     if (storage.state != STATE_ACTIVE) {
@@ -393,16 +394,16 @@ fun onExternalMessage(in: InMessage) {
     }
     
     if (blockchain.now() >= storage.endTime) {
-        var opCode = in.body.loadUint(32);
+        var opCode = inMsg.loadUint(32);
         if (opCode != OP_CANCEL_DEAL) {
             throw EXC_UNSUPPORTED_OP;
         }
-        var queryId = in.body.loadUint(64);
+        var queryId = inMsg.loadUint(64);
           
         if (storage.lastBidValue == 0) {  // No one participated in the auction
             assert(contract.getOriginalBalance() >= (domainRefillFee() + gasFee(GAS_AUCTION_CANCEL_PER_DOMAIN)) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
             acceptExternalMessage();
-            endAuctionFailed(mutate storage, queryId, "Multiple auction on webdom.market was cancelled");
+            endAuctionFailed(mutate storage, queryId, "Multiple auction on webdom.market was cancelled".literalSlice());
         } else {  // Auction finished successfully
             acceptExternalMessage();
             val storage2 = lazy storage.ds2.load();
@@ -431,7 +432,7 @@ get fun get_storage_data() {
         storage.startTime,
         storage.lastDomainRenewalTime,
         storage.endTime,
-        storage.lastBidderAddress,
+        storage.lastBidderAddress == null ? (createAddressNone() as address) : storage.lastBidderAddress!,
         storage.minBidValue,
         storage.minBidIncrement,
         storage.timeIncrement,
@@ -466,7 +467,7 @@ get fun get_auction_data_v4() {
         domainAddress,                                 // MsgAddressStd
         storage.sellerAddress,                         // MsgAddressStd
         storage.lastBidValue,                          // Coins
-        storage.lastBidderAddress,                     // MsgAddressStd
+        storage.lastBidderAddress == null ? (createAddressNone() as address) : storage.lastBidderAddress!,  // MsgAddressStd
         (storage.minBidIncrement - 1000) / 10,         // Uint7
         MARKETPLACE_ADDRESS,                           // MsgAddressStd
         storage.commissionFactor, COMMISSION_DIVIDER,  // Uint16, Uint16

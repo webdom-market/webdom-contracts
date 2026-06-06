@@ -52,9 +52,9 @@ fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
             dest: payload.sellerAddress,
             body: beginCell()
                      .storeUint(0, 32)
-                     .storeSlice("New offer on webdom.market! ")
+                     .storeSlice("New offer on webdom.market! ".literalSlice())
                      .storeStrFloat(payload.price, ton("1"))
-                     .storeSlice(" TON for ")
+                     .storeSlice(" TON for ".literalSlice())
                      .storeRef(payload.domainNameCell)
                 .endCell()
         });
@@ -70,7 +70,7 @@ fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
    
     // calculate domain address
     var domainNameSlice: SerializableSlice = payload.domainNameCell.load();
-    val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+    val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me".literalSlice());
     var domainAddressBuilder: builder;
     if (isTgUsername) {
         domainAddressBuilder = tgUsernameToAddress(domainNameSlice.removeLastBits(5 * 8), contractCodes.tgUsernameCode);

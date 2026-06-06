@@ -66,7 +66,7 @@ fun handleNftOwnershipAssigned(
 
             val domainNameCell: cell = payload.loadRef();  // Domain name is used for onchain notifications  
             var domainNameSlice: slice = domainNameCell.beginParse();
-            val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+            val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me".literalSlice());
             val contractCodes: ContractCodes = lazy storage.contractCodes.load();
             var domainAddressBuilder: builder;
             if (isTgUsername) {
@@ -122,7 +122,7 @@ fun handleNftOwnershipAssigned(
                 forwardTonAmount: 1,
                 forwardPayload: beginCell()
                     .storeUint(0, 32)
-                    .storeSlice("Error, code ")
+                    .storeSlice("Error, code ".literalSlice())
                     .storeNumber10(e)
                 .endCell()
             }
@@ -148,7 +148,7 @@ fun handleJettonsTransferNotification(
         var payload: slice = inMsgBody.loadBool() ? inMsgBody.loadRef().beginParse() : inMsgBody;
         val innerOp: int = payload.loadUint(32);
         
-        if (payload.bitsEqual("Marketplace commission")) {  
+        if (payload.bitsEqual("Marketplace commission".literalSlice())) {  
             // Accept collected fees
             storage.collectedFeesDict = addCollectedFees(storage.collectedFeesDict, jettonWalletAddress, transferredJettons);
             storage.save();
@@ -166,8 +166,9 @@ fun handleJettonsTransferNotification(
             var (priceInfo: slice?, found: bool) = ds2.promotionPrices.uDictGet(32, promotionPeriod);  // Get the price of the promotion
             assert(found) throw EXC_INCORRECT_VALID_UNTIL;
             
-            val hotPrice: uint64 = priceInfo!.loadUint(64);       // Price of the hot promotion
-            val coloredPrice: uint64 = priceInfo!.loadUint(64);   // Price of the colored promotion
+            var priceInfoSlice: slice = priceInfo!;
+            val hotPrice: uint64 = priceInfoSlice.loadUint(64);       // Price of the hot promotion
+            val coloredPrice: uint64 = priceInfoSlice.loadUint(64);   // Price of the colored promotion
             
             val expectedPrice: uint64 = (innerOp == OP_MAKE_HOT) ? hotPrice : coloredPrice;
             assert(expectedPrice == transferredJettons) throw EXC_NOT_ENOUGH_JETTONS;  // Check that the amount of transferred jettons is correct
@@ -263,7 +264,7 @@ fun handleJettonsTransferNotification(
                 forwardTonAmount: 1,
                 forwardPayload: beginCell()
                                 .storeUint(0, 32)
-                                .storeSlice("Error. Code ")
+                                .storeSlice("Error. Code ".literalSlice())
                                 .storeNumber10(e)
                             .endCell()
             }
@@ -283,20 +284,18 @@ fun handleBuySubscription(storage: MarketplaceStorage, msgBody: slice, msgValue:
     var (subscriptionInfoSlice: slice?, found: bool) = ds2.subscriptionsInfo.uDictGet(8, subscriptionLevel);
     assert(found) throw EXC_INCORRECT_SUBSCRIPTION_LEVEL;
 
-    val subscriptionInfoCell: dict = subscriptionInfoSlice!.loadDict();
+    val subscriptionInfoCell: dict = subscriptionInfoSlice!.preloadDict();
     var (subscriptionPriceSlice: slice?, found2: bool) = subscriptionInfoCell.uDictGet(32, subscriptionPeriod);
     assert(found2) throw EXC_INCORRECT_SUBSCRIPTION_PERIOD;
-    val subscriptionPrice: uint64 = subscriptionPriceSlice!.loadUint(64);
+    val subscriptionPrice: uint64 = subscriptionPriceSlice!.preloadUint(64);
     assert(subscriptionPrice <= msgValue) throw EXC_OUT_OF_GAS;
 
     var (userSubscriptionSlice: slice?, found3: bool) = ds2.userSubscriptions.sDictGet(267, senderAddress as slice);
-    var userSubscriptionEndTime: uint32 = 0;
-    if (found3 && userSubscriptionSlice!.loadUint(8) == subscriptionLevel) {  
-        // Extend user subscription if it already exists
-        userSubscriptionEndTime = max(userSubscriptionSlice!.loadUint(32), blockchain.now()) + subscriptionPeriod;
-    }
-    else {
-        userSubscriptionEndTime = blockchain.now() + subscriptionPeriod;
+    var userSubscriptionEndTime: uint32 = blockchain.now() + subscriptionPeriod;
+    if (found3 && userSubscriptionSlice!.preloadUint(8) == subscriptionLevel) {
+        // Extend user subscription if it already exists (stored as level(8) + endTime(32))
+        var existingSubscription: slice = userSubscriptionSlice!;
+        userSubscriptionEndTime = max(existingSubscription.skipBits(8).loadUint(32), blockchain.now()) + subscriptionPeriod;
     }
     
     // Save user subscription info in storage 
@@ -357,7 +356,7 @@ fun handleAutoRenewPrepay(storage: MarketplaceStorage, msgBody: slice, msgValue:
 
 fun handleTonMarketplaceCommission(storage: MarketplaceStorage, msgBody: slice, msgValue: coins): void {
     // Just accept TONs if comment is "Marketplace commission". Other comments are not allowed. 
-    assert(msgBody.bitsEqual("Marketplace commission")) throw EXC_UNSUPPORTED_OP;
+    assert(msgBody.bitsEqual("Marketplace commission".literalSlice())) throw EXC_UNSUPPORTED_OP;
     assert(msgValue > ton("0.003")) throw 0;
     storage.collectedFeesTon += msgValue - ton("0.003");
     storage.save();

@@ -78,7 +78,7 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
         lastRenewalTime: blockchain.now(),
         validUntil: payload.validUntil,
 
-        buyerAddress: createAddressNone(),
+        buyerAddress: null,
         hotUntil: 0,
         coloredUntil: 0,
         autoRenewData: (AutoRenewData {

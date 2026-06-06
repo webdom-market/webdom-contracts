@@ -83,6 +83,7 @@ const EXC_INCORRECT_VALID_UNTIL: int = 49;
 const EXC_INCORRECT_SENDER: int      = 50;
 const EXC_DOMAIN_NOT_EXISTS: int     = 51;
 const EXC_NOT_ENOUGH_JETTONS: int    = 52;
+const EXC_INCORRECT_PRICE: int       = 56;
 
 const EXC_WRONG_CHAIN: int           = 333;
 const EXC_UNSUPPORTED_OP: int        = 0xffff;

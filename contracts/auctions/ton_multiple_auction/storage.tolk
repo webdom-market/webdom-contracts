@@ -13,7 +13,7 @@ struct Storage {
 
     lastBidValue: coins;              // Last bid value
     lastBidTime: uint32;              // Last bid timestamp
-    lastBidderAddress: address;       // Last bidder address
+    lastBidderAddress: address?;      // Last bidder address
 
     domainsDict: dict;                // Dictionary of domains (address -> received flag)
     domainsTotal: uint8;              // Total number of domains

@@ -134,7 +134,7 @@ fun onInternalMessage(in: InMessage): void {
                         bounce: false,
                         value: 0,
                         dest: storage.sellerAddress,
-                        body: CommentMessage { comment: "Multiple sale on webdom.market is active" }
+                        body: CommentMessage { comment: "Multiple sale on webdom.market is active".literalSlice() }
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
                 storage.save();
@@ -168,9 +168,9 @@ fun onInternalMessage(in: InMessage): void {
                 dest: in.senderAddress,
                 body: beginCell()
                     .storeUint(0, 32)
-                    .storeSlice("Price changed to ")
+                    .storeSlice("Price changed to ".literalSlice())
                     .storeStrFloat(msg.newPrice, ton("1"))
-                    .storeSlice(" TON")
+                    .storeSlice(" TON".literalSlice())
                 .endCell()
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             return;
@@ -280,7 +280,7 @@ fun onInternalMessage(in: InMessage): void {
             // Cancel sale if it is not cancelled yet
             if (storage.state != STATE_CANCELLED) {
                 storage.domainsDict.sDictSet(267, in.senderAddress as slice, BIT_FALSE_SLICE());  // Mark domain as not received
-                cancelSale(mutate storage, 0, "Your domain has expired");
+                cancelSale(mutate storage, 0, "Your domain has expired".literalSlice());
             }
             
             return;
@@ -325,7 +325,7 @@ fun onInternalMessage(in: InMessage): void {
                         bounce: false,
                         value: storage.commission,
                         dest: MARKETPLACE_ADDRESS,
-                        body: CommentMessage { comment: "Marketplace commission" }
+                        body: CommentMessage { comment: "Marketplace commission".literalSlice() }
                     }).send(SEND_MODE_REGULAR);
 
                     // Send all domains to buyer
@@ -351,7 +351,7 @@ fun onInternalMessage(in: InMessage): void {
                         bounce: false,
                         value: (contract.getOriginalBalance() - in.valueCoins) + storage.price - storage.commission,
                         dest: storage.sellerAddress,
-                        body: CommentMessage { comment: "Payout for multiple domains sale on webdom.market" }
+                        body: CommentMessage { comment: "Payout for multiple domains sale on webdom.market".literalSlice() }
                     }).send(SEND_MODE_REGULAR);
 
                     // Send excess TONs to buyer
@@ -371,7 +371,7 @@ fun onInternalMessage(in: InMessage): void {
                 }
                 else if (op == OP_CANCEL_DEAL) {
                     assert(senderAddress == storage.sellerAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;  // Check that message sender is the seller or admin
-                    cancelSale(mutate storage, queryId, "Sale cancelled");  // Cancel sale
+                    cancelSale(mutate storage, queryId, "Sale cancelled".literalSlice());  // Cancel sale
                     return;
                 }
                 else {
@@ -382,7 +382,7 @@ fun onInternalMessage(in: InMessage): void {
                     bounce: false,
                     value: 0,
                     dest: senderAddress,
-                    body: beginCell().storeUint(0, 32).storeSlice("Error, code").storeNumber10(e).endCell()
+                    body: beginCell().storeUint(0, 32).storeSlice("Error, code".literalSlice()).storeNumber10(e).endCell()
                 }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
                 
                 commitContractDataAndActions();
@@ -392,7 +392,7 @@ fun onInternalMessage(in: InMessage): void {
     }
 }
 
-fun onExternalMessage(in: InMessage): void {
+fun onExternalMessage(inMsg: slice): void {
     var storage: Storage = lazy Storage.load();
     var autoRenewData: AutoRenewData = lazy storage.autoRenewData.load();
     var nowTs: uint32 = blockchain.now();
@@ -401,14 +401,14 @@ fun onExternalMessage(in: InMessage): void {
         throw EXC_DEAL_NOT_ACTIVE;
     }
 
-    var (opCode, queryId) = loadOpAndQueryId(mutate in.body);
+    var (opCode, queryId) = loadOpAndQueryId(mutate inMsg);
     if (opCode == OP_CANCEL_DEAL) {
         // Allow anyone to cancel expired sales
         assert(nowTs >= storage.validUntil || storage.lastRenewalTime < nowTs - ONE_YEAR + ONE_DAY) throw 0xfffe;
         assert(contract.getOriginalBalance() >= domainRefillFee() * storage.domainsReceived + cancelGasBudget(storage.domainsReceived)) throw EXC_OUT_OF_GAS;
         acceptExternalMessage();
 
-        cancelSale(mutate storage, queryId, "Your sale offer has expired");
+        cancelSale(mutate storage, queryId, "Your sale offer has expired".literalSlice());
         return;
     }
 
@@ -422,7 +422,7 @@ fun onExternalMessage(in: InMessage): void {
         val gasToReserve: coins = getTonsToReserve(storage.domainsTotal, autoRenewData.autoRenewIterations - 1, autoRenewData.autoRenewCooldown, false);
         val renewCost: coins = renewDomainFee() * storage.domainsTotal;
         if (contract.getOriginalBalance() < gasToReserve + renewCost || storage.lastRenewalTime <= nowTs - (ONE_YEAR - ONE_HOUR)) {
-            cancelSale(mutate storage, queryId, "Your sale offer has expired");
+            cancelSale(mutate storage, queryId, "Your sale offer has expired".literalSlice());
             return;
         }
 
@@ -461,7 +461,7 @@ get fun get_storage_data() {
         storage.createdAt,
         storage.lastRenewalTime,
         storage.validUntil,
-        storage.buyerAddress,
+        storage.buyerAddress == null ? (createAddressNone() as address) : storage.buyerAddress!,
         getTonsToReserve(storage.domainsTotal, autoRenewData.autoRenewIterations, autoRenewData.autoRenewCooldown, true),
         autoRenewData.autoRenewCooldown,
         autoRenewData.autoRenewIterations,

@@ -51,7 +51,7 @@ fun deployTonSimpleAuction(args: DeployWithNftTransferArgs): int {
 
         lastBidValue: 0,
         lastBidTime: 0,
-        lastBidderAddress: createAddressNone(),
+        lastBidderAddress: null,
 
         domainNameCell: args.domainNameCell,
 
@@ -87,9 +87,9 @@ fun deployTonSimpleAuction(args: DeployWithNftTransferArgs): int {
         body: NftTransferMessageBuilder<CommentMessage> {
             queryId: 0,
             toAddress: auctionAddressBuilder,
-            responseAddress: createAddressNone(),
+            responseAddress: null,
             forwardTonAmount: 0,
-            forwardPayload: CommentMessage { comment: "Auction on webdom.market" }
+            forwardPayload: CommentMessage { comment: "Auction on webdom.market".literalSlice() }
         }
     }).send(SEND_MODE_REGULAR);
 

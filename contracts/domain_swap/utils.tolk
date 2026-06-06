@@ -17,7 +17,7 @@ fun completeLeftPart(storage: Storage, leftInfo: OneSideInfo) {
             dest: storage.rightParticipantAddress,
             value: TONS_OFFER_NOTIFICATION,
             bounce: true,
-            body: CommentMessage { comment: "You have a new domains swap offer on webdom.market!" },
+            body: CommentMessage { comment: "You have a new domains swap offer on webdom.market!".literalSlice() },
         }).send(SEND_MODE_PAY_FEES_SEPARATELY); 
     }
 
@@ -26,7 +26,7 @@ fun completeLeftPart(storage: Storage, leftInfo: OneSideInfo) {
         dest: storage.leftParticipantAddress,
         value: leftInfo.paymentReceived - leftInfo.paymentTotal,
         bounce: false,
-        body: CommentMessage { comment: "The offer is ready, wait for the second participant." },
+        body: CommentMessage { comment: "The offer is ready, wait for the second participant.".literalSlice() },
     }).send(SEND_MODE_PAY_FEES_SEPARATELY);
 
     // Save data
@@ -68,7 +68,7 @@ fun completeDeal(storage: Storage, rightInfo: OneSideInfo, queryId: int) {
             dest: storage.leftParticipantAddress,
             value: rightInfo.paymentTotal,
             bounce: false,
-            body: CommentMessage { comment: "webdom.market payout for domains swap" },
+            body: CommentMessage { comment: "webdom.market payout for domains swap".literalSlice() },
         }).send(SEND_MODE_REGULAR);
     }
 
@@ -96,7 +96,7 @@ fun completeDeal(storage: Storage, rightInfo: OneSideInfo, queryId: int) {
             dest: storage.rightParticipantAddress,
             value: msgValue,
             bounce: false,
-            body: CommentMessage { comment: "webdom.market payout for domains swap" },
+            body: CommentMessage { comment: "webdom.market payout for domains swap".literalSlice() },
         }).send(SEND_MODE_REGULAR);
     }
 
@@ -105,7 +105,7 @@ fun completeDeal(storage: Storage, rightInfo: OneSideInfo, queryId: int) {
         dest: MARKETPLACE_ADDRESS,
         value: storage.completionCommission,
         bounce: false,
-        body: CommentMessage { comment: "Marketplace commission" },
+        body: CommentMessage { comment: "Marketplace commission".literalSlice() },
     }).send(SEND_MODE_REGULAR);
     
 

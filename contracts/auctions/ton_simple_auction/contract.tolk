@@ -18,6 +18,7 @@ import "../constants"
 // Finish auction if there was at least one bid
 @inline
 fun endAuctionSuccess(mutate storage: Storage, storage2: StorageDs2, queryId: uint64, additionalSellerTons: coins): void {
+    val lastBidderAddr: address = storage.lastBidderAddress!;
     var commission = min(mulDivFloor(storage.lastBidValue, storage.commissionFactor, COMMISSION_DIVIDER), storage2.maxCommission);
     
     // Send marketplace commission
@@ -25,7 +26,7 @@ fun endAuctionSuccess(mutate storage: Storage, storage2: StorageDs2, queryId: ui
         bounce: false,
         value: commission,
         dest: MARKETPLACE_ADDRESS,
-        body: CommentMessage { comment: "Marketplace commission" }
+        body: CommentMessage { comment: "Marketplace commission".literalSlice() }
     }).send(SEND_MODE_REGULAR);
     
     // Send seller payout
@@ -43,8 +44,8 @@ fun endAuctionSuccess(mutate storage: Storage, storage2: StorageDs2, queryId: ui
         dest: storage2.domainAddress,
         body: NftTransferMessage<cell> {
             queryId: queryId,
-            toAddress: storage.lastBidderAddress,
-            responseAddress: storage.lastBidderAddress,
+            toAddress: lastBidderAddr,
+            responseAddress: lastBidderAddr,
             forwardTonAmount: TONS_PURCHASE_NOTIFICATION,
             forwardPayload: BUYER_NOTIFICATION()
         }
@@ -225,10 +226,10 @@ fun onInternalMessage(in: InMessage) {
                         createMessage({
                             bounce: false,
                             value: prevTonBalance,
-                            dest: storage.lastBidderAddress,
+                            dest: storage.lastBidderAddress!,
                             body: beginCell()
                                 .storeUint(0, 32)
-                                .storeSlice("Your bid on webdom.market was outbid by another user. Domain: ")
+                                .storeSlice("Your bid on webdom.market was outbid by another user. Domain: ".literalSlice())
                                 .storeRef(storage.domainNameCell)
                             .endCell()
                         }).send(SEND_MODE_REGULAR);
@@ -263,7 +264,7 @@ fun onInternalMessage(in: InMessage) {
                             body: beginCell()
                                 .storeUint(0, 32)
                                 .storeStrFloat(userBid, ton("1"))
-                                .storeSlice(" TON bid placed successfully")
+                                .storeSlice(" TON bid placed successfully".literalSlice())
                             .endCell()
                         }).send(SEND_MODE_REGULAR);
                     }
@@ -280,7 +281,7 @@ fun onInternalMessage(in: InMessage) {
                         if (senderAddress == storage.sellerAddress) {
                             additionalSellerTons = in.valueCoins;
                         } else {
-                            assert(senderAddress == storage.lastBidderAddress || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+                            assert((storage.lastBidderAddress != null && senderAddress == storage.lastBidderAddress!) || senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                             additionalSellerTons = 0;
                         }
                         endAuctionSuccess(mutate storage, storage2, queryId, additionalSellerTons);
@@ -298,7 +299,7 @@ fun onInternalMessage(in: InMessage) {
                     bounce: false,
                     value: 0,
                     dest: senderAddress,
-                    body: beginCell().storeUint(0, 32).storeSlice("Error, code").storeNumber10(e).endCell()
+                    body: beginCell().storeUint(0, 32).storeSlice("Error, code".literalSlice()).storeNumber10(e).endCell()
                 }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
                 
                 commitContractDataAndActions();
@@ -311,7 +312,7 @@ fun onInternalMessage(in: InMessage) {
 
 
 // Allow anyone to finalize ended auctions via external message
-fun onExternalMessage(in: InMessage) {
+fun onExternalMessage(inMsg: slice) {
     var storage = lazy Storage.load();
     var storage2 = lazy storage.ds2.load();
     
@@ -320,11 +321,11 @@ fun onExternalMessage(in: InMessage) {
     }
     
     if (blockchain.now() >= storage.endTime) {
-        var opCode = in.body.loadUint(32);
+        var opCode = inMsg.loadUint(32);
         if (opCode != OP_CANCEL_DEAL) {
             throw EXC_UNSUPPORTED_OP;
         }
-        var queryId = in.body.loadUint(64);
+        var queryId = inMsg.loadUint(64);
         
         acceptExternalMessage();
         
@@ -360,7 +361,7 @@ get fun get_storage_data() {
         storage.startTime,
         storage.lastDomainRenewalTime,
         storage.endTime,
-        storage.lastBidderAddress,
+        storage.lastBidderAddress == null ? (createAddressNone() as address) : storage.lastBidderAddress!,
         
         storage.minBidValue,
         storage.minBidIncrement,
@@ -407,7 +408,7 @@ get fun get_auction_data() {
         storage2.domainAddress,                        // MsgAddressStd
         storage.sellerAddress,                         // MsgAddressStd
         storage.lastBidValue,                          // Coins
-        storage.lastBidderAddress,                     // MsgAddressStd
+        storage.lastBidderAddress == null ? (createAddressNone() as address) : storage.lastBidderAddress!,  // MsgAddressStd
         (storage.minBidIncrement - 1000) / 10,         // Uint7
         MARKETPLACE_ADDRESS,                           // MsgAddressStd
         storage.commissionFactor, COMMISSION_DIVIDER,  // Uint32, Uint32
@@ -440,7 +441,7 @@ get fun get_sale_data() {
         storage2.domainAddress,
         storage.sellerAddress,
         storage.lastBidValue,
-        storage.lastBidderAddress,
+        storage.lastBidderAddress == null ? (createAddressNone() as address) : storage.lastBidderAddress!,
         (storage.minBidIncrement - 1000) / 10,
         MARKETPLACE_ADDRESS,
         storage.commissionFactor, COMMISSION_DIVIDER,

@@ -138,7 +138,7 @@ fun onInternalMessage(in: InMessage): void {
                         bounce: false,
                         value: 0,
                         dest: storage.sellerAddress,
-                        body: CommentMessage { comment: "Multiple sale on webdom.market is active" }
+                        body: CommentMessage { comment: "Multiple sale on webdom.market is active".literalSlice() }
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
                 storage.save();
@@ -157,7 +157,7 @@ fun onInternalMessage(in: InMessage): void {
             // Cancel sale if it is not cancelled yet
             if (storage.state != STATE_CANCELLED) {
                 storage.domainsDict.sDictSet(267, in.senderAddress as slice, BIT_FALSE_SLICE());
-                cancelSale(mutate storage, 0, "Your domain has expired");
+                cancelSale(mutate storage, 0, "Your domain has expired".literalSlice());
             }
             
             return;
@@ -181,7 +181,8 @@ fun onInternalMessage(in: InMessage): void {
                 val nowTs: uint32 = blockchain.now();
                 assert(storage.state == STATE_ACTIVE && storage.validUntil > nowTs && storage.domainsReceived == storage.domainsTotal) throw EXC_DEAL_NOT_ACTIVE;
                 assert(storage.lastRenewalTime > nowTs - (ONE_YEAR - ONE_DAY)) throw EXC_DOMAIN_EXPIRED;
-                assert(in.senderAddress == storage.jettonWalletAddress) throw EXC_INCORRECT_SENDER;
+                assert(storage.jettonWalletAddress != null && in.senderAddress == storage.jettonWalletAddress!) throw EXC_INCORRECT_SENDER;
+                val jettonWalletAddr: address = storage.jettonWalletAddress!;
                 assert(in.valueCoins >= TONS_PURCHASE_PER_DOMAIN() * storage.domainsTotal + TONS_JETTON_MULTIPLE_PURCHASE()) throw EXC_OUT_OF_GAS;
                 assert(msg.transferredJettons >= storage.price) throw EXC_NOT_ENOUGH_JETTONS;
                 
@@ -191,7 +192,7 @@ fun onInternalMessage(in: InMessage): void {
                     createMessage({
                         bounce: false,
                         value: TONS_JETTON_TRANSFER,
-                        dest: storage.jettonWalletAddress,
+                        dest: jettonWalletAddr,
                         body: SendJettonsMessage<cell> {
                             queryId: msg.queryId,
                             jettonAmount: excesses,
@@ -208,7 +209,7 @@ fun onInternalMessage(in: InMessage): void {
                     createMessage({
                         bounce: false,
                         value: TONS_JETTON_TRANSFER + TONS_NOTIFY_MARKETPLACE,
-                        dest: storage.jettonWalletAddress,
+                        dest: jettonWalletAddr,
                         body: SendJettonsMessage<cell> {
                             queryId: msg.queryId,
                             jettonAmount: storage.commission,
@@ -243,7 +244,7 @@ fun onInternalMessage(in: InMessage): void {
                 createMessage({
                     bounce: false,
                     value: TONS_JETTON_TRANSFER + sellerTonExcesses,
-                    dest: storage.jettonWalletAddress,
+                    dest: jettonWalletAddr,
                     body: SendJettonsMessage<cell> {
                         queryId: msg.queryId,
                         jettonAmount: storage.price - storage.commission,
@@ -291,9 +292,9 @@ fun onInternalMessage(in: InMessage): void {
                 dest: in.senderAddress,
                 body: beginCell()
                     .storeUint(0, 32)
-                    .storeSlice("Price changed to ")
+                    .storeSlice("Price changed to ".literalSlice())
                     .storeStrFloat(msg.newPrice, isWeb3 ? 1000 : 1000000)
-                    .storeSlice(isWeb3 ? " WEB3" : " USDT")
+                    .storeSlice(isWeb3 ? " WEB3".literalSlice() : " USDT".literalSlice())
                 .endCell()
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             return;
@@ -415,7 +416,7 @@ fun onInternalMessage(in: InMessage): void {
             if (op == OP_CANCEL_DEAL) {
                 assert(in.senderAddress == storage.sellerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                 // Handle sale cancellation
-                cancelSale(mutate storage,  queryId, "Sale cancelled");
+                cancelSale(mutate storage,  queryId, "Sale cancelled".literalSlice());
                 return;
             }
             throw EXC_UNSUPPORTED_OP;
@@ -423,7 +424,7 @@ fun onInternalMessage(in: InMessage): void {
     }
 }
 
-fun onExternalMessage(in: InMessage): void {
+fun onExternalMessage(inMsg: slice): void {
     var storage: Storage = lazy Storage.load();
     var storage2: StorageDs2 = lazy storage.ds2.load();
     var nowTs: uint32 = blockchain.now();
@@ -432,14 +433,14 @@ fun onExternalMessage(in: InMessage): void {
         throw EXC_DEAL_NOT_ACTIVE;
     }
 
-    var (opCode, queryId) = loadOpAndQueryId(mutate in.body);
+    var (opCode, queryId) = loadOpAndQueryId(mutate inMsg);
     if (opCode == OP_CANCEL_DEAL) {
         // Allow anyone to cancel expired sales
         assert(nowTs >= storage.validUntil || storage.lastRenewalTime < nowTs - ONE_YEAR + ONE_DAY) throw 0xfffe;
         assert(contract.getOriginalBalance() >= domainRefillFee() * storage.domainsReceived + cancelGasBudget(storage.domainsReceived)) throw EXC_OUT_OF_GAS;
         acceptExternalMessage();
 
-        cancelSale(mutate storage, queryId, "Your sale offer has expired");
+        cancelSale(mutate storage, queryId, "Your sale offer has expired".literalSlice());
         return;
     }
 
@@ -453,7 +454,7 @@ fun onExternalMessage(in: InMessage): void {
         val gasToReserve: coins = getTonsToReserve(storage.domainsTotal, storage2.autoRenewIterations - 1, storage2.autoRenewCooldown, false);
         val renewCost: coins = renewDomainFee() * storage.domainsTotal;
         if (contract.getOriginalBalance() < gasToReserve + renewCost || storage.lastRenewalTime <= nowTs - (ONE_YEAR - ONE_HOUR)) {
-            cancelSale(mutate storage, queryId, "Your sale offer has expired");
+            cancelSale(mutate storage, queryId, "Your sale offer has expired".literalSlice());
             return;
         }
 
@@ -492,9 +493,9 @@ get fun get_storage_data() {
         storage.createdAt,
         storage.lastRenewalTime,
         storage.validUntil,
-        storage2.buyerAddress,
+        storage2.buyerAddress == null ? (createAddressNone() as address) : storage2.buyerAddress!,
         getTonsToReserve(storage.domainsTotal, storage2.autoRenewIterations, storage2.autoRenewCooldown, true),
-        storage.jettonWalletAddress,
+        storage.jettonWalletAddress == null ? (createAddressNone() as address) : storage.jettonWalletAddress!,
         storage2.autoRenewCooldown,
         storage2.autoRenewIterations,
         storage.hotUntil,
@@ -509,7 +510,8 @@ get fun get_fix_price_data_v4() {
 
     var (domainAddress, _, _) = storage.domainsDict.sDictGetFirst(267);
     var jettonPriceDict = createEmptyDict();
-    jettonPriceDict.uDictSetBuilder(256, storage.jettonWalletAddress.getWorkchainAndHash().1, beginCell().storeCoins(storage.price));
+    val jwAddr: address = storage.jettonWalletAddress == null ? (createAddressNone() as address) : storage.jettonWalletAddress!;
+    jettonPriceDict.uDictSetBuilder(256, jwAddr.getWorkchainAndHash().1, beginCell().storeCoins(storage.price));
 
     return (
         storage.state > STATE_ACTIVE,

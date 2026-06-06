@@ -27,7 +27,7 @@ fun cancelDeal(queryId: uint64, storage: Storage): void {
                     toAddress: storage.ownerAddress,
                     responseAddress: storage.ownerAddress,
                     forwardTonAmount: 1,
-                    forwardPayload: (CommentMessage { comment: "Jetton withdrawal" }).toCell()
+                    forwardPayload: (CommentMessage { comment: "Jetton withdrawal".literalSlice() }).toCell()
                 }
             }).send(SEND_MODE_REGULAR);
         }
@@ -39,7 +39,7 @@ fun cancelDeal(queryId: uint64, storage: Storage): void {
         bounce: false,
         value: 0,
         dest: storage.ownerAddress,
-        body: CommentMessage { comment: "Multiple offer was cancelled" },
+        body: CommentMessage { comment: "Multiple offer was cancelled".literalSlice() },
     }).send(SEND_MODE_CARRY_ALL_BALANCE);
 
     // Reset contract state
@@ -107,7 +107,7 @@ fun onInternalMessage(in: InMessage): void {
                 var commission: coins = mulDivFloor(priceInfo.price, storage.commissionFactor, COMMISSION_DIVIDER);
                 var remainingBalance: coins;
                 var oneJetton: coins = ton("1");
-                var symbol: slice = "TON";
+                var symbol: slice = "TON".literalSlice();
 
                 if (priceInfo.maybeJettonInfo == null) {  // sale for TON 
                     val requiredGas: coins = nftTransferFee() + ton("0.02");
@@ -124,7 +124,7 @@ fun onInternalMessage(in: InMessage): void {
                             bounce: false,
                             value: commission,
                             dest: MARKETPLACE_ADDRESS,
-                            body: CommentMessage { comment: "Marketplace commission" }
+                            body: CommentMessage { comment: "Marketplace commission".literalSlice() }
                         }).send(SEND_MODE_REGULAR);
                     }
                     
@@ -133,7 +133,7 @@ fun onInternalMessage(in: InMessage): void {
                         bounce: false,
                         value: priceInfo.price + in.valueCoins - requiredGas,
                         dest: msg.fromAddress,
-                        body: CommentMessage { comment: "NFT sold on webdom.market" }
+                        body: CommentMessage { comment: "NFT sold on webdom.market".literalSlice() }
                     }).send(SEND_MODE_PAY_FEES_SEPARATELY);
                 } else {  // sale for jettons
                     val jettonWalletAddress: address = priceInfo.maybeJettonInfo.jettonWalletAddress;
@@ -202,7 +202,7 @@ fun onInternalMessage(in: InMessage): void {
                         forwardTonAmount: 1,
                         forwardPayload: beginCell()
                                             .storeUint(0, 32)
-                                            .storeSlice("webdom multi-offer executed. Remaining balance: ")
+                                            .storeSlice("webdom multi-offer executed. Remaining balance: ".literalSlice())
                                             .storeStrJettons(remainingBalance, oneJetton, symbol)
                                         .endCell()
                     }
@@ -247,7 +247,7 @@ fun onInternalMessage(in: InMessage): void {
                     bounce: false,
                     value: 0,
                     dest: msg.fromAddress,
-                    body: CommentMessage { comment: "Jetton balance of the multi-offer was filled up" },
+                    body: CommentMessage { comment: "Jetton balance of the multi-offer was filled up".literalSlice() },
                 }).send(SEND_MODE_CARRY_ALL_BALANCE);
             }
             
@@ -278,7 +278,7 @@ fun onInternalMessage(in: InMessage): void {
             // Clean up old sold NFTs (sold before this update)
             var (nftAddress, soldTimeSlice, isFound) = storage.soldNftsDict.sDictGetFirst(267);
             while (isFound) {
-                val soldTime: uint32 = soldTimeSlice!.loadUint(32);
+                val soldTime: uint32 = soldTimeSlice!.preloadUint(32);
                 if (soldTime < updateInfo.signTime) {
                     storage.soldNftsDict.sDictDelete(267, nftAddress! as slice);
                 }
@@ -291,7 +291,7 @@ fun onInternalMessage(in: InMessage): void {
                 bounce: false,
                 value: 0,
                 dest: storage.ownerAddress,
-                body: CommentMessage { comment: "Multiple offer was successfully updated" },
+                body: CommentMessage { comment: "Multiple offer was successfully updated".literalSlice() },
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
@@ -311,7 +311,7 @@ fun onInternalMessage(in: InMessage): void {
                 bounce: false,
                 value: 0,
                 dest: storage.ownerAddress,
-                body: CommentMessage { comment: "TON withdrawal" },
+                body: CommentMessage { comment: "TON withdrawal".literalSlice() },
             }).send(SEND_MODE_CARRY_ALL_BALANCE);
         }
 
@@ -333,7 +333,7 @@ fun onInternalMessage(in: InMessage): void {
                     toAddress: storage.ownerAddress,
                     responseAddress: contract.getAddress(),
                     forwardTonAmount: 1,
-                    forwardPayload: (CommentMessage { comment: "Jetton withdrawal" }).toCell()
+                    forwardPayload: (CommentMessage { comment: "Jetton withdrawal".literalSlice() }).toCell()
                 }
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             
@@ -349,13 +349,13 @@ fun onInternalMessage(in: InMessage): void {
 
         else => {
             val op: uint32 = in.body.loadUint(32);
-            if (op == 0 && in.body.bitsEqual("cancel")) {
+            if (op == 0 && in.body.bitsEqual("cancel".literalSlice())) {
                 // Handle text-based cancellation
                 var storage: Storage = lazy Storage.load();
                 assert(in.senderAddress == storage.ownerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                 cancelDeal(blockchain.currentBlockLogicalTime(), storage);
             }
-            else if (!in.body.bitsEqual("fillup")) {
+            else if (!in.body.bitsEqual("fillup".literalSlice())) {
                 // Ignore "fillup" messages, throw error for unknown operations
                 throw EXC_UNSUPPORTED_OP;
             }

@@ -14,7 +14,7 @@ fun acceptOffer(mutate storage: Storage, sellerAddress: address, sellerMsgValue:
         bounce: false,
         value: storage.commission,
         dest: MARKETPLACE_ADDRESS,
-        body: CommentMessage { comment: "Marketplace commission" }
+        body: CommentMessage { comment: "Marketplace commission".literalSlice() }
     }).send(SEND_MODE_REGULAR);
     
     // Send payment to seller (gas for offer execution is always paid by offer creator)
@@ -22,7 +22,7 @@ fun acceptOffer(mutate storage: Storage, sellerAddress: address, sellerMsgValue:
         bounce: false,
         value: storage.price + sellerMsgValue,
         dest: sellerAddress,
-        body: CommentMessage { comment: "Offer accepted" }
+        body: CommentMessage { comment: "Offer accepted".literalSlice() }
     }).send(SEND_MODE_REGULAR);
     
     // Transfer NFT to buyer

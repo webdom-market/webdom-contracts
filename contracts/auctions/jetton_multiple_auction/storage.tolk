@@ -1,5 +1,5 @@
 struct StorageDs2 {
-    jettonWalletAddress: address;  // Jetton wallet address
+    jettonWalletAddress: address?; // Jetton wallet address
     jettonMinterAddress: address;  // Jetton minter address
     maxBidValue: coins;            // Maximum bid value
     maxCommission: uint64;         // Commission limit
@@ -15,7 +15,7 @@ struct Storage {
 
     lastBidValue: coins;              // Last bid value
     lastBidTime: uint32;              // Last bid time
-    lastBidderAddress: address;       // Last bidder address
+    lastBidderAddress: address?;      // Last bidder address
 
     domainsDict: dict;                // Dictionary of domains (address -> boolean received flag)
     domainsTotal: uint8;              // Total number of domains

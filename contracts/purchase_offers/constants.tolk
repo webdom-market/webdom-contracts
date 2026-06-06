@@ -2,7 +2,7 @@ import "../imports/constants"
 import "../imports/gas"
 
 const EXC_INCORRECT_SELLER_ADDRESS: int = 55;
-const EXC_INCORRECT_PRICE: int          = 56;
+// EXC_INCORRECT_PRICE (56) moved to imports/constants.tolk so fix_price_sales can use it too
 const EXC_NFT_ALREADY_SOLD: int         = 57;
 const EXC_INCORRECT_EXOTIC_CELL: int    = 58;
 const EXC_INCORRECT_PROOF: int          = 59;

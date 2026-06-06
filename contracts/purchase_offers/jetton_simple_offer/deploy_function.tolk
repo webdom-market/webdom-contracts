@@ -45,7 +45,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
     // Deploy conditions depend on the token
     if (args.isWeb3) {
         jettonMinterAddress = WEB3_ADDRESS;
-        jettonPostfix = " WEB3 for ";
+        jettonPostfix = " WEB3 for ".literalSlice();
         oneJetton = 1000;
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice.loadRef().beginParse());
         if (args.commonArgs.commissionDiscount != 0) {
@@ -53,7 +53,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
         }
     } else {
         jettonMinterAddress = USDT_ADDRESS;
-        jettonPostfix = " USDT for ";
+        jettonPostfix = " USDT for ".literalSlice();
         oneJetton = 1000000;
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice, { assertEndAfterReading: false });
     }
@@ -89,7 +89,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
             dest: payload.sellerAddress,
             body: beginCell()
                      .storeUint(0, 32)
-                     .storeSlice("New offer on webdom.market! ")
+                     .storeSlice("New offer on webdom.market! ".literalSlice())
                      .storeStrFloat(price, oneJetton)
                      .storeSlice(jettonPostfix)
                      .storeRef(payload.domainNameCell)
@@ -100,7 +100,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
 
     // calculate domain address
     var domainNameSlice: SerializableSlice = payload.domainNameCell.load();
-    val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+    val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me".literalSlice());
     var domainAddressBuilder: builder;
     if (isTgUsername) {
         domainAddressBuilder = tgUsernameToAddress(domainNameSlice.removeLastBits(5 * 8), contractCodes.tgUsernameCode);
