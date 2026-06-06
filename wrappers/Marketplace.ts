@@ -104,6 +104,7 @@ export type MarketplaceConfig = {
     promotionPrices: Dictionary<number, PromotionPricesValue>;
     userSubscriptions?: Dictionary<Address, UserSubscriptionValue>;
     subscriptionsInfo?: Dictionary<number, Dictionary<number, bigint>>;
+    dnsRecordsDict?: Dictionary<bigint, Cell>;
 };
 
 export function marketplaceConfigToCell(config: MarketplaceConfig, isTest: boolean): Cell {
@@ -132,6 +133,7 @@ export function marketplaceConfigToCell(config: MarketplaceConfig, isTest: boole
                 .storeDict(config.promotionPrices, Dictionary.Keys.Uint(32), promotionPricesValueParser())
                 .storeDict(config.userSubscriptions, Dictionary.Keys.Address(), userSubscriptionValueParser())
                 .storeDict(config.subscriptionsInfo, Dictionary.Keys.Uint(8), subscriptionInfoValueParser())
+                .storeDict(config.dnsRecordsDict, Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
             .endCell()
         )
     .endCell();
@@ -254,6 +256,9 @@ export class Marketplace extends DefaultContract {
     static changeSubscriptionsInfoMessage(newInfo: Dictionary<number, Dictionary<number, bigint>>, queryId: number = 0) {
         return beginCell().storeUint(OpCodes.CHANGE_SUBSCRIPTIONS_INFO, 32).storeUint(queryId, 64).storeDict(newInfo, Dictionary.Keys.Uint(8), subscriptionInfoValueParser()).endCell();
     }
+    static changeDnsRecordsMessage(dnsRecordsDict: Maybe<Dictionary<bigint, Cell>>, queryId: number = 0) {
+        return beginCell().storeUint(OpCodes.CHANGE_DNS_RECORDS, 32).storeUint(queryId, 64).storeDict(dnsRecordsDict, Dictionary.Keys.BigUint(256), Dictionary.Values.Cell()).endCell();
+    }
 
     async sendBuySubscription(provider: ContractProvider, via: Sender, subscriptionLevel: number, subscriptionPeriod: number, subscriptionPrice: bigint, queryId: number = 0) {
         await provider.internal(via, {
@@ -324,7 +329,16 @@ export class Marketplace extends DefaultContract {
             bounce: true,
         });
     }
-    
+
+    async sendChangeDnsRecords(provider: ContractProvider, via: Sender, dnsRecordsDict: Maybe<Dictionary<bigint, Cell>>, queryId: number = 0) {
+        await provider.internal(via, {
+            value: toNano('0.01'),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: Marketplace.changeDnsRecordsMessage(dnsRecordsDict, queryId),
+            bounce: true,
+        });
+    }
+
     async getStorageData(provider: ContractProvider): Promise<MarketplaceConfig> {
         const { stack } = await provider.get('get_storage_data', []);
 
@@ -345,6 +359,9 @@ export class Marketplace extends DefaultContract {
             collectedFeesDict: stack.readCellOpt()?.beginParse().loadDictDirect(Dictionary.Keys.Address(), Dictionary.Values.BigVarUint(4)),
 
             promotionPrices: stack.readCell().beginParse().loadDictDirect(Dictionary.Keys.Uint(32), promotionPricesValueParser()),
+            // Present only on the upgraded contract; tolerate the old layout (one fewer stack item) so
+            // the migration script can still read the current config before the code upgrade.
+            dnsRecordsDict: stack.remaining > 0 ? stack.readCellOpt()?.beginParse().loadDictDirect(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell()) : undefined,
         };
     }
 }

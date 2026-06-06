@@ -96,9 +96,15 @@ fun handleNftOwnershipAssigned(
                 domainNameCell: domainNameCell as Cell<SerializableSlice>
             };
 
+            // Update the domain DNS records while the marketplace is still its owner.
+            // This must happen before the deploy function below, which transfers the domain
+            // to the deal contract (after that the marketplace can no longer change the records).
+            var requiredGas: coins = deployInfo.deployFee + updateDomainDnsRecords(storage, domainAddress, queryId, domainNameCell.beginParse());
+
             // Extract deploy function code from deploy info and execute it
             val deployFunctionContinuation: continuation = transformSliceToContinuation(deployInfo.deployFunctionCode.beginParse());
-            val requiredGas: coins = deployInfo.deployFee + executeDeployWithNftTransfer(deployFunctionContinuation, args);
+            requiredGas += executeDeployWithNftTransfer(deployFunctionContinuation, args);
+
             checkEnoughGas(msgValue, requiredGas, fromAddress, queryId);
 
             // Update collected fees
@@ -449,4 +455,21 @@ fun handleChangeSubscriptionsInfo(storage: MarketplaceStorage, msgBody: slice, s
         body: ExcessesMessage {queryId: 0}
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
+}
+
+fun handleChangeDnsRecords(storage: MarketplaceStorage, msgBody: slice, senderAddress: address): void {
+    // Replace the dict of DNS records (dnsRecord(uint256) -> value ref) applied to every domain on listing
+    assert(senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+    var ds2: MarketplaceStorageDs2 = lazy storage.ds2.load();
+    ds2.dnsRecordsDict = msgBody.loadDict();
+    storage.ds2 = ds2.toCell();
+    storage.save();
+
+    // Send excess
+    createMessage({
+        bounce: false,
+        value: 0,
+        dest: ADMIN_ADDRESS,
+        body: ExcessesMessage {queryId: 0}
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

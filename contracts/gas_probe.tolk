@@ -1,5 +1,8 @@
 import "imports/constants"
 import "imports/gas"
+import "imports/dns"
+import "imports/messages"
+import "marketplace/storage"
 import "fix_price_sales/constants"
 import "fix_price_sales/ton_simple_sale/constants"
 import "auctions/constants"
@@ -12,6 +15,26 @@ import "domain_swap/constants"
 //  saleStorageReserve name collision between the simple- and multiple-sale constant files.)
 
 fun onInternalMessage(in: InMessage): void {}
+
+// --- dns record builders ---
+get fun domain_link_record(domainName: slice): cell { return buildDomainLinkRecord(domainName); }
+get fun change_dns_record_body(key: int, value: cell): cell {
+    return (ChangeDnsRecordMessage { queryId: 0, key: key, value: value }).toCell();
+}
+
+// --- ds2 storage migration (mirrors handleChangeDnsRecords on a pre-upgrade ds2 cell) ---
+// Lazily loads a ds2 cell that may LACK the trailing dnsRecordsDict field, assigns it, re-serializes.
+// Proves a code-only upgrade can set the records on the old storage layout (no full data resend).
+get fun ds2_migrate_set_dns(oldDs2: cell, newDns: cell?): cell {
+    var ds2 = lazy MarketplaceStorageDs2.fromCell(oldDs2);
+    ds2.dnsRecordsDict = newDns;
+    return ds2.toCell();
+}
+// Reads dnsRecordsDict — succeeds only once the field exists (throws on the old layout).
+get fun ds2_read_dns(ds2cell: cell): int {
+    val s = lazy MarketplaceStorageDs2.fromCell(ds2cell);
+    return s.dnsRecordsDict == null ? 0 : 1;
+}
 
 // --- primitives (parameterized) ---
 get fun gas(units: int): int { return gasFee(units); }

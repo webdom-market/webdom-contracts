@@ -26,6 +26,7 @@ const OP_OWNERSHIP_ASSIGNED: uint32     = 0x05138d91;
 const OP_OUTBID_NOTIFICATION: uint32    = 0x557cea20;
 const OP_CHANGE_DNS_RECORD: uint32      = 0x4eb1f0f9;
 const OP_DNS_BALANCE_RELEASE: uint32    = 0x4ed14b65;
+const DNS_KEY_LINKS: uint256            = 0xeef8b9fd5d437dd991ce2695fcce6c416ea3068e5b448963f0a7c3cbd9ad98eb;  // sha256("links")
 
 // DEDUST
 const OP_SWAP_JETTON: uint32              = 0xe3a0d482;

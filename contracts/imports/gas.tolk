@@ -83,3 +83,17 @@ fun renewDomainFee(): coins {
          + gasFee(DOMAIN_RENEW_GAS)
          + forwardFee(DOMAIN_MSG_BITS, DOMAIN_MSG_CELLS);
 }
+
+// change_dns_record on a domain / TG username item. Measured (ChangeDnsRecordGas.spec.ts) at ~50
+// records on a .ton domain. Worst case across the records we send (address record and the max-length
+// `links` text record): ~11k compute gas; the max link record adds ~5 cells / ~1.4k bits to the item.
+const DNS_CHANGE_RECORD_GAS: int = 12500;   // ~1.1x measured worst-case compute
+
+/// Value to attach to a change_dns_record message: the item's compute to store the record plus one
+/// year of storage rent for the record it adds (the item's change_dns_record handler sends nothing
+/// onward, so there are no further forwards to fund). The message's own forward fee is added by the
+/// caller via sendAndEstimateFee.
+@inline
+fun changeDnsRecordValue(): coins {
+    return gasFee(DNS_CHANGE_RECORD_GAS);
+}

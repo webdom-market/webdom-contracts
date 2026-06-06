@@ -125,6 +125,12 @@ struct (0x96dc2804) MakeColoredMessage {
     promotionUntil: uint32;
 }
 
+struct (0x4eb1f0f9) ChangeDnsRecordMessage {
+    queryId: uint64;
+    key: uint256;
+    value: cell;  // DNS record value, serialized as a ref (record is always set, never deleted)
+}
+
 struct (0x975f5690) RenewalFeeMessage {
     queryId: uint64;
     ownerAddress: address;
