@@ -1,3 +1,4 @@
+import "../../imports/gas";
 import "@stdlib/tvm-dicts"
 import "../../imports/constants"
 import "../../imports/messages"
@@ -11,7 +12,7 @@ import "../messages"
 import "../constants"
 
 
-const TONS_MIN_TON_FOR_STORAGE: coins = ton("0.035");  // TON reserve to pay storage fees for ~1 year
+// Auction's own storage reserve is computed in ../constants — see simpleAuctionStorageReserve()
 
 
 // Finish auction if there was at least one bid
@@ -78,6 +79,20 @@ fun endAuctionFailed(mutate storage: Storage, storage2: StorageDs2, queryId: uin
 } 
 
 
+fun onBouncedMessage(in: InMessageBounced): void {
+    // Forward all bounced messages to the seller
+    if (in.valueCoins > TONS_MIN_EXCESS) {
+        var storage: Storage = lazy Storage.load();
+        createMessage({
+            bounce: true,
+            value: 0,
+            dest: storage.sellerAddress,
+            body: ExcessesMessage { queryId: 0 }    
+        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
 
@@ -107,22 +122,30 @@ fun onInternalMessage(in: InMessage) {
 
         RenewDomainMessage => {
             assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
-                        
+            assert(storage.lastDomainRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;
+            val renewFee = renewDomainFee();
+            assert(in.valueCoins >= renewFee) throw EXC_OUT_OF_GAS;
+
+            // Reserve the contract's own balance, fund the renewal from the incoming value
+            // (pre-bid the contract holds only its deploy reserve, which is < renewDomainFee()).
+            reserveToncoinsOnBalance(contract.getOriginalBalance() - in.valueCoins, RESERVE_MODE_EXACT_AMOUNT);
+
             // Send renewal transaction to domain contract
             createMessage({
                 bounce: false,
-                value: TONS_RENEW_DOMAIN,
+                value: renewFee,
                 dest: storage.ds2.load().domainAddress,
-            }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+            }).send(SEND_MODE_REGULAR);
 
             // Domain renewal makes no sense for auction, so we do not send marketplace fee
-            createMessage<ExcessesMessage>({
-                bounce: false,
-                value: 0,
-                dest: in.senderAddress,
-                body: ExcessesMessage { queryId: msg.queryId }
-            }).send(SEND_MODE_CARRY_ALL_BALANCE);
-
+            if (in.valueCoins > renewFee + TONS_MIN_EXCESS) { 
+                createMessage<ExcessesMessage>({
+                    bounce: false,
+                    value: 0,
+                    dest: in.senderAddress,
+                    body: ExcessesMessage { queryId: msg.queryId }
+                }).send(SEND_MODE_CARRY_ALL_BALANCE);
+            }
             storage.lastDomainRenewalTime = blockchain.now();
             storage.save();
             return;
@@ -176,7 +199,7 @@ fun onInternalMessage(in: InMessage) {
                     );
                     
                     // Net bid after reserving funds for auction finalization, notification and storage
-                    var userBid = in.valueCoins - TONS_END_TON_AUCTION - TONS_NOTIFY_BIDDER - TONS_MIN_TON_FOR_STORAGE;
+                    var userBid = in.valueCoins - TONS_END_TON_AUCTION() - TONS_NOTIFY_BIDDER - simpleAuctionStorageReserve();
                     assert(userBid >= nextMinBidValue) throw EXC_BID_TOO_LOW;
                     
                     // Extend auction end time if close to finish
@@ -187,15 +210,17 @@ fun onInternalMessage(in: InMessage) {
                     if (blockchain.now() - storage.lastDomainRenewalTime >= ONE_YEAR - max(storage.timeIncrement * 2, ONE_DAY * 7)) {
                         // renew domain if it had not been renewed for a year
                         storage.lastDomainRenewalTime = blockchain.now();
+                        val renewFee = renewDomainFee();
                         createMessage({
                             bounce: false,
-                            value: TONS_RENEW_DOMAIN,
+                            value: renewFee,
                             dest: storage2.domainAddress
-                        }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+                        }).send(SEND_MODE_REGULAR);
+                        userBid -= renewFee;
                     }
                     
                     // Refund previous auction bidder or return seller's initial balance
-                    val prevTonBalance = contract.getOriginalBalance() - in.valueCoins - storageFees();
+                    val prevTonBalance = contract.getOriginalBalance() - in.valueCoins;
                     if (storage.lastBidValue != 0) {
                         createMessage({
                             bounce: false,
@@ -273,7 +298,7 @@ fun onInternalMessage(in: InMessage) {
                     bounce: false,
                     value: 0,
                     dest: senderAddress,
-                    body: beginCell().storeUint(0, 32).storeSlice("Error, code 44").endCell()
+                    body: beginCell().storeUint(0, 32).storeSlice("Error, code").storeNumber10(e).endCell()
                 }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
                 
                 commitContractDataAndActions();

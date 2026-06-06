@@ -1,4 +1,5 @@
 import "../../imports/utils"
+import "../constants"
 import "../../imports/constants"
 import "../../marketplace/types"
 import "../../marketplace/constants"
@@ -31,7 +32,8 @@ struct JettonMultipleAuctionDeployPayload {
     timeIncrement: uint32;
 }
 
-const TONS_DEPLOY_JETTON_MULTIPLE_AUCTION: coins = ton("0.06");
+// Deploy bootstrap = auction's own 1-year storage rent; unused funds return to the seller once all
+// domains arrive (getBalanceToReserve reconciles).
 
 
 fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
@@ -64,6 +66,7 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
         (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress!);
     }
     assert(domainsTotal > 0) throw EXC_EMPTY_DICT;
+    assert(domainsTotal < 128) throw EXC_DICT_OVERFLOW;
 
     var data: Cell<Storage> = (Storage {
         state: STATE_UNINIT,
@@ -110,7 +113,7 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
     val contractCodes: ContractCodes = lazy args.contractCodes.load();
     val msg = createMessage({
         bounce: false,
-        value: TONS_DEPLOY_JETTON_MULTIPLE_AUCTION,
+        value: multiAuctionStorageReserve(ONE_YEAR, domainsTotal),
         dest: auctionAddress,
         body: beginCell()
                 .storeUint(OP_FILL_UP_BALANCE, 32)
@@ -122,5 +125,5 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
                 .endCell()
     });
 
-    return TONS_DEPLOY_JETTON_MULTIPLE_AUCTION + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
+    return multiAuctionStorageReserve(ONE_YEAR, domainsTotal) + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 }

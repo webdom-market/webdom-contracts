@@ -1,3 +1,4 @@
+import "../../imports/gas";
 import "@stdlib/tvm-dicts";
 import "../../imports/constants";
 import "../../imports/messages";
@@ -12,12 +13,13 @@ import "../constants";
 import "../../fix_price_sales/constants"
 
 
-const TONS_MIN_TON_FOR_STORAGE: coins = ton("0.035");  // TON reserve to pay storage fees for ~1 year
+// Auction's own storage reserve is computed in ../constants — see multiAuctionStorageReserve(ONE_YEAR, N)
 
 
 // Finish auction: send marketplace commission, seller payout and transfer all domains to the winner. Last bidder pays all blockchain fees for this operation. 
 @inline
 fun endAuctionSuccess(mutate storage: Storage, maxCommission: int, queryId: uint64, additionalSellerTons: coins) {
+    setGasLimitToMaximum();
     var commission = min(mulDivFloor(storage.lastBidValue, storage.commissionFactor, COMMISSION_DIVIDER), maxCommission);
     
     // Send marketplace commission
@@ -37,11 +39,12 @@ fun endAuctionSuccess(mutate storage: Storage, maxCommission: int, queryId: uint
     }).send(SEND_MODE_REGULAR);
 
     // Transfer domains
+    val refillFee = domainRefillFee();
     var (domainAddress, _, found) = storage.domainsDict.sDictGetFirst(267);
     repeat(storage.domainsTotal - 1) {
         createMessage({
             bounce: false,
-            value: TONS_PURCHASE_NOTIFICATION + TONS_NFT_TRANSFER,
+            value: TONS_PURCHASE_NOTIFICATION + refillFee,
             dest: domainAddress! as address,
             body: NftTransferMessage<cell> {
                 queryId: queryId,
@@ -79,12 +82,13 @@ fun endAuctionSuccess(mutate storage: Storage, maxCommission: int, queryId: uint
 fun endAuctionFailed(mutate storage: Storage, queryId: uint64, cancelReason: slice) {
     setGasLimitToMaximum();
     
+    val refillFee = domainRefillFee();
     var (domainAddress, domainReceived, found) = storage.domainsDict.sDictGetFirst(267);
     while(found) {
         if (domainReceived!.bitsEqual(BIT_TRUE_SLICE())) {
             createMessage({
                 bounce: false,
-                value: TONS_NFT_TRANSFER,
+                value: refillFee,
                 dest: domainAddress! as address,
                 body: NftTransferMessage<cell> {
                     queryId: queryId,
@@ -128,12 +132,15 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 
 fun getBalanceToReserve(auctionStarted: bool, domainsNumber: uint8): coins {
+    val storageReserve: coins = multiAuctionStorageReserve(ONE_YEAR, domainsNumber);  // auction's own 1-year storage rent
     if (auctionStarted) {
-        return TONS_TON_SIMPLE_PURCHASE * domainsNumber + TONS_MIN_TON_FOR_STORAGE;  // TONs to finalize auction and pay storage fees
-    } 
-    val balanceToReserve: coins = (TONS_NFT_TRANSFER + ton("0.0075")) * domainsNumber + TONS_MIN_TON_FOR_STORAGE;  // TONs to allow canceling auction by external message
-    if (contract.getOriginalBalance() - ton("0.01") < balanceToReserve) {
-        return TONS_MIN_TON_FOR_STORAGE;
+        // finalize per domain: buyer notification + domain refill + endAuctionSuccess loop compute
+        return (TONS_PURCHASE_NOTIFICATION + domainRefillFee() + gasFee(GAS_AUCTION_FINALIZE_PER_DOMAIN)) * domainsNumber + storageReserve;
+    }
+    // cancel per domain: domain refill (held domains may have drained below their 1-TON reserve) + loop compute
+    val balanceToReserve: coins = (domainRefillFee() + gasFee(GAS_AUCTION_CANCEL_PER_DOMAIN)) * domainsNumber + storageReserve;
+    if (contract.getOriginalBalance() < balanceToReserve) {  // underfunded: reserve only storage rent so the cancel can still send what's left
+        return storageReserve;
     }
     return balanceToReserve;
 }
@@ -145,7 +152,7 @@ fun onInternalMessage(in: InMessage) {
     var storage = lazy Storage.load();
     
     // Handle admin messages for contract management
-    val allowAdminCommands: bool = storage.state != STATE_ACTIVE || storage.endTime < blockchain.now() + 600;
+    val allowAdminCommands: bool = storage.state != STATE_ACTIVE || storage.endTime + 600 < blockchain.now();
     handleAdminMessage(in.senderAddress, in.body, Permissions {
         allowChangeCode: allowAdminCommands,
         allowChangeData: allowAdminCommands,
@@ -169,6 +176,7 @@ fun onInternalMessage(in: InMessage) {
         // Seller sends domain to the auction contract
         NftOwnershipAssignedMessage => {
             try {
+                assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
                 var (_, found) = storage.domainsDict.sDictGet(267, in.senderAddress as slice);
                 assert(found) throw EXC_INCORRECT_DOMAIN;
                 
@@ -197,7 +205,7 @@ fun onInternalMessage(in: InMessage) {
         
         // Renew all domains and extend auction validity if needed
         RenewDomainMessage => {
-            assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN * storage.domainsTotal) throw EXC_OUT_OF_GAS;
+            assert(in.valueCoins >= TONS_RENEW_REQUEST + renewDomainFee() * storage.domainsTotal) throw EXC_OUT_OF_GAS;
             assert(storage.lastDomainRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;
 
             // Reserve required TONs depending on the auction state
@@ -209,9 +217,9 @@ fun onInternalMessage(in: InMessage) {
             while (found) {
                 createMessage({
                     bounce: false,
-                    value: TONS_RENEW_DOMAIN,
+                    value: renewDomainFee(),
                     dest: domainAddress! as address
-                }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+                }).send(SEND_MODE_REGULAR);
                 (domainAddress, _, found) = storage.domainsDict.sDictGetNext(267, domainAddress!);
             }
             
@@ -259,7 +267,7 @@ fun onInternalMessage(in: InMessage) {
             if (op == 0) {
                 try {
                     // Start auction if it was deferred, otherwise ensure it is active
-                    if (storage.isDeferred && (blockchain.now() < storage.startTime)) {
+                    if (storage.isDeferred && (blockchain.now() < storage.startTime) && (storage.domainsReceived == storage.domainsTotal)) {
                         storage.endTime = blockchain.now() + storage.endTime - storage.startTime;
                         storage.startTime = blockchain.now();
                         storage.isDeferred = false;
@@ -274,18 +282,18 @@ fun onInternalMessage(in: InMessage) {
 
                     // Calculate minimal bid considering absolute and relative increments
                     var nextMinBidValue = max(
-                        max(storage.lastBidValue + ton("0.1"), storage.minBidValue),
+                        max(storage.lastBidValue + TONS_MIN_BID_INCREMENT, storage.minBidValue),
                         mulDivFloor(storage.lastBidValue, storage.minBidIncrement, BID_INCREMENT_DIVIDER)
                     );
                     assert(bidValue >= nextMinBidValue) throw EXC_BID_TOO_LOW;
                     
                     // Extend auction end time if close to finish (bounded by domain expiration)
                     if (storage.endTime <= blockchain.now() + storage.timeIncrement) {
-                        storage.endTime = min(blockchain.now() + storage.timeIncrement, storage.lastDomainRenewalTime + ONE_YEAR);
+                        storage.endTime = min(blockchain.now() + storage.timeIncrement, storage.lastDomainRenewalTime + ONE_YEAR - ONE_DAY);
                     }
 
                     // Refund previous bidder or return seller's initial reserve before first bid
-                    val prevTonBalance = contract.getOriginalBalance() - in.valueCoins - storageFees();
+                    val prevTonBalance = contract.getOriginalBalance() - in.valueCoins;
                     if (storage.lastBidValue != 0) {
                         // Return the previous bid
                         createMessage({
@@ -392,7 +400,7 @@ fun onExternalMessage(in: InMessage) {
         var queryId = in.body.loadUint(64);
           
         if (storage.lastBidValue == 0) {  // No one participated in the auction
-            assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
+            assert(contract.getOriginalBalance() >= (domainRefillFee() + gasFee(GAS_AUCTION_CANCEL_PER_DOMAIN)) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
             acceptExternalMessage();
             endAuctionFailed(mutate storage, queryId, "Multiple auction on webdom.market was cancelled");
         } else {  // Auction finished successfully

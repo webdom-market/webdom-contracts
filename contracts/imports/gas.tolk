@@ -2,23 +2,19 @@ import "@stdlib/gas-payments"
 import "constants"
 
 /**
-  Runtime fee helpers — compute each TON gas/storage/forward budget from the CURRENT on-chain
-  prices at call time, so the value a contract attaches to a message always matches the real
-  network cost even as those prices change.
+  Runtime fee helpers — compute each TON budget from CURRENT on-chain prices at call time, so the
+  value attached to a message always matches the real cost as prices change.
 
-  Three independent cost types, each read from its own network config param:
+  Three cost types, each from its own config param:
     - compute gas    -> calculateGasFee     (config 21)
     - message forward-> calculateForwardFee  (config 25)
     - storage rent   -> calculateStorageFee  (config 18)
 
-  Inputs are MEASURED units (gas units; message bits/cells; contract bits/cells), sized from
-  tests/fix_price_sales/GasResearch*.spec.ts. We pass a measured contract size rather than calling CDATASIZE at
-  runtime: CDATASIZE walks every code+data cell (~66 here) and costs ~7k gas per call — wasteful
-  on a hot/high-stakes path. The size is a fixed property of the compiled contract (asserted in
-  tests/fix_price_sales/SaleGasSize.spec.ts); only the *price* is dynamic.
+  Inputs are MEASURED units (sized from GasResearch*.spec.ts). We pass a measured contract size
+  rather than calling CDATASIZE at runtime (~7k gas/call): size is fixed per compiled contract
+  (asserted in SaleGasSize.spec.ts), only price is dynamic.
 
-  Excluded (not a gas/storage/forward cost, so there is no live price to track): the jetton wallet
-  floor (TONS_JETTON_TRANSFER) and marketplace business fees.
+  Excluded (no live price to track): the jetton wallet floor (TONS_JETTON_TRANSFER) and marketplace fees.
 */
 
 /// Fee for `gasUnits` of compute gas at the current gas price.
@@ -42,15 +38,13 @@ fun storageFee(seconds: int, bits: int, cells: int): coins {
 
 
 /* ---- Domain (TON DNS item / TG username) fee helpers ---- */
-// Measured (tests/shared/TransferGas.spec.ts) at 50 DNS records, code+data, per item type:
+// Measured (TransferGas.spec.ts) at 50 DNS records, code+data, per item type:
 //   TON DNS domain : 10,855 transfer gas ; 195 cells / 28,232 bits
 //   TG username    :  9,526 transfer gas ; 199 cells / 33,359 bits
-// The item ITSELF guarantees it always keeps >= min_tons_for_storage (~1 TON) — its transfer handler
-// throws (402) rather than let the balance drop below that reserve (domain.fc:92). So a plain
-// transfer only has to pay compute + the item's two onward forwards; it does NOT pre-fund storage.
-// Storage is funded (a) once, by the item's own ~1-TON reserve, and (b) yearly, by renewDomainFee
-// for .ton domains. A transfer that finds the item already drained below its reserve must REFILL it
-// — see domainRefillFee(), used only on the tight REGULAR-mode multiple-auction/sale payouts.
+// The item keeps >= min_tons_for_storage (~1 TON) itself — its transfer handler throws 402 rather than
+// drop below that reserve (domain.fc:92). So a plain transfer pays only compute + its two onward
+// forwards; storage is funded by the item's own reserve and yearly by renewDomainFee (.ton only).
+// A transfer that finds the item drained below its reserve must REFILL it — see domainRefillFee().
 const DOMAIN_STORAGE_CELLS: int = 200;     // .ton domain, 50 records (195 measured), padded — for renew/refill
 const DOMAIN_STORAGE_BITS: int  = 34000;   // >= 28,232
 // Measured transfer_ownership compute is ~11k gas (domain) / ~9.5k (TG); ~1.5x margin.
@@ -59,33 +53,30 @@ const DOMAIN_RENEW_GAS: int     = 8000;    // ~1.6x measured renew/fill-up compu
 const DOMAIN_MSG_BITS: int      = 1023;    // conservative single-cell message
 const DOMAIN_MSG_CELLS: int     = 1;
 
-/// Value to attach to an NFT (domain / TG username) transfer: the item's transfer compute + its two
-/// onward forwards (ownership_assigned + excess). NO storage — the item keeps its own ~1-TON reserve,
-/// and contracts that move a domain either forward their whole balance to it (CARRY_ALL) or top it
-/// up via domainRefillFee() on the tight fixed-value paths.
+/// Value for an NFT (domain / TG username) transfer: transfer compute + its two onward forwards
+/// (ownership_assigned + excess). No storage — the item keeps its own ~1-TON reserve; tight
+/// fixed-value paths top it up via domainRefillFee().
 @inline
 fun nftTransferFee(): coins {
     return gasFee(DOMAIN_TRANSFER_GAS) + forwardFee(DOMAIN_MSG_BITS, DOMAIN_MSG_CELLS) * 2;
 }
 
-/// One year of a (.ton domain) item's storage rent at the live price. Used to keep the item funded
-/// above its reserve: as the storage top-up in a renewal, and as the refill buffer on fixed-value
-/// transfers where the item can't be paid via CARRY_ALL.
+/// One year of a domain item's storage rent at the live price. Keeps the item funded above its reserve:
+/// the storage top-up in a renewal, and the refill buffer on fixed-value transfers.
 @inline
 fun domainStorageYear(): coins {
     return storageFee(ONE_YEAR, DOMAIN_STORAGE_BITS, DOMAIN_STORAGE_CELLS);
 }
 
-/// Value to attach where a domain is moved with a FIXED amount (no CARRY_ALL) and may have drained
-/// below its reserve: transfer cost + one year of storage to refill it. Guarantees the item stays
-/// funded for storage so its 402 reserve check passes.
+/// Value for moving a domain with a FIXED amount (no CARRY_ALL) that may have drained below its
+/// reserve: transfer cost + one year of storage to refill it, so its 402 reserve check passes.
 @inline
 fun domainRefillFee(): coins {
     return nftTransferFee() + domainStorageYear();
 }
 
-/// Value to attach to a domain renewal: one year of the item's storage (≤50 records) at the live
-/// storage price + the renew compute + one forward. Renewal applies ONLY to .ton domains.
+/// Value for a domain renewal: one year of storage (≤50 records) + renew compute + one forward.
+/// Renewal applies ONLY to .ton domains.
 @inline
 fun renewDomainFee(): coins {
     return domainStorageYear()
