@@ -44,7 +44,7 @@ fun onInternalMessage(in: InMessage): void {
                 }
                 
                 // Reserve TON for offer execution
-                val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE;
+                val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE();
                 if (contractBalance > balanceToReserve + ton("0.01")) {
                     reserveToncoinsOnBalance(balanceToReserve, RESERVE_MODE_EXACT_AMOUNT);
                     createMessage({
@@ -98,7 +98,7 @@ fun onInternalMessage(in: InMessage): void {
                     }
                     
                     // Send excess
-                    val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE;
+                    val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE();
                     assert(contractBalance > balanceToReserve + TONS_MIN_EXCESS) throw EXC_OUT_OF_GAS;
                     reserveToncoinsOnBalance(balanceToReserve, RESERVE_MODE_EXACT_AMOUNT);
                     createMessage({
@@ -150,8 +150,8 @@ fun onInternalMessage(in: InMessage): void {
                 }).send(SEND_MODE_REGULAR);
                 
                 // Send excess
-                val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE;
-                assert(contractBalance > balanceToReserve + TONS_COUNTERPROPOSE_PRICE + TONS_COUNTERPROPOSE_GAS) throw EXC_OUT_OF_GAS;
+                val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE();
+                assert(contractBalance > balanceToReserve + TONS_COUNTERPROPOSE_PRICE + TONS_COUNTERPROPOSE_GAS()) throw EXC_OUT_OF_GAS;
                 reserveToncoinsOnBalance(balanceToReserve, RESERVE_MODE_EXACT_AMOUNT);
                 createMessage({
                     bounce: false,
@@ -174,7 +174,7 @@ fun onInternalMessage(in: InMessage): void {
             val newCommission: coins = mulDivFloor(msg.newPrice, storage.commission, storage.price);
             
             // Calculate maximum value for new price considering fees and check submitted price
-            val msgValue: coins = in.valueCoins - (TONS_CHANGE_PRICE_GAS + (msg.notifySeller ? TONS_OFFER_NOTIFICATION : (0 as coins)) + (storage.sellerPrice != 0 ? TONS_COUNTERPROPOSE_PRICE : (0 as coins)));
+            val msgValue: coins = in.valueCoins - (TONS_CHANGE_PRICE_GAS() + (msg.notifySeller ? TONS_OFFER_NOTIFICATION : (0 as coins)) + ((storage.sellerPrice != 0 && msg.newPrice < storage.sellerPrice) ? TONS_COUNTERPROPOSE_PRICE : (0 as coins)));
             val maxNewPrice: coins = storage.price + msgValue + storage.commission - newCommission;
             assert(msg.newPrice <= maxNewPrice) throw EXC_OUT_OF_GAS;
             
@@ -222,7 +222,7 @@ fun onInternalMessage(in: InMessage): void {
                 }
                 
                 // Reserve TON for offer execution and notify buyer about successful price change
-                reserveToncoinsOnBalance(storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+                reserveToncoinsOnBalance(storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE(), RESERVE_MODE_EXACT_AMOUNT);
                 createMessage({
                     bounce: false,
                     value: 0,
@@ -256,7 +256,7 @@ fun onInternalMessage(in: InMessage): void {
             storage.save();
             
             // Reserve balance for offer execution (don't use mode 64 to save TON for storage fees)
-            reserveToncoinsOnBalance(storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+            reserveToncoinsOnBalance(storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE(), RESERVE_MODE_EXACT_AMOUNT);
             createMessage({
                 bounce: false,
                 value: 0,

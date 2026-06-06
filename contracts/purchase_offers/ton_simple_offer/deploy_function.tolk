@@ -1,5 +1,6 @@
 import "../../imports/utils";
 import "../../imports/constants";
+import "../../imports/gas";
 import "../../imports/dns";
 import "../../marketplace/types";
 import "../../marketplace/constants";
@@ -25,7 +26,8 @@ struct TonSimpleOfferDeployPayload {
 }
 
 
-const TONS_DEPLOY_TON_OFFER: coins = TONS_TON_SIMPLE_OFFER_RESERVE + ton("0.005");
+// Reserve + the deploy/activation (FillUpBalance) handler's compute + its comment-message forwards.
+@inline fun TONS_DEPLOY_TON_OFFER(): coins { return TONS_TON_SIMPLE_OFFER_RESERVE() + gasFee(GAS_OFFER_DEPLOY) + forwardFee(OFFER_MSG_BITS, OFFER_MSG_CELLS); }
 
 
 fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
@@ -98,7 +100,7 @@ fun deployTonSimpleOffer(args: SimpleDeployArgs): int {
         }
     };
 
-    val msgValue: coins = payload.price + commission + TONS_DEPLOY_TON_OFFER;  // offer creator pays all gas fees for the offer execution
+    val msgValue: coins = payload.price + commission + TONS_DEPLOY_TON_OFFER();  // offer creator pays all gas fees for the offer execution
     val msg = createMessage<FillUpBalanceMessage>({
         bounce: false,
         value: msgValue,

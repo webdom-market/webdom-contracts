@@ -1,3 +1,4 @@
+import "../../imports/gas";
 import "@stdlib/tvm-dicts"
 import "../../imports/constants"
 import "../../imports/messages"
@@ -109,11 +110,11 @@ fun onInternalMessage(in: InMessage): void {
                 var symbol: slice = "TON";
 
                 if (priceInfo.maybeJettonInfo == null) {  // sale for TON 
-                    val requiredGas: coins = TONS_NFT_TRANSFER + ton("0.02");
+                    val requiredGas: coins = nftTransferFee() + ton("0.02");
                     assert(requiredGas <= in.valueCoins) throw EXC_OUT_OF_GAS;
                     
                     // Calculate remaining balance after payment and fees (offer creator pays storage fees, seller pays for gas)
-                    remainingBalance = contractBalance - (priceInfo.price + commission + in.valueCoins + storageFees());
+                    remainingBalance = contractBalance - (priceInfo.price + commission + in.valueCoins);
                     assert(remainingBalance >= 0) throw EXC_OUT_OF_GAS;
                     reserveToncoinsOnBalance(remainingBalance, RESERVE_MODE_EXACT_AMOUNT);
 
@@ -150,7 +151,7 @@ fun onInternalMessage(in: InMessage): void {
                     storage.setJettonBalance(jettonWalletAddress, remainingBalance);
                     
                     // Calculate required gas for jetton operations (seller pays for it)
-                    var requiredGas: coins = (TONS_NFT_TRANSFER + TONS_JETTON_TRANSFER + ton("0.02"));
+                    var requiredGas: coins = (nftTransferFee() + TONS_JETTON_TRANSFER + ton("0.02"));
                     
                     // Send marketplace commission in jettons
                     if (commission > 0) {

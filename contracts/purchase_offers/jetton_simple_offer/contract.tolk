@@ -45,8 +45,8 @@ fun onInternalMessage(in: InMessage): void {
                 }
                 
                 // Reserve TON for offer execution
-                if (contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE + TONS_MIN_EXCESS) {
-                    reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+                if (contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE() + TONS_MIN_EXCESS) {
+                    reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE(), RESERVE_MODE_EXACT_AMOUNT);
                     createMessage({
                         bounce: false,
                         value: 0,
@@ -98,8 +98,8 @@ fun onInternalMessage(in: InMessage): void {
                     }
                     
                     // Send excess
-                    assert(contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE + TONS_MIN_EXCESS) throw EXC_OUT_OF_GAS;
-                    reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+                    assert(contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE() + TONS_MIN_EXCESS) throw EXC_OUT_OF_GAS;
+                    reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE(), RESERVE_MODE_EXACT_AMOUNT);
                     createMessage({
                         bounce: false,
                         value: 0,
@@ -149,8 +149,8 @@ fun onInternalMessage(in: InMessage): void {
                 }).send(SEND_MODE_REGULAR);
                 
                 // Reserve TON for offer execution and send excess
-                assert(contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE + TONS_COUNTERPROPOSE_PRICE + TONS_COUNTERPROPOSE_GAS) throw EXC_OUT_OF_GAS;
-                reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+                assert(contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE() + TONS_COUNTERPROPOSE_PRICE + TONS_COUNTERPROPOSE_GAS()) throw EXC_OUT_OF_GAS;
+                reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE(), RESERVE_MODE_EXACT_AMOUNT);
                 createMessage({
                     bounce: false,
                     value: 0,
@@ -227,8 +227,8 @@ fun onInternalMessage(in: InMessage): void {
                     }
                     
                     // Check remaining balance and reserve required TON
-                    assert(contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE + TONS_CHANGE_PRICE_GAS) throw EXC_OUT_OF_GAS;
-                    reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+                    assert(contractBalance > TONS_JETTON_SIMPLE_OFFER_RESERVE() + TONS_CHANGE_PRICE_GAS()) throw EXC_OUT_OF_GAS;
+                    reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE(), RESERVE_MODE_EXACT_AMOUNT);
                     
                     // Notify buyer about successful price change
                     createMessage({
@@ -269,7 +269,7 @@ fun onInternalMessage(in: InMessage): void {
             storage.save();
             
             // Reserve balance for offer execution (don't use mode 64 to save TON for storage fees)
-            reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+            reserveToncoinsOnBalance(TONS_JETTON_SIMPLE_OFFER_RESERVE(), RESERVE_MODE_EXACT_AMOUNT);
             createMessage({
                 bounce: false,
                 value: 0,
