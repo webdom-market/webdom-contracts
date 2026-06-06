@@ -1,7 +1,66 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, toNano } from '@ton/core';
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, toNano } from '@ton/core';
 import { getAddressByDomainName, getIndexByDomainName, getMinPrice } from './helpers/dnsUtils';
 import { Maybe } from '@ton/core/dist/utils/maybe';
 import { OpCodes } from './helpers/constants';
+
+// DNS record category keys = sha256 of the category name (kept in sync with webdom-front Domain.ts).
+export const DnsRecordType = {
+    linkedWallet: 105311596331855300602201538317979276640056460191511695660591596829410056223515n,
+    linkedTonSite: 113837984718866553357015413641085683664993881322709313240352703269157551621118n,
+    linkedTonStorage: 33305727148774590499946634090951755272001978043137765208040544350030765946327n,
+    picture: 20315478796101526927034168858260897194377925503629377592419468163308831956119n,
+    image: 43884663033947008978309661017057008345326326811558777475113826163084742639165n,
+    description: 90922719342317012409671596374183159143637506542604000676488204638996496437508n,
+    links: 108089919688644910349473043874437213641876104892722189538558092237626533583083n,
+} as const;
+
+/**
+ * Encodes a UTF-8 string into a `dns_text#1eda` value cell (chunked TL-B), identical to the
+ * webdom-front encoder. First chunk inline (≤123 bytes), each next chunk in its own ref (≤126 bytes).
+ */
+export function createTextRecordCell(text: string): Cell {
+    const data = Buffer.from(text, 'utf8');
+    const FIRST_CHUNK_MAX = 123;
+    const CHUNK_MAX = 126;
+    const lengths: number[] = [];
+    let remaining = data.length;
+    while (remaining > 0) {
+        const take = Math.min(remaining, lengths.length === 0 ? FIRST_CHUNK_MAX : CHUNK_MAX);
+        lengths.push(take);
+        remaining -= take;
+    }
+    const root = beginCell().storeUint(0x1eda, 16).storeUint(lengths.length, 8);
+    if (lengths.length === 0) return root.endCell();
+    let offset = data.length;
+    let next: Cell | undefined;
+    for (let i = lengths.length - 1; i >= 1; i--) {
+        offset -= lengths[i];
+        const chunk = beginCell().storeUint(lengths[i], 8).storeBuffer(data.subarray(offset, offset + lengths[i]));
+        if (next) chunk.storeRef(next);
+        next = chunk.endCell();
+    }
+    root.storeUint(lengths[0], 8).storeBuffer(data.subarray(0, lengths[0]));
+    if (next) root.storeRef(next);
+    return root.endCell();
+}
+
+/** Value cell for a `wallet` record (`dns_smc_address#9fd3`). */
+export function createWalletRecordCell(walletAddress: Address): Cell {
+    return beginCell().storeUint(0x9fd3, 16).storeAddress(walletAddress).storeUint(0, 8).endCell();
+}
+
+/**
+ * Builds the marketplace `dnsRecordsDict` (key 256 -> value ref) from a map of record-type -> value
+ * cell. Use `createTextRecordCell` / `createWalletRecordCell` to build the values. Only put
+ * domain-agnostic records here — the same dict is applied to every domain on listing.
+ */
+export function buildDnsRecordsDict(records: Partial<Record<keyof typeof DnsRecordType, Cell>>): Dictionary<bigint, Cell> {
+    const dict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell());
+    for (const [type, value] of Object.entries(records)) {
+        if (value) dict.set(DnsRecordType[type as keyof typeof DnsRecordType], value);
+    }
+    return dict;
+}
 
 export type DomainConfig = {
     name?: string;

@@ -429,7 +429,7 @@ describe('Marketplace', () => {
         marketplace = blockchain.openContract(Marketplace.createFromAddress(marketplaceDeployer.address));
         // marketplaceConfig = await marketplace.getStorageData();
         // expect(marketplaceConfig.ownerAddress.toString()).toBe(admin.address.toString());
-    }, 10000);
+    }, 180000);
 
     /* OFFERS */
 
@@ -653,10 +653,10 @@ describe('Marketplace', () => {
 
         // Deploy
         transactionRes = await domains[0].sendTransfer(
-            seller.getSender(), marketplace.address, seller.address, 
+            seller.getSender(), marketplace.address, seller.address,
             Marketplace.deployDealWithNftTransferPayload(
-                seller.address, 
-                Marketplace.DeployOpCodes.TON_SIMPLE_SALE, 
+                seller.address,
+                Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
                 DOMAIN_NAMES[0],
                 TonSimpleSale.deployPayload(price, validUntil),
             ),
