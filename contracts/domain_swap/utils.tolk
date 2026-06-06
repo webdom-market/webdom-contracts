@@ -1,3 +1,4 @@
+import "../imports/gas";
 import "constants";
 import "storage";
 import "../imports/constants";
@@ -40,13 +41,16 @@ fun completeLeftPart(storage: Storage, leftInfo: OneSideInfo) {
 fun completeDeal(storage: Storage, rightInfo: OneSideInfo, queryId: int) {
     setGasLimitToMaximum();
 
+    // Domains leave with domainRefillFee() (not bare nftTransferFee()): up to ~1yr escrow can drain the
+    // item's storage reserve, and these bounce:false sends would otherwise strand it (402). Pre-funded by
+    // each received domain's TONS_ADD_DOMAIN buffer.
     // Transfer domains to the right participant
     var leftInfo = lazy storage.leftInfo.load();
     var (leftDomainAddress, _, _) = leftInfo.domainsDict.sDictGetFirst(267);
     repeat(leftInfo.domainsTotal) {
         createMessage({
             dest: leftDomainAddress! as address,
-            value: TONS_NFT_TRANSFER,
+            value: domainRefillFee(),
             bounce: false,
             body: NftTransferMessage<cell> {
                 queryId: queryId,
@@ -73,7 +77,7 @@ fun completeDeal(storage: Storage, rightInfo: OneSideInfo, queryId: int) {
     repeat(rightInfo.domainsTotal) {
         createMessage({
             dest: rightDomainAddress! as address,
-            value: TONS_NFT_TRANSFER,
+            value: domainRefillFee(),
             bounce: false,
             body: NftTransferMessage<cell> {
                 queryId: queryId,
@@ -125,6 +129,9 @@ fun completeDeal(storage: Storage, rightInfo: OneSideInfo, queryId: int) {
 fun returnDomains(storage: Storage, rightInfo: OneSideInfo, queryId: int, cancelNotification: cell) {
     setGasLimitToMaximum();
 
+    // Returned domains also leave with domainRefillFee() (unlike the auction CANCEL path): a swap cancel
+    // is a genuine long-hold case, so the same drain-protection as completeDeal applies. Funded by each
+    // returned domain's TONS_ADD_DOMAIN buffer.
     // Return domains to the left participant
     var leftInfo = lazy storage.leftInfo.load();
     var (leftDomainAddress, leftDomainReceivedSlice, _) = leftInfo.domainsDict.sDictGetFirst(267);
@@ -132,7 +139,7 @@ fun returnDomains(storage: Storage, rightInfo: OneSideInfo, queryId: int, cancel
         if (leftDomainReceivedSlice!.bitsEqual(BIT_TRUE_SLICE())) {
             createMessage({
                 dest: leftDomainAddress! as address,
-                value: TONS_NFT_TRANSFER,
+                value: domainRefillFee(),
                 bounce: false,
                 body: NftTransferMessage<cell> {
                     queryId: queryId,
@@ -152,7 +159,7 @@ fun returnDomains(storage: Storage, rightInfo: OneSideInfo, queryId: int, cancel
         if (rightDomainReceivedSlice!.bitsEqual(BIT_TRUE_SLICE())) {
             createMessage({
                 dest: rightDomainAddress! as address,
-                value: TONS_NFT_TRANSFER,
+                value: domainRefillFee(),
                 bounce: false,
                 body: NftTransferMessage<cell> {
                     queryId: queryId,

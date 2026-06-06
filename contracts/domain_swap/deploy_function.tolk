@@ -1,5 +1,7 @@
 import "../imports/utils"
 import "../imports/constants"
+import "../imports/gas"
+import "constants"
 import "../marketplace/types"
 import "../marketplace/constants"
 import "storage"
@@ -26,7 +28,6 @@ struct DomainSwapDeployPayload {
     needsAlert: bool;
 }
 
-const TONS_DEPLOY_DOMAIN_SWAP: coins = ton("0.04");
 
 
 fun deployDomainSwap(args: SimpleDeployArgs): int {
@@ -52,6 +53,7 @@ fun deployDomainSwap(args: SimpleDeployArgs): int {
     }
 
     assert(leftDomainsTotal + rightDomainsTotal > 0) throw EXC_EMPTY_DICT;
+    assert(leftDomainsTotal + rightDomainsTotal < 250) throw EXC_DICT_OVERFLOW;
     deployInfo.completionCommission = mulDivFloor(deployInfo.completionCommission, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER);
 
     var data = (Storage {
@@ -89,7 +91,8 @@ fun deployDomainSwap(args: SimpleDeployArgs): int {
         },
     });
 
-    val msgValue = TONS_DEPLOY_DOMAIN_SWAP + (payload.needsAlert ? TONS_OFFER_NOTIFICATION : (0 as coins)) + deployInfo.completionCommission;
+    // Seed (swapDeployValue) + optional alert tip + marketplace commission (both forwarded during the deal).
+    val msgValue = swapDeployValue(leftDomainsTotal + rightDomainsTotal) + (payload.needsAlert ? TONS_OFFER_NOTIFICATION : (0 as coins)) + deployInfo.completionCommission;
     val msg = createMessage({
         bounce: false,
         value: msgValue,

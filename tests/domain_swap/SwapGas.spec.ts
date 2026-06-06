@@ -9,7 +9,7 @@ import { MIN_PRICE_START_TIME } from '../../wrappers/helpers/constants';
 import { log } from '../helpers/gas';
 
 // Mirrors GAS_SWAP_* in contracts/domain_swap/constants.tolk — the budgets these tests must dominate.
-const GAS_SWAP_DEPLOY = 10000;
+const GAS_SWAP_DEPLOY = 8000;
 const GAS_SWAP_RECEIVE_DOMAIN = 18000;
 const GAS_SWAP_SETTLE_PER_DOMAIN = 8000;
 const GAS_SWAP_CANCEL_PER_DOMAIN = 8000;
