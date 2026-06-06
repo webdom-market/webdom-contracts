@@ -1,4 +1,4 @@
-tolk 1.0
+import "@stdlib/tvm-dicts"
 
 // Multiple offer contract storage structure
 struct Storage {
@@ -28,7 +28,8 @@ fun Storage.save(self): void {
 fun Storage.getJettonBalance(self, jettonWalletAddress: address): coins {
     var (jettonBalanceSlice, isFound) = self.jettonBalancesDict.sDictGet(267, jettonWalletAddress as slice);
     if (isFound) {
-        return jettonBalanceSlice!.loadCoins();
+        var balanceSlice: slice = jettonBalanceSlice!;
+        return balanceSlice.loadCoins();
     } else {
         return 0;
     }

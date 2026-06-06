@@ -2,14 +2,14 @@
 struct StorageDs2 {
     domainAddress: address;       // Address of the domain being sold
     jettonMinterAddress: address; // Address of the jetton minter
-    buyerAddress: address;        // Address of the buyer (set when sale is completed)
+    buyerAddress: address?;       // Address of the buyer (set when sale is completed)
     autoRenewCooldown: uint32;    // Minimal delay between domain renewals
     autoRenewIterations: uint8;   // Remaining paid auto-renew iterations
 }
 
 // Jetton Simple Sale contract storage structure
 struct Storage {
-    jettonWalletAddress: address; // Address of the jetton wallet
+    jettonWalletAddress: address?; // Address of the jetton wallet
     sellerAddress: address;       // Address of the domain seller
     price: coins;                 // Sale price in jettons
     state: uint2;                 // Sale state (UNINIT, ACTIVE, COMPLETED, CANCELLED)

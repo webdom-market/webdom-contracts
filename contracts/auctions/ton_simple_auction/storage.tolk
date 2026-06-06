@@ -14,7 +14,7 @@ struct Storage {
 
     lastBidValue: coins;              // Last bid value
     lastBidTime: uint32;              // Last bid timestamp
-    lastBidderAddress: address;       // Last bidder address
+    lastBidderAddress: address?;      // Last bidder address
 
     domainNameCell: cell;             // Domain name for notifications
 

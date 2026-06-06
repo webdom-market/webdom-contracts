@@ -46,7 +46,7 @@ fun getRequiredReserve(autoRenewIterations: uint8): coins {
 fun isTgUsername(domainNameCell: cell): bool {
     var domainNameSlice = domainNameCell.beginParse();
     return domainNameSlice.remainingBitsCount() >= 5 * 8 &&
-           domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+           domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me".literalSlice());
 }
 
 fun onInternalMessage(in: InMessage): void {
@@ -110,9 +110,9 @@ fun onInternalMessage(in: InMessage): void {
                 dest: in.senderAddress,
                 body: beginCell()
                         .storeUint(0, 32)
-                        .storeSlice("Price changed to ")
+                        .storeSlice("Price changed to ".literalSlice())
                         .storeStrFloat(msg.newPrice, ton("1"))
-                        .storeSlice(" TON")
+                        .storeSlice(" TON".literalSlice())
                     .endCell()
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             
@@ -226,7 +226,7 @@ fun onInternalMessage(in: InMessage): void {
                 bounce: false,
                 value: 0,
                 dest: storage.sellerAddress,
-                body: CommentMessage { comment: "Your domain has expired" }
+                body: CommentMessage { comment: "Your domain has expired".literalSlice() }
             }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
             
             return;
@@ -272,7 +272,7 @@ fun onInternalMessage(in: InMessage): void {
                         bounce: false,
                         value: storage.commission,
                         dest: MARKETPLACE_ADDRESS,
-                        body: CommentMessage { comment: "Marketplace commission" }
+                        body: CommentMessage { comment: "Marketplace commission".literalSlice() }
                     }).send(SEND_MODE_REGULAR);
                     
                     // Send payment to seller
@@ -319,7 +319,7 @@ fun onInternalMessage(in: InMessage): void {
                     bounce: false,
                     value: 0,
                     dest: senderAddress,
-                    body: beginCell().storeUint(0, 32).storeSlice("Error, code 44").endCell()
+                    body: beginCell().storeUint(0, 32).storeSlice("Error, code 44".literalSlice()).endCell()
                 }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
                 
                 commitContractDataAndActions();
@@ -333,7 +333,7 @@ fun onInternalMessage(in: InMessage): void {
 }
 
 
-fun onExternalMessage(in: InMessage): void {
+fun onExternalMessage(inMsg: slice): void {
     var storage: Storage = lazy Storage.load();
     var autoRenewData: AutoRenewData = lazy storage.autoRenewData.load();
     var nowTs: uint32 = blockchain.now();
@@ -342,7 +342,7 @@ fun onExternalMessage(in: InMessage): void {
         throw EXC_DEAL_NOT_ACTIVE;
     }
 
-    var (opCode, queryId) = loadOpAndQueryId(mutate in.body);
+    var (opCode, queryId) = loadOpAndQueryId(mutate inMsg);
     if (opCode == OP_CANCEL_DEAL) {
         // Allow anyone to cancel expired sales
         assert(nowTs >= storage.validUntil || (!storage.isTgUsername && storage.lastRenewalTime < nowTs - ONE_YEAR + ONE_DAY)) throw 0xfffe;
@@ -389,7 +389,7 @@ get fun get_storage_data() {
     var domainsDict: dict = createEmptyDict();
     domainsDict.sDictSet(267, storage.domainAddress as slice, BIT_TRUE_SLICE());
     
-    var buyerAddress: address = storage.buyerAddressCell == null ? createAddressNone() : storage.buyerAddressCell!.load();
+    var buyerAddress: address = storage.buyerAddressCell == null ? (createAddressNone() as address) : storage.buyerAddressCell!.load();
     
     return (
         storage.sellerAddress,       

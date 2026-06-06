@@ -18,7 +18,7 @@ struct (0x5fcc3d14) NftTransferMessage<T> {
 struct (0x5fcc3d14) NftTransferMessageBuilder<T> {
     queryId: uint64;
     toAddress: builder;
-    responseAddress: address;
+    responseAddress: address?;
     customPayload: cell? = null;
     forwardTonAmount: coins;
     forwardPayload: T?;

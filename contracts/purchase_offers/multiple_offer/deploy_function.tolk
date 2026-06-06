@@ -16,7 +16,7 @@ const TONS_DEPLOY_MULTIPLE_OFFER = ton("0.05");
 
 fun deployMultipleOffer(args: SimpleDeployArgs): int {
     var deployInfo = MultipleOfferDeployInfo.fromSlice(args.deployInfoSlice);
-    if (args.commissionDiscount) {
+    if (args.commissionDiscount != 0) {
         deployInfo.web3CommissionFactor = 0;
         deployInfo.commissionFactor = mulDivFloor(deployInfo.commissionFactor, COMMISSION_DIVIDER - args.commissionDiscount, COMMISSION_DIVIDER); 
     }

@@ -75,7 +75,7 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
 
         lastBidValue: 0,
         lastBidTime: 0,
-        lastBidderAddress: createAddressNone(),
+        lastBidderAddress: null,
 
         domainsDict: payload.domainsAddresses,
         domainsTotal: domainsTotal,
@@ -92,7 +92,7 @@ fun deployJettonMultipleAuction(args: SimpleDeployArgs): int {
         commissionFactor: commissionFactor,
 
         ds2: (StorageDs2 {
-            jettonWalletAddress: createAddressNone(),
+            jettonWalletAddress: null,
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
             maxBidValue: payload.maxBidValue,
             maxCommission: maxCommission as uint64

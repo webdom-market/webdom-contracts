@@ -90,11 +90,11 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
         createdAt: blockchain.now(),
         lastRenewalTime: blockchain.now(),
         validUntil: payload.validUntil,
-        jettonWalletAddress: createAddressNone(),
+        jettonWalletAddress: null,
         hotUntil: 0,
         coloredUntil: 0,
         ds2: (StorageDs2 {
-            buyerAddress: createAddressNone(),
+            buyerAddress: null,
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
             autoRenewCooldown: payload.autoRenewCooldown,
             autoRenewIterations: payload.autoRenewIterations,

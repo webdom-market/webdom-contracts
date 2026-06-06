@@ -85,9 +85,9 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
         body: NftTransferMessageBuilder<CommentMessage> {
             queryId: 0,
             toAddress: saleAddressBuilder,
-            responseAddress: createAddressNone(),
+            responseAddress: null,
             forwardTonAmount: 0,
-            forwardPayload: CommentMessage { comment: "Sale on webdom.market" }
+            forwardPayload: CommentMessage { comment: "Sale on webdom.market".literalSlice() }
         }
     }).send(SEND_MODE_REGULAR);
 

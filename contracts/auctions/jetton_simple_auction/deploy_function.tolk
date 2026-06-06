@@ -61,7 +61,7 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         lastDomainRenewalTime: blockchain.now(),
         lastBidValue: 0,
         lastBidTime: 0,
-        lastBidderAddress: createAddressNone(),
+        lastBidderAddress: null,
         domainNameCell: args.domainNameCell,
         hotUntil: 0,
         coloredUntil: 0,
@@ -72,7 +72,7 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         commissionFactor: commissionFactor,
         ds2: (StorageDs2 {
             domainAddress: args.domainAddress,
-            jettonWalletAddress: createAddressNone(),
+            jettonWalletAddress: null,
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
             maxBidValue: payload.maxBidValue,
             maxCommission: maxCommission
@@ -94,9 +94,9 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         body: NftTransferMessageBuilder<CommentMessage> {
             queryId: 0,
             toAddress: auctionAddressBuilder,
-            responseAddress: createAddressNone(),
+            responseAddress: null,
             forwardTonAmount: 0,
-            forwardPayload: CommentMessage { comment: "Auction on webdom.market" }
+            forwardPayload: CommentMessage { comment: "Auction on webdom.market".literalSlice() }
         }
     }).send(SEND_MODE_REGULAR);
 
