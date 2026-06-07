@@ -9,15 +9,3 @@ fun SerializableSlice.unpackFromSlice(mutate s: slice) {
 fun SerializableSlice.packToBuilder(self, mutate b: builder) {
     b.storeSlice(self);
 }
-
-type AddressBuilder = builder;
-
-fun AddressBuilder.unpackFromSlice(mutate s: slice) {
-    val addressBuilder = beginCell().storeSlice(s);
-    s = createEmptySlice(); 
-    return addressBuilder;
-}
-
-fun AddressBuilder.packToBuilder(self, mutate b: builder) {
-    b.storeBuilder(self);
-}

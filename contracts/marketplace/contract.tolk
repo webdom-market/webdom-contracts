@@ -72,7 +72,15 @@ fun onInternalMessage(in: InMessage): void {
             // Change promotion price
             handleChangePromotionPrice(storage, in.body, in.senderAddress);
         }
-        else => { 
+        OP_CHANGE_SUBSCRIPTIONS_INFO => {
+            // Change subscriptions info
+            handleChangeSubscriptionsInfo(storage, in.body, in.senderAddress);
+        }
+        OP_CHANGE_DNS_RECORDS => {
+            // Change the DNS records applied to domains on listing
+            handleChangeDnsRecords(storage, in.body, in.senderAddress);
+        }
+        else => {
             assert(op < 0x0fffffff) throw EXC_UNSUPPORTED_OP;
             // Simple deploy without jetton or NFT transfers (e.g. ton simple offer, jetton multiple auction)
             handleSimpleDeploy(storage, op, queryId, in.body, in.senderAddress, in.valueCoins);
@@ -111,6 +119,7 @@ get fun get_storage_data() {
 
         storage.collectedFeesTon,
         storage.collectedFeesDict,
-        ds2.promotionPrices
-    )   
+        ds2.promotionPrices,
+        ds2.dnsRecordsDict
+    )
 }

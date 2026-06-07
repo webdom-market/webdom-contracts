@@ -1,5 +1,5 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, Slice, toNano } from '@ton/core';
-import { COMMISSION_DIVIDER, OpCodes, Tons } from './helpers/constants';
+import { COMMISSION_DIVIDER, OpCodes, Tons, multiAuctionStorageReserve, gasFeeClassic } from './helpers/constants';
 import { DeployData } from './Marketplace';
 import { DefaultContract } from './helpers/DefaultContract';
 import { TonSimpleSaleDeployData } from './TonSimpleSale';
@@ -108,8 +108,11 @@ export class TonMultipleAuction extends DefaultContract {
             .endCell();
     }
 
+    // Mirrors on-chain getBalanceToReserve(true, N) + TONS_NOTIFY_BIDDER (classic prices), so the
+    // contract's bidValue = sent - reserve - NOTIFY equals the intended bid exactly.
     static getTonsToEndAuction(domainsNumber: number) {
-        return (Tons.NFT_TRANSFER + Tons.PURCHASE_NOTIFICATION + toNano('0.01')) * BigInt(domainsNumber) + toNano('0.035') + toNano('0.005');
+        return (Tons.DOMAIN_REFILL_FEE + Tons.PURCHASE_NOTIFICATION + gasFeeClassic(6000)) * BigInt(domainsNumber)
+            + multiAuctionStorageReserve(domainsNumber) + Tons.NOTIFY_BIDDER;
     }
 
     async sendPurchase(provider: ContractProvider, via: Sender, price: bigint, domainsNumber: number, queryId: number = 0) {
@@ -150,7 +153,7 @@ export class TonMultipleAuction extends DefaultContract {
 
     async sendRenewDomain(provider: ContractProvider, via: Sender, domainsNumber: number, queryId: number = 0) {
         await provider.internal(via, {
-            value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN * BigInt(domainsNumber),
+            value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN_FEE * BigInt(domainsNumber),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell().storeUint(OpCodes.RENEW_DOMAIN, 32).storeUint(queryId, 64).endCell()
         });

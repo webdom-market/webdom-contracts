@@ -14,7 +14,7 @@ struct Storage {
     commission: coins;
     validUntil: uint32;
     sellerAddress: address;
-    jettonWalletAddress: address;
+    jettonWalletAddress: address?;
     cancelledBySeller: bool;
     sellerPrice: coins;
     createdAt: uint32;

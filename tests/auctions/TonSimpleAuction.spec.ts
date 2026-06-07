@@ -1,14 +1,14 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, toNano } from '@ton/core';
-import { TonSimpleAuction, TonSimpleAuctionConfig } from '../wrappers/TonSimpleAuction';
+import { TonSimpleAuction, TonSimpleAuctionConfig } from '../../wrappers/TonSimpleAuction';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { DomainConfig } from '../wrappers/Domain';
-import { Domain } from '../wrappers/Domain';
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { TonSimpleSaleConfig } from '../wrappers/TonSimpleSale';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_TON, OpCodes, Tons } from '../wrappers/helpers/constants';
-import { jettonsToString } from '../wrappers/helpers/functions';
+import { DomainConfig } from '../../wrappers/Domain';
+import { Domain } from '../../wrappers/Domain';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { TonSimpleSaleConfig } from '../../wrappers/TonSimpleSale';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_TON, OpCodes, Tons } from '../../wrappers/helpers/constants';
+import { jettonsToString } from '../../wrappers/helpers/functions';
 
 describe('TonSimpleAuction', () => {
     let tonSimpleAuctionCode: Cell;

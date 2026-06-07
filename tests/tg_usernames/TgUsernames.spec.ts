@@ -1,14 +1,14 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, toNano } from '@ton/core';
-import { TonSimpleSale, TonSimpleSaleConfig } from '../wrappers/TonSimpleSale';
+import { TonSimpleSale, TonSimpleSaleConfig } from '../../wrappers/TonSimpleSale';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { Domain, DomainConfig } from '../wrappers/Domain';
-import { getIndexByDomainName } from '../wrappers/helpers/dnsUtils';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR } from '../wrappers/helpers/constants';
-import { jettonsToString } from '../wrappers/helpers/functions';
-import { TgUsernamesCollection, TgUsernamesCollectionConfig } from '../wrappers/TgUsernamesCollection';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { Domain, DomainConfig } from '../../wrappers/Domain';
+import { getIndexByDomainName } from '../../wrappers/helpers/dnsUtils';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR } from '../../wrappers/helpers/constants';
+import { jettonsToString } from '../../wrappers/helpers/functions';
+import { TgUsernamesCollection, TgUsernamesCollectionConfig } from '../../wrappers/TgUsernamesCollection';
 
 describe('TgUsernames', () => {
     let tgUsernamesCollectionCode: Cell;

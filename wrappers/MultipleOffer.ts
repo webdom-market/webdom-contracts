@@ -90,8 +90,10 @@ export class MultipleOffer extends DefaultContract {
     static STATE_UNINIT = 0;
     static STATE_ACTIVE = 1;
 
-    static TONS_SELL_FOR_TON = Tons.NFT_TRANSFER + toNano("0.02");
-    static TONS_SELL_FOR_JETTON = Tons.NFT_TRANSFER + Tons.JETTON_TRANSFER * 2n + toNano("0.01") + toNano("0.02");
+    // Mirror the offer's on-chain requiredGas = nftTransferFee() (lean) + 0.02 (+ jetton ops), with a
+    // small buffer so the seller payout stays within [price, price+0.01) in tests.
+    static TONS_SELL_FOR_TON = Tons.NFT_TRANSFER_FEE + toNano("0.025");
+    static TONS_SELL_FOR_JETTON = Tons.NFT_TRANSFER_FEE + Tons.JETTON_TRANSFER * 2n + toNano("0.01") + toNano("0.02");
 
     static createFromAddress(address: Address) {
         return new MultipleOffer(address);

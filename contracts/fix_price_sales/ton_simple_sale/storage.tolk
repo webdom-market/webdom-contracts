@@ -3,7 +3,7 @@ struct AutoRenewData {
     autoRenewIterations: uint8;  // Remaining paid auto-renew iterations
 }
 
-struct Storage {
+struct Storage {  // 267 + 267 + 124 + 2 + 124 + 32 + 32 + 32 + 1 + 1 + 32 + 32 = 946 bits
     domainAddress: address;           // Address of the domain being sold
     sellerAddress: address;           // Address of the domain seller
     price: coins;                     // Sale price in TON
@@ -15,6 +15,7 @@ struct Storage {
     buyerAddressCell: Cell<address>?; // Buyer address (set when sold)
     domainNameCell: cell;             // Domain name for notifications
     isTgUsername: bool;               // Whether the asset is a Telegram username (.t.me)
+    
     hotUntil: uint32;                 // Hot promotion end timestamp
     coloredUntil: uint32;             // Colored promotion end timestamp
     autoRenewData: Cell<AutoRenewData>;

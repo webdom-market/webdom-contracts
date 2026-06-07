@@ -1,5 +1,5 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, Slice, toNano } from '@ton/core';
-import { OpCodes, Tons } from './helpers/constants';
+import { OpCodes, Tons, SIMPLE_AUCTION_STORAGE } from './helpers/constants';
 import { notificationToDomain } from './TonSimpleSale';
 import { Maybe } from '@ton/core/dist/utils/maybe';
 import { DeployData } from './Marketplace';
@@ -121,7 +121,7 @@ export class TonSimpleAuction extends DefaultContract {
     
     async sendPlaceBid(provider: ContractProvider, via: Sender, value: bigint, queryId: number = 0) {
         await provider.internal(via, {
-            value: value + Tons.END_TON_AUCTION + Tons.NOTIFY_BIDDER + toNano("0.035"),
+            value: value + Tons.END_TON_AUCTION + Tons.NOTIFY_BIDDER + SIMPLE_AUCTION_STORAGE,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell().endCell(),
         });
@@ -144,7 +144,7 @@ export class TonSimpleAuction extends DefaultContract {
 
     async sendRenewDomain(provider: ContractProvider, via: Sender, queryId: number = 0) {
         await provider.internal(via, {
-            value: toNano("0.025"),
+            value: toNano("0.08"),
             body: TonSimpleAuction.renewDomainMessage(queryId),
         });
     }

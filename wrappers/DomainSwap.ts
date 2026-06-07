@@ -80,7 +80,13 @@ export class DomainSwap extends DefaultContract {
     static STATE_WAITING_FOR_RIGHT = 1;
     static STATE_COMPLETED = 2;
     static STATE_CANCELLED = 3;
-    static ADD_DOMAIN_TONS = toNano('0.05');
+    // EXACT classic-price value of on-chain TONS_ADD_DOMAIN() = domainRefillFee()
+    // + gasFee(GAS_SWAP_RECEIVE_DOMAIN) + gasFee(GAS_SWAP_SETTLE_PER_DOMAIN), measured via the GasProbe
+    // contract. A real client computes it from live network prices.
+    static ADD_DOMAIN_TONS = 83156018n;
+    // EXACT classic-price value of on-chain TONS_ADD_PAYMENT() = gasFee(GAS_SWAP_PAYMENT) + 2*forwardFee.
+    // The op==0 top-up handler subtracts this, so a client must attach it ON TOP of the intended payment.
+    static ADD_PAYMENT_TONS = 9698400n;
 
     static createFromAddress(address: Address) {
         return new DomainSwap(address);
@@ -113,8 +119,10 @@ export class DomainSwap extends DefaultContract {
     }
 
     async sendAddPayment(provider: ContractProvider, via: Sender, value: bigint, queryId: number = 0) {
+        // Attach the processing fee ON TOP of the intended payment, so the on-chain net
+        // (in.valueCoins - TONS_ADD_PAYMENT) credits exactly `value` toward the side's payment.
         await provider.internal(via, {
-            value: value + toNano("0.01"),
+            value: value + DomainSwap.ADD_PAYMENT_TONS,
             body: beginCell().endCell(),
         });
     }

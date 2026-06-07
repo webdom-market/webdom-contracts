@@ -158,7 +158,7 @@ export class JettonSimpleAuction extends DefaultContract {
 
     async sendRenewDomain(provider: ContractProvider, via: Sender, queryId: number = 0) {
         await provider.internal(via, {
-            value: toNano("0.025"),
+            value: toNano("0.08"),
             body: TonSimpleAuction.renewDomainMessage(queryId),
         });
     }

@@ -100,8 +100,8 @@ export function jettonSimpleSaleConfigToCell(config: JettonSimpleSaleConfig): Ce
 }
 
 export class JettonSimpleSale extends DefaultContract {
-    static PURCHASE = toNano('0.225'); 
-    static AUTORENEW_STORAGE_PER_YEAR = 35000000n;
+    static PURCHASE = toNano('0.3');  // >= jettonSimplePurchaseFee() classic ~0.2728 (domainRefill + 3 jetton sends + gas)
+    static AUTORENEW_STORAGE_PER_YEAR = 80000000n;
     static STATE_UNINIT = 0;
     static STATE_ACTIVE = 1;
     static STATE_COMPLETED = 2;
@@ -185,7 +185,7 @@ export class JettonSimpleSale extends DefaultContract {
             msg = msg.storeBit(0);
         }
         await provider.internal(via, {
-            value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN,
+            value: Tons.RENEW_REQUEST + Tons.RENEW_DOMAIN_FEE,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: msg.endCell()
         });

@@ -1,3 +1,5 @@
+import "../../imports/gas";
+import "../constants"
 import "../../imports/constants"
 import "../../marketplace/types"
 import "../../marketplace/constants"
@@ -23,7 +25,7 @@ struct TonSimpleAuctionDeployPayload {
     timeIncrement: uint32;
 }
 
-const TONS_DEPLOY_TON_SIMPLE_AUCTION = TONS_NFT_TRANSFER + TONS_MIN_RESERVE * 2 + ton("0.005");
+@inline fun TONS_DEPLOY_TON_SIMPLE_AUCTION(): coins { return nftTransferFee() + TONS_MIN_RESERVE * 2 + gasFee(GAS_AUCTION_DEPLOY); }
 
 fun deployTonSimpleAuction(args: DeployWithNftTransferArgs): int {
     var deployInfo = lazy TonSimpleAuctionDeployInfo.fromSlice(args.commonArgs.deployInfoSlice);
@@ -49,7 +51,7 @@ fun deployTonSimpleAuction(args: DeployWithNftTransferArgs): int {
 
         lastBidValue: 0,
         lastBidTime: 0,
-        lastBidderAddress: createAddressNone(),
+        lastBidderAddress: null,
 
         domainNameCell: args.domainNameCell,
 
@@ -76,25 +78,27 @@ fun deployTonSimpleAuction(args: DeployWithNftTransferArgs): int {
     });
     val auctionAddressBuilder = auctionAddress.buildAddress();
 
+    // responseAddress addr_none + forwardTonAmount 0 → the item keeps the whole value, so send
+    // domainRefillFee() (transfer + 1yr storage) to keep it above its reserve while held.
     createMessage({
         bounce: false,
-        value: TONS_NFT_TRANSFER,
+        value: domainRefillFee(),
         dest: args.domainAddress,
         body: NftTransferMessageBuilder<CommentMessage> {
-            queryId: 0, 
+            queryId: 0,
             toAddress: auctionAddressBuilder,
-            responseAddress: createAddressNone(),
+            responseAddress: null,
             forwardTonAmount: 0,
-            forwardPayload: CommentMessage { comment: "Auction on webdom.market" }
+            forwardPayload: CommentMessage { comment: "Auction on webdom.market".literalSlice() }
         }
     }).send(SEND_MODE_REGULAR);
 
     val msg = createMessage<FillUpBalanceMessage>({
         bounce: false,
-        value: TONS_DEPLOY_TON_SIMPLE_AUCTION,
+        value: TONS_DEPLOY_TON_SIMPLE_AUCTION(),
         dest: auctionAddress,
         body: FillUpBalanceMessage { queryId: args.commonArgs.queryId }
     });
 
-    return TONS_DEPLOY_TON_SIMPLE_AUCTION + TONS_NFT_TRANSFER + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
+    return TONS_DEPLOY_TON_SIMPLE_AUCTION() + domainRefillFee() + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 }

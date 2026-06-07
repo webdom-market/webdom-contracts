@@ -27,8 +27,6 @@ struct TonMultipleSaleDeployPayload {
     autoRenewIterations: uint8;
 }
 
-const TONS_DEPLOY_TON_MULTIPLE_SALE: coins = ton("0.05");
-
 fun deployTonMultipleSale(args: SimpleDeployArgs): int {
     var deployInfo = lazy TonMultipleSaleDeployInfo.fromSlice(args.deployInfoSlice);
     var payloadSlice = args.payloadSlice;
@@ -46,7 +44,7 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
     
     assert(payload.price >= deployInfo.minPrice) throw EXC_PRICE_TOO_LOW;
     assert((payload.validUntil >= blockchain.now() + deployInfo.minDuration) &&
-           (payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY || payload.autoRenewIterations > 0)) throw EXC_INCORRECT_VALID_UNTIL;
+           (payload.validUntil <= blockchain.now() + ONE_YEAR - ONE_DAY + payload.autoRenewIterations * payload.autoRenewCooldown)) throw EXC_INCORRECT_VALID_UNTIL;
     assert((payload.autoRenewCooldown >= ONE_DAY) && (payload.autoRenewCooldown <= ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_VALID_UNTIL;
 
     var commission = mulDivFloor(
@@ -63,8 +61,9 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
         (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress!);
     }
     assert(domainsTotal > 0) throw EXC_EMPTY_DICT;
+    assert(domainsTotal < 128) throw EXC_DICT_OVERFLOW;
 
-    val autoRenewReserve: coins = getAutoRenewLockPerIter(domainsTotal) * payload.autoRenewIterations;
+    val autoRenewReserve: coins = getAutoRenewLockPerIter(domainsTotal, payload.autoRenewCooldown) * payload.autoRenewIterations;
     val autoRenewPrepay: coins = TONS_AUTORENEW_MARKETPLACE_FEE * payload.autoRenewIterations;
 
     var data = (Storage {
@@ -79,7 +78,7 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
         lastRenewalTime: blockchain.now(),
         validUntil: payload.validUntil,
 
-        buyerAddress: createAddressNone(),
+        buyerAddress: null,
         hotUntil: 0,
         coloredUntil: 0,
         autoRenewData: (AutoRenewData {
@@ -95,14 +94,16 @@ fun deployTonMultipleSale(args: SimpleDeployArgs): int {
         },
     };
 
+    // Pre-fund the sale's own one year of storage rent (price-tracked, scales with domain count).
+    // Unused funds are returned to the seller right after sale activation (getTonsToReserve reconciles).
     val msg = createMessage({
         bounce: false,
-        value: TONS_DEPLOY_TON_MULTIPLE_SALE + autoRenewReserve + autoRenewPrepay,
+        value: saleStorageReserve(ONE_YEAR, domainsTotal) + autoRenewReserve + autoRenewPrepay,
         dest: saleAddress,
         body: FillUpBalanceMessage { queryId: args.queryId }
     });
 
-    return TONS_DEPLOY_TON_MULTIPLE_SALE
+    return saleStorageReserve(ONE_YEAR, domainsTotal)
            + autoRenewReserve
            + autoRenewPrepay  // Marketplace prepay is not included into collected deploy fees intentionally
            + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);

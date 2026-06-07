@@ -1,5 +1,5 @@
 struct StorageDs2 {
-    buyerAddress: address;           // Address of the buyer (set when sale is completed)
+    buyerAddress: address?;          // Address of the buyer (set when sale is completed)
     jettonMinterAddress: address;    // Address of the jetton minter contract
     autoRenewCooldown: uint32;       // Minimal delay between domain renewals
     autoRenewIterations: uint8;      // Remaining paid auto-renew iterations
@@ -19,7 +19,7 @@ struct Storage {
     lastRenewalTime: uint32;          // Last domain renewal timestamp
     validUntil: uint32;               // Sale expiration timestamp
 
-    jettonWalletAddress: address;     // Address of the jetton wallet
+    jettonWalletAddress: address?;    // Address of the jetton wallet
 
     hotUntil: uint32;                 // Hot promotion end timestamp
     coloredUntil: uint32;             // Colored promotion end timestamp

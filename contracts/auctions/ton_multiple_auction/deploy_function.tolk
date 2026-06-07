@@ -1,4 +1,5 @@
 import "../../imports/utils"
+import "../constants"
 import "../../imports/constants"
 import "../../marketplace/types"
 import "../../marketplace/constants"
@@ -25,7 +26,8 @@ struct TonMultipleAuctionDeployPayload {
     timeIncrement: uint32;
 }
 
-const TONS_DEPLOY_TON_MULTIPLE_AUCTION: coins = ton("0.06");
+// Deploy bootstrap = auction's own 1-year storage rent; unused funds return to the seller once all
+// domains arrive (getBalanceToReserve reconciles).
 
 
 fun deployTonMultipleAuction(args: SimpleDeployArgs): int {
@@ -50,6 +52,7 @@ fun deployTonMultipleAuction(args: SimpleDeployArgs): int {
         (domainAddress, received, found) = payload.domainsAddresses.sDictGetNext(267, domainAddress!);
     }
     assert(domainsTotal > 0) throw EXC_EMPTY_DICT;
+    assert(domainsTotal < 128) throw EXC_DICT_OVERFLOW;
 
     var data = (Storage {
         state: STATE_UNINIT,
@@ -61,7 +64,7 @@ fun deployTonMultipleAuction(args: SimpleDeployArgs): int {
 
         lastBidValue: 0,
         lastBidTime: 0,
-        lastBidderAddress: createAddressNone(),
+        lastBidderAddress: null,
 
         domainsDict: payload.domainsAddresses,
         domainsTotal: domainsTotal,
@@ -92,10 +95,10 @@ fun deployTonMultipleAuction(args: SimpleDeployArgs): int {
 
     val msg = createMessage({
         bounce: false,
-        value: TONS_DEPLOY_TON_MULTIPLE_AUCTION,
+        value: multiAuctionStorageReserve(ONE_YEAR, domainsTotal),
         dest: auctionAddress,
         body: FillUpBalanceMessage { queryId: args.queryId }
     });
 
-    return TONS_DEPLOY_TON_MULTIPLE_AUCTION + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
+    return multiAuctionStorageReserve(ONE_YEAR, domainsTotal) + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 }

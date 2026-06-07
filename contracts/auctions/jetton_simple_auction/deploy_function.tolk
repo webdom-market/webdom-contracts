@@ -1,3 +1,5 @@
+import "../../imports/gas";
+import "../constants"
 import "../../imports/utils"
 import "../../imports/constants"
 import "../../imports/utils"
@@ -26,7 +28,7 @@ struct JettonSimpleAuctionDeployPayload {
     timeIncrement: uint32;
 }
 
-const TONS_DEPLOY_JETTON_SIMPLE_AUCTION = TONS_NFT_TRANSFER + TONS_MIN_RESERVE * 2 + ton("0.005");
+@inline fun TONS_DEPLOY_JETTON_SIMPLE_AUCTION(): coins { return nftTransferFee() + TONS_MIN_RESERVE * 2 + gasFee(GAS_AUCTION_DEPLOY); }
 
 
 fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
@@ -61,7 +63,7 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         lastDomainRenewalTime: blockchain.now(),
         lastBidValue: 0,
         lastBidTime: 0,
-        lastBidderAddress: createAddressNone(),
+        lastBidderAddress: null,
         domainNameCell: args.domainNameCell,
         hotUntil: 0,
         coloredUntil: 0,
@@ -72,7 +74,7 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
         commissionFactor: commissionFactor,
         ds2: (StorageDs2 {
             domainAddress: args.domainAddress,
-            jettonWalletAddress: createAddressNone(),
+            jettonWalletAddress: null,
             jettonMinterAddress: payload.isWeb3 ? WEB3_ADDRESS : USDT_ADDRESS,
             maxBidValue: payload.maxBidValue,
             maxCommission: maxCommission
@@ -87,23 +89,25 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
     });
     val auctionAddressBuilder = auctionAddress.buildAddress();
 
+    // responseAddress addr_none + forwardTonAmount 0 → the item keeps the whole value, so send
+    // domainRefillFee() (transfer + 1yr storage) to keep it above its reserve while held.
     createMessage({
         bounce: false,
-        value: TONS_NFT_TRANSFER,
+        value: domainRefillFee(),
         dest: args.domainAddress,
         body: NftTransferMessageBuilder<CommentMessage> {
             queryId: 0,
             toAddress: auctionAddressBuilder,
-            responseAddress: createAddressNone(),
+            responseAddress: null,
             forwardTonAmount: 0,
-            forwardPayload: CommentMessage { comment: "Auction on webdom.market" }
+            forwardPayload: CommentMessage { comment: "Auction on webdom.market".literalSlice() }
         }
     }).send(SEND_MODE_REGULAR);
 
     val contractCodes = lazy args.commonArgs.contractCodes.load();
     val msg = createMessage<cell>({
         bounce: false,
-        value: TONS_DEPLOY_JETTON_SIMPLE_AUCTION,
+        value: TONS_DEPLOY_JETTON_SIMPLE_AUCTION(),
         dest: auctionAddress,
         body: beginCell()
                 .storeUint(OP_FILL_UP_BALANCE, 32)
@@ -116,5 +120,5 @@ fun deployJettonSimpleAuction(args: DeployWithNftTransferArgs): int {
                 .endCell()
     });
 
-    return TONS_DEPLOY_JETTON_SIMPLE_AUCTION + TONS_NFT_TRANSFER + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
+    return TONS_DEPLOY_JETTON_SIMPLE_AUCTION() + domainRefillFee() + msg.sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
 } 

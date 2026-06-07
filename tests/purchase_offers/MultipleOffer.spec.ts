@@ -1,14 +1,14 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core';
-import { DomainInOfferInfo, domainInOfferValue, MultipleOffer, MultipleOfferConfig } from '../wrappers/MultipleOffer';
+import { DomainInOfferInfo, domainInOfferValue, MultipleOffer, MultipleOfferConfig } from '../../wrappers/MultipleOffer';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { COMMISSION_DIVIDER, Exceptions, ONE_DAY, OpCodes } from '../wrappers/helpers/constants';
-import { Domain, DomainConfig } from '../wrappers/Domain';
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { JettonWallet } from '../wrappers/JettonWallet';
-import { jettonsToString } from '../wrappers/helpers/functions';
-import { JettonMinter } from '../wrappers/JettonMinter';
+import { COMMISSION_DIVIDER, Exceptions, ONE_DAY, OpCodes } from '../../wrappers/helpers/constants';
+import { Domain, DomainConfig } from '../../wrappers/Domain';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { JettonWallet } from '../../wrappers/JettonWallet';
+import { jettonsToString } from '../../wrappers/helpers/functions';
+import { JettonMinter } from '../../wrappers/JettonMinter';
 import { randomAddress } from '@ton/test-utils';
 
 

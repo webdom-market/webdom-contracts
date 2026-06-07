@@ -1,3 +1,4 @@
+import "../../imports/gas";
 import "@stdlib/tvm-dicts";
 import "../../imports/constants";
 import "../../imports/messages";
@@ -13,13 +14,14 @@ import "../constants";
 import "../../fix_price_sales/constants"
 
 
-const TONS_MIN_TON_FOR_STORAGE: coins = ton("0.04");  // TON reserve to pay storage fees for ~1 year
+// Auction's own storage reserve is computed in ../constants — see multiAuctionStorageReserve(ONE_YEAR, N)
 
 
 // Finish auction: send marketplace commission, seller payout and transfer all domains to the winner
 @inline
 fun endAuctionSuccess(mutate storage: Storage, jettonWalletAddress: address, maxCommission: uint64, queryId: uint64, additionalTons: coins): void {
     setGasLimitToMaximum();
+    val lastBidderAddr: address = storage.lastBidderAddress!;
 
     var commission: coins = 0;
     if (storage.commissionFactor != 0) {
@@ -34,7 +36,7 @@ fun endAuctionSuccess(mutate storage: Storage, jettonWalletAddress: address, max
                 queryId: queryId,
                 jettonAmount: commission,
                 toAddress: MARKETPLACE_ADDRESS,
-                responseAddress: storage.lastBidderAddress,
+                responseAddress: lastBidderAddr,
                 forwardTonAmount: TONS_NOTIFY_MARKETPLACE,
                 forwardPayload: MARKETPLACE_COMMISSION_NOTIFICATION()
             }
@@ -50,23 +52,24 @@ fun endAuctionSuccess(mutate storage: Storage, jettonWalletAddress: address, max
             queryId: queryId,
             jettonAmount: storage.lastBidValue - commission,
             toAddress: storage.sellerAddress,
-            responseAddress: storage.lastBidderAddress,
+            responseAddress: lastBidderAddr,
             forwardTonAmount: additionalTons + 1,
             forwardPayload: MULTIPLE_AUCTION_NOTIFICATION()
         }
     }).send(SEND_MODE_REGULAR);
 
     // Transfer domains to the auction winner
+    val refillFee = domainRefillFee();
     var (domainAddress: slice?, _, found: bool) = storage.domainsDict.sDictGetFirst(267);
     repeat(storage.domainsTotal - 1) {
         createMessage({
             bounce: false,
-            value: TONS_PURCHASE_NOTIFICATION + TONS_NFT_TRANSFER,
+            value: TONS_PURCHASE_NOTIFICATION + refillFee,
             dest: domainAddress! as address,
             body: NftTransferMessage<cell> {
                 queryId: queryId,
-                toAddress: storage.lastBidderAddress,
-                responseAddress: storage.lastBidderAddress,
+                toAddress: lastBidderAddr,
+                responseAddress: lastBidderAddr,
                 forwardTonAmount: TONS_PURCHASE_NOTIFICATION,
                 forwardPayload: BUYER_NOTIFICATION()
             }
@@ -81,8 +84,8 @@ fun endAuctionSuccess(mutate storage: Storage, jettonWalletAddress: address, max
         dest: domainAddress! as address,
         body: NftTransferMessage<cell> {
             queryId: queryId,
-            toAddress: storage.lastBidderAddress,
-            responseAddress: storage.lastBidderAddress,
+            toAddress: lastBidderAddr,
+            responseAddress: lastBidderAddr,
             forwardTonAmount: TONS_PURCHASE_NOTIFICATION,
             forwardPayload: BUYER_NOTIFICATION()
         }
@@ -99,12 +102,13 @@ fun cancelAuction(mutate storage: Storage, queryId: uint64, cancelReason: slice)
     setGasLimitToMaximum();
 
     // Return all domains back to the seller
+    val refillFee = domainRefillFee();
     var (domainAddress: slice?, domainReceived: slice?, found: bool) = storage.domainsDict.sDictGetFirst(267);
     while(found) {
         if (domainReceived!.bitsEqual(BIT_TRUE_SLICE())) {
             createMessage({
                 bounce: false,
-                value: TONS_NFT_TRANSFER,
+                value: refillFee,
                 dest: domainAddress! as address,
                 body: NftTransferMessage<cell> {
                     queryId: queryId,
@@ -134,12 +138,15 @@ fun cancelAuction(mutate storage: Storage, queryId: uint64, cancelReason: slice)
 
 
 fun getBalanceToReserve(auctionStarted: bool, domainsNumber: uint8): coins {
+    val storageReserve: coins = multiAuctionStorageReserve(ONE_YEAR, domainsNumber);  // auction's own 1-year storage rent
     if (auctionStarted) {
-        return TONS_JETTON_TRANSFER * 2 + TONS_NOTIFY_MARKETPLACE + TONS_TON_SIMPLE_PURCHASE * domainsNumber + TONS_MIN_TON_FOR_STORAGE;  // TONs to finalize auction and pay storage fees
-    } 
-    val balanceToReserve: coins = (TONS_NFT_TRANSFER + ton("0.0075")) * domainsNumber + TONS_MIN_TON_FOR_STORAGE;  // TONs to allow canceling auction by external message
-    if (contract.getOriginalBalance() - ton("0.01") < balanceToReserve) {
-        return TONS_MIN_TON_FOR_STORAGE;
+        // finalize: jetton commission+payout + per domain (buyer notification + domain refill + endAuctionSuccess loop compute)
+        return TONS_JETTON_TRANSFER * 2 + TONS_NOTIFY_MARKETPLACE + (TONS_PURCHASE_NOTIFICATION + domainRefillFee() + gasFee(GAS_AUCTION_FINALIZE_PER_DOMAIN)) * domainsNumber + storageReserve;
+    }
+    // cancel per domain: domain refill (held domains may have drained below their 1-TON reserve) + loop compute
+    val balanceToReserve: coins = (domainRefillFee() + gasFee(GAS_AUCTION_CANCEL_PER_DOMAIN)) * domainsNumber + storageReserve;
+    if (contract.getOriginalBalance() < balanceToReserve) {
+        return storageReserve;
     }
     return balanceToReserve;
 }
@@ -157,6 +164,7 @@ fun onBouncedMessage(in: InMessageBounced): void {
         }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
+
 
 fun onInternalMessage(in: InMessage) {
     forceSameWorkchain(in.senderAddress);
@@ -191,6 +199,7 @@ fun onInternalMessage(in: InMessage) {
         // Seller sends domain to the auction contract
         NftOwnershipAssignedMessage => {
             try {
+                assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
                 var (_, found) = storage.domainsDict.sDictGet(267, in.senderAddress as slice);
                 assert(found) throw EXC_INCORRECT_DOMAIN;
                 
@@ -207,7 +216,7 @@ fun onInternalMessage(in: InMessage) {
                         bounce: false,
                         value: 0,
                         dest: storage.sellerAddress,
-                        body: CommentMessage { comment: "Multiple auction on webdom.market is active" }
+                        body: CommentMessage { comment: "Multiple auction on webdom.market is active".literalSlice() }
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
                 storage.save();
@@ -232,9 +241,10 @@ fun onInternalMessage(in: InMessage) {
             var storage2: StorageDs2 = lazy storage.ds2.load();
 
             try {
-                assert(in.senderAddress == storage2.jettonWalletAddress) throw EXC_INCORRECT_SENDER;  // check that jettons were received from the correct wallet
+                assert(storage2.jettonWalletAddress != null && in.senderAddress == storage2.jettonWalletAddress!) throw EXC_INCORRECT_SENDER;  // check that jettons were received from the correct wallet
+                val jettonWalletAddr: address = storage2.jettonWalletAddress!;
                 
-                if (storage.isDeferred && (blockchain.now() < storage.startTime)) {  // start auction if it was deferred
+                if (storage.isDeferred && (blockchain.now() < storage.startTime) && (storage.domainsReceived == storage.domainsTotal)) {  // start auction if it was deferred
                     storage.endTime = blockchain.now() + storage.endTime - storage.startTime;
                     storage.startTime = blockchain.now();
                     storage.isDeferred = false;
@@ -243,7 +253,7 @@ fun onInternalMessage(in: InMessage) {
                 }
                 
                 val tonsToReserve: coins = getBalanceToReserve(true, storage.domainsTotal);
-                var requiredGas: coins = tonsToReserve + TONS_JETTON_TRANSFER + ton("0.01");  // tonsToReserve + TONs to process this bid
+                var requiredGas: coins = tonsToReserve + TONS_JETTON_TRANSFER + gasFee(GAS_AUCTION_BID_PROCESSING);  // tonsToReserve + the bid-handler compute
                 if (msg.transferredJettons > storage2.maxBidValue) {
                     requiredGas += TONS_JETTON_TRANSFER;
                 }
@@ -262,18 +272,18 @@ fun onInternalMessage(in: InMessage) {
                     storage.endTime = min(blockchain.now() + storage.timeIncrement, storage.lastDomainRenewalTime + ONE_YEAR - ONE_DAY);
                 }
 
-                val prevTonBalance = contract.getOriginalBalance() - in.valueCoins - storageFees();
+                val prevTonBalance = contract.getOriginalBalance() - in.valueCoins;
                 if (storage.lastBidValue != 0) {
                     // Return jettons to the previous bidder
                     createMessage({
                         bounce: false,
                         value: prevTonBalance,  // всегда больше TONS_JETTON_TRANSFER
-                        dest: storage2.jettonWalletAddress,
+                        dest: jettonWalletAddr,
                         body: SendJettonsMessage<cell> {
                             queryId: msg.queryId,
                             jettonAmount: storage.lastBidValue,
-                            toAddress: storage.lastBidderAddress,
-                            responseAddress: storage.lastBidderAddress,
+                            toAddress: storage.lastBidderAddress!,
+                            responseAddress: storage.lastBidderAddress!,
                             forwardTonAmount: 1,
                             forwardPayload: OUTBID_NOTIFICATION()
                         }
@@ -298,7 +308,7 @@ fun onInternalMessage(in: InMessage) {
                         createMessage({
                             bounce: false,
                             value: TONS_JETTON_TRANSFER,
-                            dest: storage2.jettonWalletAddress,
+                            dest: jettonWalletAddr,
                             body: SendJettonsMessage<cell> {
                                 queryId: msg.queryId,
                                 jettonAmount: msg.transferredJettons - storage2.maxBidValue,
@@ -313,7 +323,7 @@ fun onInternalMessage(in: InMessage) {
                     storage.lastBidValue = storage2.maxBidValue;
                     storage.endTime = blockchain.now();
                     
-                    endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, msg.queryId, 0);
+                    endAuctionSuccess(mutate storage, storage2.jettonWalletAddress!, storage2.maxCommission, msg.queryId, 0);
                     return;
                 } else {
                     // Reserve TONs to safely finalize the auction and pay storage fees
@@ -322,7 +332,7 @@ fun onInternalMessage(in: InMessage) {
                         bounce: false,
                         value: 0,
                         dest: fromAddress,
-                        body: CommentMessage { comment: "Bid placed successfully" }
+                        body: CommentMessage { comment: "Bid placed successfully".literalSlice() }
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
                 
@@ -337,19 +347,19 @@ fun onInternalMessage(in: InMessage) {
         
         // Handle domain renewal request
         RenewDomainMessage => {
-            assert(in.valueCoins >= TONS_RENEW_REQUEST + TONS_RENEW_DOMAIN * storage.domainsTotal) throw EXC_OUT_OF_GAS;
+            assert(in.valueCoins >= TONS_RENEW_REQUEST + renewDomainFee() * storage.domainsTotal) throw EXC_OUT_OF_GAS;
             assert(storage.lastDomainRenewalTime + ONE_YEAR - ONE_DAY >= blockchain.now()) throw EXC_DOMAIN_EXPIRED;
 
-            val tonsToReserve: coins = getBalanceToReserve(storage.lastBidValue > 0, storage.domainsReceived);
+            val tonsToReserve: coins = getBalanceToReserve(storage.lastBidValue > 0, storage.domainsTotal);
             reserveToncoinsOnBalance(tonsToReserve, RESERVE_MODE_EXACT_AMOUNT);
             
             var (domainAddress: slice?, _, found: bool) = storage.domainsDict.sDictGetFirst(267);
             while (found) {
                 createMessage({
                     bounce: false,
-                    value: TONS_RENEW_DOMAIN,
+                    value: renewDomainFee(),
                     dest: domainAddress! as address
-                }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+                }).send(SEND_MODE_REGULAR);
                 (domainAddress, _, found) = storage.domainsDict.sDictGetNext(267, domainAddress!);
             }
             
@@ -388,18 +398,18 @@ fun onInternalMessage(in: InMessage) {
             if (op == OP_STOP_AUCTION || op == OP_CANCEL_DEAL) {
                 if (storage.lastBidValue == 0) {  // Cancel auction if it hasn't started yet
                     assert(in.senderAddress == storage.sellerAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
-                    cancelAuction(mutate storage, 0, "Multiple auction on webdom.market was cancelled");
+                    cancelAuction(mutate storage, 0, "Multiple auction on webdom.market was cancelled".literalSlice());
                     return;
                 } else if (storage.endTime <= blockchain.now()) {  // End auction if it is over
                     var additionalTons: coins;
                     if (in.senderAddress == storage.sellerAddress) {
                         additionalTons = in.valueCoins;  // Seller doesn't pay gas fees for finalizing the auction
                     } else {
-                        assert(in.senderAddress == storage.lastBidderAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
+                        assert((storage.lastBidderAddress != null && in.senderAddress == storage.lastBidderAddress!) || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;
                         additionalTons = 0;
                     }
                     var storage2: StorageDs2 = lazy storage.ds2.load();
-                    endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, 0, additionalTons);
+                    endAuctionSuccess(mutate storage, storage2.jettonWalletAddress!, storage2.maxCommission, 0, additionalTons);
                     return;
                 } else {
                     throw EXC_AUCTION_NOT_ENDED;
@@ -410,7 +420,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun onExternalMessage(in: InMessage) {
+fun onExternalMessage(inMsg: slice) {
     var storage: Storage = lazy Storage.load();
     
     if (storage.state != STATE_ACTIVE) {
@@ -419,20 +429,20 @@ fun onExternalMessage(in: InMessage) {
     
     // Allow anyone to finalize ended auctions via external message
     if (blockchain.now() >= storage.endTime) {
-        var opCode = in.body.loadUint(32);
+        var opCode = inMsg.loadUint(32);
         if (opCode != OP_CANCEL_DEAL) {
             throw EXC_UNSUPPORTED_OP;
         }
-        var queryId: uint64 = in.body.loadUint(64);
+        var queryId: uint64 = inMsg.loadUint(64);
         
         if (storage.lastBidValue == 0) {  // No one participated in the auction
-            assert(contract.getOriginalBalance() >= (TONS_NFT_TRANSFER + ton("0.0075")) * storage.domainsTotal + TONS_MIN_TON_FOR_STORAGE) throw EXC_OUT_OF_GAS;
+            assert(contract.getOriginalBalance() >= (domainRefillFee() + gasFee(GAS_AUCTION_CANCEL_PER_DOMAIN)) * storage.domainsReceived) throw EXC_OUT_OF_GAS;
             acceptExternalMessage();
-            cancelAuction(mutate storage, queryId, "Multiple auction on webdom.market has ended without bids");
+            cancelAuction(mutate storage, queryId, "Multiple auction on webdom.market has ended without bids".literalSlice());
         } else {  // Auction finished successfully
             acceptExternalMessage();
             var storage2: StorageDs2 = lazy storage.ds2.load();
-            endAuctionSuccess(mutate storage, storage2.jettonWalletAddress, storage2.maxCommission, queryId, 0);
+            endAuctionSuccess(mutate storage, storage2.jettonWalletAddress!, storage2.maxCommission, queryId, 0);
         }
         
         return;
@@ -456,14 +466,14 @@ get fun get_storage_data() {
         storage.startTime,
         storage.lastDomainRenewalTime,
         storage.endTime,
-        storage.lastBidderAddress,
+        storage.lastBidderAddress == null ? (createAddressNone() as address) : storage.lastBidderAddress!,
         storage.minBidValue,
         storage.minBidIncrement,
         storage.timeIncrement,
         storage.lastBidValue,
         storage.lastBidTime,
         storage2.maxCommission,
-        storage2.jettonWalletAddress,
+        storage2.jettonWalletAddress == null ? (createAddressNone() as address) : storage2.jettonWalletAddress!,
         storage.isDeferred && (blockchain.now() < storage.startTime),
         storage.hotUntil,
         storage.coloredUntil,
@@ -492,7 +502,7 @@ get fun get_auction_data_v4() {
         domainAddress,                                 // MsgAddressStd
         storage.sellerAddress,                         // MsgAddressStd
         storage.lastBidValue,                          // Coins
-        storage.lastBidderAddress,                     // MsgAddressStd
+        storage.lastBidderAddress == null ? (createAddressNone() as address) : storage.lastBidderAddress!,  // MsgAddressStd
         (storage.minBidIncrement - 1000) / 10,         // Uint7
         MARKETPLACE_ADDRESS,                           // MsgAddressStd
         storage.commissionFactor, COMMISSION_DIVIDER,  // Uint16, Uint16
@@ -505,7 +515,7 @@ get fun get_auction_data_v4() {
         storage.state == STATE_CANCELLED,              // Int1
         storage.timeIncrement,                         // Uint17
         0,                                             // Uint64
-        storage2.jettonWalletAddress,                  // MsgAddressStd
+        storage2.jettonWalletAddress == null ? (createAddressNone() as address) : storage2.jettonWalletAddress!,  // MsgAddressStd
         storage2.jettonMinterAddress,                  // MsgAddressStd
         0,                                             // Uint1
         0                                              // Uint256

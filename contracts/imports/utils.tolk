@@ -7,13 +7,7 @@ fun beginParseExotic(c: cell): (slice, int)
 fun storageFees(): int
     asm "STORAGEFEES"  
 
-@pure
-fun dict.sDictGetNext(self, keyLen: int, pivot: slice): (slice?, slice?, bool)
-    asm(pivot self keyLen -> 1 0 2) "DICTGETNEXT" "NULLSWAPIFNOT2"
 
-@pure
-fun dict.sDictGetPrev(self, keyLen: int, pivot: slice): (slice?, slice?, bool)
-    asm(pivot self keyLen -> 1 0 2) "DICTGETPREV" "NULLSWAPIFNOT2"
 
 
 
@@ -43,7 +37,7 @@ fun builder.storeStrFloat(mutate self, number: int, tenPowDecimals: int): builde
     }
 
     // displayed decimals = max(min(jettonDecimals, 4 - log10(intPart)), 0)
-    var maxDecPart: int = (intPart) ? (10000 / intPart) : 10000;
+    var maxDecPart: int = (intPart != 0) ? (10000 / intPart) : 10000;
     var zeros: int = 0;
     var tmp: int = tenPowDecimals / (decPart + 1);
     while (tmp >= 10) {
@@ -57,7 +51,7 @@ fun builder.storeStrFloat(mutate self, number: int, tenPowDecimals: int): builde
     while (decPart > maxDecPart) {
         decPart /= 10;
     }
-    if (decPart) {
+    if (decPart != 0) {
         while (decPart % 10 == 0) {
             decPart /= 10;
         } 
@@ -120,7 +114,7 @@ fun forceSameWorkchain(addr: address) {
 fun getPayoutNotificationBody(domainNameCell: cell): cell {
     return beginCell()
             .storeUint(0, 32)
-            .storeSlice("Your domain was sold on webdom.market: ")
+            .storeSlice("Your domain was sold on webdom.market: ".literalSlice())
             .storeRef(domainNameCell)
         .endCell()
 }
@@ -140,7 +134,7 @@ fun returnJettonsToSender<T>(jettonWalletAddress: address, msg: JettonsTransferN
             forwardTonAmount: 1,
             forwardPayload: beginCell()
                             .storeUint(0, 32)
-                            .storeSlice("Error. Code ")
+                            .storeSlice("Error. Code ".literalSlice())
                             .storeNumber10(errorCode)
                         .endCell()
         }
@@ -163,7 +157,7 @@ fun returnNftToSender<T>(nftAddress: address, msg: NftOwnershipAssignedMessage<T
             forwardTonAmount: 1,
             forwardPayload: beginCell()
                 .storeUint(0, 32)
-                .storeSlice("Error, code ")
+                .storeSlice("Error, code ".literalSlice())
                 .storeNumber10(errorCode)
             .endCell()
         }
@@ -180,7 +174,7 @@ fun loadOpAndQueryId(mutate inMsgBody: slice): (uint32, uint64) {
     var queryId: uint64 = 0;
     if (inMsgBody.remainingBitsCount() >= 32) {
         op = inMsgBody.loadUint(32);
-        if (op == 0 && (inMsgBody.bitsEqual("cancel") || inMsgBody.bitsEqual("stop"))) {
+        if (op == 0 && (inMsgBody.bitsEqual("cancel".literalSlice()) || inMsgBody.bitsEqual("stop".literalSlice()))) {
             op = OP_CANCEL_DEAL;
         }
         if (op != 0 && inMsgBody.remainingBitsCount() >= 64) {
@@ -188,4 +182,12 @@ fun loadOpAndQueryId(mutate inMsgBody: slice): (uint32, uint64) {
         }
     }
     return (op, queryId);
+}
+
+
+@inline
+fun checkTgUsername(domainNameCell: cell): bool {
+    var domainNameSlice = domainNameCell.beginParse();
+    return domainNameSlice.remainingBitsCount() >= 5 * 8 &&
+           domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me".literalSlice());
 }

@@ -1,8 +1,10 @@
 import "constants"
 import "storage"
 import "../imports/constants"
+import "../imports/gas"
 import "../imports/messages"
 import "@stdlib/tvm-dicts"
+import "@stdlib/gas-payments"
 import "utils"
 import "messages"
 import "../imports/types"
@@ -43,7 +45,7 @@ fun onInternalMessage(in: InMessage) {
                 storage.lastActionTime = blockchain.now();
 
                 // Net TON attached to message minus gas to process domain transfer
-                var msgValue: coins = in.valueCoins - TONS_ADD_DOMAIN;
+                var msgValue: coins = in.valueCoins - TONS_ADD_DOMAIN();
                 assert(msgValue >= 0) throw EXC_OUT_OF_GAS;
 
                 // Receive domain from the left participant
@@ -135,8 +137,9 @@ fun onInternalMessage(in: InMessage) {
 
             // receive payment
             if (op == 0) {
-                // Net TON attached to payment minus TON to process payment
-                var msgValue: coins = in.valueCoins - ton("0.01");
+                // Net TON attached to payment minus the precise cost to process this top-up
+                var msgValue: coins = in.valueCoins - TONS_ADD_PAYMENT();
+                assert(msgValue >= 0) throw EXC_OUT_OF_GAS;
                 if (in.senderAddress == storage.leftParticipantAddress) {
                     var leftInfo: OneSideInfo = lazy storage.leftInfo.load();
 
@@ -198,7 +201,7 @@ fun onInternalMessage(in: InMessage) {
                     // Right may cancel at any time (compensated for gas with a small bonus)
                     assert(in.senderAddress == storage.rightParticipantAddress) throw EXC_INCORRECT_SENDER;
                     cancelNotification = CANCEL_NOTIFICATION_RIGHT();
-                    rightInfo.paymentReceived += in.valueCoins + ton("0.01");  //  reward for canceling the deal
+                    rightInfo.paymentReceived += in.valueCoins + TONS_DECLINE_REWARD;  // fixed business reward for canceling the deal (refunded to right in returnDomains)
                 }
                 // Return all domains back to their owners and notify about cancellation
                 returnDomains(storage, rightInfo, queryId, cancelNotification);
@@ -219,6 +222,16 @@ fun onExternalMessage(inMsg: slice) {
     if (blockchain.now() >= storage.validUntil) {
         assert(inMsg.loadUint(32) == OP_CANCEL_DEAL) throw EXC_UNSUPPORTED_OP;
         var rightInfo: OneSideInfo = lazy storage.rightInfo.load();
+        var leftInfo: OneSideInfo = lazy storage.leftInfo.load();
+
+        // Solvency guard for the permissionless expiry unwind (zero incoming value): the contract must
+        // already hold enough to refund every received domain plus its unwind compute. Rejecting before
+        // acceptExternalMessage stops a starved swap from half-unwinding and stranding domains.
+        assert(contract.getOriginalBalance() >=
+               (domainRefillFee() + gasFee(GAS_SWAP_CANCEL_PER_DOMAIN)) * (leftInfo.domainsReceived + rightInfo.domainsReceived))
+            throw EXC_OUT_OF_GAS;
+        acceptExternalMessage();
+
         // Expired: return all domains and notify both sides
         returnDomains(storage, rightInfo, inMsg.loadUint(64), CANCEL_NOTIFICATION_EXPIRED());
         return;

@@ -1,3 +1,4 @@
+import "../../imports/gas";
 import "@stdlib/gas-payments"
 import "../../imports/constants"
 import "../../imports/messages"
@@ -7,13 +8,14 @@ import "storage"
 
 fun acceptOffer(mutate storage: Storage, domainAddress: address, buyerAddress: address, sellerMsgValue: coins, queryId: uint64): void {
     setGasLimitToMaximum();
+    val jettonWalletAddr: address = storage.jettonWalletAddress!;
     
     // Send marketplace commission
     if (storage.commission > 0) {
         createMessage({
             bounce: false,
             value: TONS_JETTON_TRANSFER + TONS_NOTIFY_MARKETPLACE,
-            dest: storage.jettonWalletAddress,
+            dest: jettonWalletAddr,
             body: SendJettonsMessage<cell> {
                 queryId: queryId,
                 jettonAmount: storage.commission,
@@ -29,7 +31,7 @@ fun acceptOffer(mutate storage: Storage, domainAddress: address, buyerAddress: a
     createMessage({
         bounce: false,
         value: TONS_JETTON_TRANSFER + sellerMsgValue,  // Gas for offer execution is always paid by offer creator
-        dest: storage.jettonWalletAddress,
+        dest: jettonWalletAddr,
         body: SendJettonsMessage<cell> {
             queryId: queryId,
             jettonAmount: storage.price,
@@ -61,11 +63,15 @@ fun acceptOffer(mutate storage: Storage, domainAddress: address, buyerAddress: a
 
 
 fun cancelOffer(mutate storage: Storage, domainAddress: address, buyerAddress: address, sellerMsgValue: coins, cancellationComment: slice, queryId: uint64): void {
+    val jettonWalletAddr: address = storage.jettonWalletAddress!;
     if (storage.sellerPrice > 0) {
-        // Notify seller that his counterproposal was rejected and return his NFT
+        // Reject counterproposal and return seller's NFT. Use domainRefillFee() (transfer + one year
+        // of storage), not a bare transfer: the idle item may have drained below its ~1-TON
+        // min_tons_for_storage reserve, so a lean transfer would throw 402 and STRAND the NFT here.
+        // Drawn from the offer's reserve (purchase-notification slack covers it on mainnet; constants.tolk).
         createMessage({
             bounce: false,
-            value: TONS_NFT_TRANSFER + sellerMsgValue,
+            value: domainRefillFee() + sellerMsgValue,
             dest: domainAddress,
             body: NftTransferMessage<cell> {
                 queryId: queryId,
@@ -94,7 +100,7 @@ fun cancelOffer(mutate storage: Storage, domainAddress: address, buyerAddress: a
     createMessage({
         bounce: false,
         value: 0,
-        dest: storage.jettonWalletAddress,
+        dest: jettonWalletAddr,
         body: SendJettonsMessage<cell> {
             queryId: queryId,
             jettonAmount: storage.price + storage.commission,

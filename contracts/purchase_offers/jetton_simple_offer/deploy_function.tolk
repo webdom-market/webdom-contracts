@@ -1,6 +1,7 @@
 import "@stdlib/tvm-lowlevel";
 import "../../imports/utils";
 import "../../imports/constants";
+import "../../imports/gas";
 import "messages";
 import "../../imports/dns";
 import "../../marketplace/types";
@@ -31,7 +32,8 @@ struct JettonSimpleOfferDeployPayload {
     domainNameCell: Cell<SerializableSlice>;
 }
 
-const TONS_DEPLOY_JETTON_OFFER = TONS_JETTON_SIMPLE_OFFER_RESERVE + ton("0.005"); // 0.175
+// Reserve + the deploy/activation (FillUpBalance) handler's compute + its comment-message forwards.
+@inline fun TONS_DEPLOY_JETTON_OFFER(): coins { return TONS_JETTON_SIMPLE_OFFER_RESERVE() + gasFee(GAS_OFFER_DEPLOY) + forwardFee(OFFER_MSG_BITS, OFFER_MSG_CELLS); }
 
 
 fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
@@ -43,7 +45,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
     // Deploy conditions depend on the token
     if (args.isWeb3) {
         jettonMinterAddress = WEB3_ADDRESS;
-        jettonPostfix = " WEB3 for ";
+        jettonPostfix = " WEB3 for ".literalSlice();
         oneJetton = 1000;
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice.loadRef().beginParse());
         if (args.commonArgs.commissionDiscount != 0) {
@@ -51,7 +53,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
         }
     } else {
         jettonMinterAddress = USDT_ADDRESS;
-        jettonPostfix = " USDT for ";
+        jettonPostfix = " USDT for ".literalSlice();
         oneJetton = 1000000;
         deployInfo = DeployInfoForJetton.fromSlice(args.commonArgs.deployInfoSlice, { assertEndAfterReading: false });
     }
@@ -77,7 +79,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
     val price = args.transferredJettons - commission;
     assert(price >= deployInfo.minPrice) throw(EXC_PRICE_TOO_LOW);
 
-    var requiredGas = TONS_DEPLOY_JETTON_OFFER + TONS_JETTON_TRANSFER;
+    var requiredGas = TONS_DEPLOY_JETTON_OFFER() + TONS_JETTON_TRANSFER;
     if (payload.notifySeller) {
         // Send onchain notification to seller
         assert(payload.sellerAddress != createAddressNone()) throw(EXC_INCORRECT_SELLER_ADDRESS);
@@ -87,7 +89,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
             dest: payload.sellerAddress,
             body: beginCell()
                      .storeUint(0, 32)
-                     .storeSlice("New offer on webdom.market! ")
+                     .storeSlice("New offer on webdom.market! ".literalSlice())
                      .storeStrFloat(price, oneJetton)
                      .storeSlice(jettonPostfix)
                      .storeRef(payload.domainNameCell)
@@ -98,7 +100,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
 
     // calculate domain address
     var domainNameSlice: SerializableSlice = payload.domainNameCell.load();
-    val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me");
+    val isTgUsername: bool = domainNameSlice.getLastBits(5 * 8).bitsEqual(".t.me".literalSlice());
     var domainAddressBuilder: builder;
     if (isTgUsername) {
         domainAddressBuilder = tgUsernameToAddress(domainNameSlice.removeLastBits(5 * 8), contractCodes.tgUsernameCode);
@@ -136,7 +138,7 @@ fun deployJettonSimpleOffer(args: DeployWithJettonTransferArgs): int {
 
     val deployMsg = createMessage<cell>({
         bounce: false,
-        value: TONS_DEPLOY_JETTON_OFFER,
+        value: TONS_DEPLOY_JETTON_OFFER(),
         dest: offerAddress,
         body: beginCell()
                 .storeUint(OP_FILL_UP_BALANCE, 32)

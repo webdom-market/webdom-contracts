@@ -18,7 +18,7 @@ struct (0x5fcc3d14) NftTransferMessage<T> {
 struct (0x5fcc3d14) NftTransferMessageBuilder<T> {
     queryId: uint64;
     toAddress: builder;
-    responseAddress: address;
+    responseAddress: address?;
     customPayload: cell? = null;
     forwardTonAmount: coins;
     forwardPayload: T?;
@@ -123,6 +123,12 @@ struct (0x504b6dd7) MakeHotMessage {
 struct (0x96dc2804) MakeColoredMessage {
     queryId: uint64;
     promotionUntil: uint32;
+}
+
+struct (0x4eb1f0f9) ChangeDnsRecordMessage {
+    queryId: uint64;
+    key: uint256;
+    value: cell;  // DNS record value, serialized as a ref (record is always set, never deleted)
 }
 
 struct (0x975f5690) RenewalFeeMessage {

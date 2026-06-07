@@ -1,3 +1,4 @@
+import "../../imports/gas";
 import "@stdlib/gas-payments"
 import "../../imports/constants"
 import "../../imports/messages"
@@ -13,7 +14,7 @@ fun acceptOffer(mutate storage: Storage, sellerAddress: address, sellerMsgValue:
         bounce: false,
         value: storage.commission,
         dest: MARKETPLACE_ADDRESS,
-        body: CommentMessage { comment: "Marketplace commission" }
+        body: CommentMessage { comment: "Marketplace commission".literalSlice() }
     }).send(SEND_MODE_REGULAR);
     
     // Send payment to seller (gas for offer execution is always paid by offer creator)
@@ -21,7 +22,7 @@ fun acceptOffer(mutate storage: Storage, sellerAddress: address, sellerMsgValue:
         bounce: false,
         value: storage.price + sellerMsgValue,
         dest: sellerAddress,
-        body: CommentMessage { comment: "Offer accepted" }
+        body: CommentMessage { comment: "Offer accepted".literalSlice() }
     }).send(SEND_MODE_REGULAR);
     
     // Transfer NFT to buyer
@@ -47,10 +48,13 @@ fun acceptOffer(mutate storage: Storage, sellerAddress: address, sellerMsgValue:
 
 fun cancelOffer(mutate storage: Storage, sellerMsgValue: coins, cancellationComment: slice, queryId: uint64): void {
     if (storage.sellerPrice > 0) {
-        // Notify seller that his counterproposal was rejected and return his NFT
+        // Reject counterproposal and return seller's NFT. Use domainRefillFee() (transfer + one year
+        // of storage), not a bare transfer: the idle item may have drained below its ~1-TON
+        // min_tons_for_storage reserve, so a lean transfer would throw 402 and STRAND the NFT here.
+        // Drawn from the offer's reserve (purchase-notification slack covers it on mainnet; constants.tolk).
         createMessage({
             bounce: false,
-            value: TONS_NFT_TRANSFER + sellerMsgValue,
+            value: domainRefillFee() + sellerMsgValue,
             dest: storage.domainAddress,
             body: NftTransferMessage<cell> {
                 queryId: queryId,

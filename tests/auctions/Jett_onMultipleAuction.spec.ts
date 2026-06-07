@@ -1,14 +1,14 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core';
-import { JettonMultipleAuction, JettonMultipleAuctionConfig } from '../wrappers/JettonMultipleAuction';
+import { JettonMultipleAuction, JettonMultipleAuctionConfig } from '../../wrappers/JettonMultipleAuction';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { Domain, DomainConfig } from '../wrappers/Domain';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../wrappers/helpers/constants';
-import { abs, min, max } from './helpers/common';
-import { JettonMinter } from '../wrappers/JettonMinter';
-import { JettonWallet } from '../wrappers/JettonWallet';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { Domain, DomainConfig } from '../../wrappers/Domain';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../../wrappers/helpers/constants';
+import { abs, min, max } from '../helpers/common';
+import { JettonMinter } from '../../wrappers/JettonMinter';
+import { JettonWallet } from '../../wrappers/JettonWallet';
 
 describe('JettonMultipleAuction', () => {
     let jettonMinterCode: Cell;
@@ -70,7 +70,7 @@ describe('JettonMultipleAuction', () => {
 
     async function sendDomainsToAuction() {
         for (let domain of domains) {
-            transactionRes = await domain.sendTransfer(seller.getSender(), jettonMultipleAuction.address, seller.address, null, toNano('0.04'));
+            transactionRes = await domain.sendTransfer(seller.getSender(), jettonMultipleAuction.address, seller.address, null, toNano('0.1'));
             domainConfigs.push(await domain.getStorageData());
         }
     }
@@ -556,10 +556,13 @@ describe('JettonMultipleAuction', () => {
         });
         
         blockchain.now = jettonMultipleAuctionConfig.endTime;
-        // Try to cancel auction from non-seller address
-        transactionRes = await jettonMultipleAuction.sendStopAuction(admin.getSender());
+        // Try to finalize the ended auction from an unauthorized party. After end, the internal
+        // finalize path is restricted to seller / last bidder / admin, so a random outsider is rejected.
+        // (admin itself is privileged here and would succeed — see contract.tolk finalize branch.)
+        const outsider = await blockchain.treasury('outsider');
+        transactionRes = await jettonMultipleAuction.sendStopAuction(outsider.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
-            from: admin.address,
+            from: outsider.address,
             to: jettonMultipleAuction.address,
             exitCode: Exceptions.INCORRECT_SENDER
         });

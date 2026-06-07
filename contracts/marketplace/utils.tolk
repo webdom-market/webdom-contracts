@@ -5,6 +5,8 @@ import "../imports/constants"
 import "types"
 import "constants"
 import "@stdlib/gas-payments"
+import "../imports/gas"
+import "../imports/dns"
 import "../imports/messages"
 
 
@@ -55,6 +57,49 @@ fun addCollectedFees(collectedFeesDict: dict, jettonWalletAddress: address, tran
 }
 
 
+// Send one change_dns_record to a domain owned by the marketplace. Carries changeDnsRecordValue()
+// (the item's compute + one year of the record's storage, measured in ChangeDnsRecordGas.spec.ts);
+// the forward fee is paid separately and added on top via sendAndEstimateFee. Returns the total TON
+// the marketplace spends on this message, so the caller can account for it in the gas check.
+@inline
+fun sendChangeDnsRecord(domainAddress: address, queryId: uint64, dnsKey: uint256, dnsValue: cell): coins {
+    val recordValue: coins = changeDnsRecordValue();
+    val sentFee: coins = createMessage<ChangeDnsRecordMessage>({
+        bounce: false,
+        value: recordValue,
+        dest: domainAddress,
+        body: ChangeDnsRecordMessage {
+            queryId: queryId,
+            key: dnsKey,
+            value: dnsValue
+        }
+    }).sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
+    return recordValue + sentFee;
+}
+
+// Apply the marketplace's DNS records to a domain it currently owns: every entry of the global
+// dnsRecordsDict (dnsRecord(uint256) -> value ref, e.g. the fixed picture/description) plus a
+// per-domain `links` record pointing at the domain's webdom listing page. Returns the total TON
+// spent, so the caller can account for it in the gas check.
+@inline
+fun updateDomainDnsRecords(storage: MarketplaceStorage, domainAddress: address, queryId: uint64, domainName: slice): coins {
+    val ds2: MarketplaceStorageDs2 = lazy storage.ds2.load();
+    var dnsRecordsDict: dict = ds2.dnsRecordsDict;
+
+    var totalSpent: coins = 0;
+    var (dnsKey: int?, dnsValue: slice?, found: bool) = dnsRecordsDict.uDictGetFirst(256);
+    while (found) {
+        totalSpent += sendChangeDnsRecord(domainAddress, queryId, dnsKey! as uint256, dnsValue!.preloadRef());
+        (dnsKey, dnsValue, found) = dnsRecordsDict.uDictGetNext(256, dnsKey!);
+    }
+
+    // Dynamic per-domain link record (the admin dict is global, so it cannot hold this)
+    totalSpent += sendChangeDnsRecord(domainAddress, queryId, DNS_KEY_LINKS, buildDomainLinkRecord(domainName));
+
+    return totalSpent;
+}
+
+
 @inline
 fun checkEnoughGas(msgValue: coins, requiredGas: coins, fromAddress: address, queryId: uint64): void {
     // Calculate total required TONs accounting compute fees
@@ -65,7 +110,7 @@ fun checkEnoughGas(msgValue: coins, requiredGas: coins, fromAddress: address, qu
             bounce: false,
             value: 0,
             dest: fromAddress,
-            body: CommentMessage { comment: "Deal on webdom.market is active" }
+            body: CommentMessage { comment: "Deal on webdom.market is active".literalSlice() }
         }).send(SEND_MODE_CARRY_ALL_BALANCE);
         return;
     }

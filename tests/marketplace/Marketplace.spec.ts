@@ -1,34 +1,34 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract, Treasury } from '@ton/sandbox';
 import { Address, beginCell, Cell, contractAddress, Dictionary, toNano } from '@ton/core';
-import { DeployData, DeployInfoValue, deployInfoValueParser, Marketplace, MarketplaceConfig, marketplaceConfigToCell, PromotionPricesValue, promotionPricesValueParser, userSubscriptionValueParser } from '../wrappers/Marketplace';
-import { MarketplaceDeployer } from '../wrappers/MarketplaceDeployer';
+import { DeployData, DeployInfoValue, deployInfoValueParser, Marketplace, MarketplaceConfig, marketplaceConfigToCell, PromotionPricesValue, promotionPricesValueParser, subscriptionInfoValueParser, userSubscriptionValueParser } from '../../wrappers/Marketplace';
+import { MarketplaceDeployer } from '../../wrappers/MarketplaceDeployer';
 import { readFileSync } from 'fs';
 import '@ton/test-utils';
 import { compile, sleep } from '@ton/blueprint';
-import { TonSimpleSale, TonSimpleSaleDeployData, TonSimpleSaleConfig, tonSimpleSaleConfigToCell } from '../wrappers/TonSimpleSale';
-import { JettonSimpleSale, JettonSimpleSaleDeployData } from '../wrappers/JettonSimpleSale';
-import { TonSimpleAuction, TonSimpleAuctionDeployData } from '../wrappers/TonSimpleAuction';
-import { JettonSimpleAuction, JettonSimpleAuctionDeployData } from '../wrappers/JettonSimpleAuction';
-import { Domain } from '../wrappers/Domain';
+import { TonSimpleSale, TonSimpleSaleDeployData, TonSimpleSaleConfig, tonSimpleSaleConfigToCell } from '../../wrappers/TonSimpleSale';
+import { JettonSimpleSale, JettonSimpleSaleDeployData } from '../../wrappers/JettonSimpleSale';
+import { TonSimpleAuction, TonSimpleAuctionDeployData } from '../../wrappers/TonSimpleAuction';
+import { JettonSimpleAuction, JettonSimpleAuctionDeployData } from '../../wrappers/JettonSimpleAuction';
+import { Domain } from '../../wrappers/Domain';
 
-import { JettonMinter } from '../wrappers/JettonMinter';
-import { JettonWallet } from '../wrappers/JettonWallet';
+import { JettonMinter } from '../../wrappers/JettonMinter';
+import { JettonWallet } from '../../wrappers/JettonWallet';
 
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { Addresses, COMMISSION_DIVIDER, Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../wrappers/helpers/constants';
-import { TonMultipleSale, TonMultipleSaleDeployData } from '../wrappers/TonMultipleSale';
-import { TonSimpleOffer, TonSimpleOfferDeployData } from '../wrappers/TonSimpleOffer';
-import { DomainSwap, DomainSwapDeployData } from '../wrappers/DomainSwap';
-import { stringValueParser } from '../wrappers/helpers/DefaultContract';
-import { JettonSimpleOffer, JettonSimpleOfferDeployData } from '../wrappers/JettonSimpleOffer';
-import { JettonMultipleSale, JettonMultipleSaleDeployData } from '../wrappers/JettonMultipleSale';
-import { TgUsernamesCollectionConfig } from '../wrappers/TgUsernamesCollection';
-import { TgUsernamesCollection } from '../wrappers/TgUsernamesCollection';
-import { TonMultipleAuction, TonMultipleAuctionDeployData } from '../wrappers/TonMultipleAuction';
-import { JettonMultipleAuction } from '../wrappers/JettonMultipleAuction';
-import { MultipleOfferDeployData, MultipleOffer, domainInOfferValue } from '../wrappers/MultipleOffer';
-import { getDeployFunctionCode } from '../wrappers/helpers/getDeployFunctionCode';
-import { packStateInit } from '../wrappers/helpers/dnsUtils';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { Addresses, COMMISSION_DIVIDER, Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../../wrappers/helpers/constants';
+import { TonMultipleSale, TonMultipleSaleDeployData } from '../../wrappers/TonMultipleSale';
+import { TonSimpleOffer, TonSimpleOfferDeployData } from '../../wrappers/TonSimpleOffer';
+import { DomainSwap, DomainSwapDeployData } from '../../wrappers/DomainSwap';
+import { stringValueParser } from '../../wrappers/helpers/DefaultContract';
+import { JettonSimpleOffer, JettonSimpleOfferDeployData } from '../../wrappers/JettonSimpleOffer';
+import { JettonMultipleSale, JettonMultipleSaleDeployData } from '../../wrappers/JettonMultipleSale';
+import { TgUsernamesCollectionConfig } from '../../wrappers/TgUsernamesCollection';
+import { TgUsernamesCollection } from '../../wrappers/TgUsernamesCollection';
+import { TonMultipleAuction, TonMultipleAuctionDeployData } from '../../wrappers/TonMultipleAuction';
+import { JettonMultipleAuction } from '../../wrappers/JettonMultipleAuction';
+import { MultipleOfferDeployData, MultipleOffer, domainInOfferValue } from '../../wrappers/MultipleOffer';
+import { getDeployFunctionCode } from '../../wrappers/helpers/getDeployFunctionCode';
+import { packStateInit } from '../../wrappers/helpers/dnsUtils';
 
 
 describe('Marketplace', () => {
@@ -85,7 +85,7 @@ describe('Marketplace', () => {
         
         // tonShoppingCartCode = await compile('TonShoppingCart');
         DomainSwapCode = await compile('DomainSwap');
-    }, 10000);
+    }, 120000);  // cold-compiling ~20 contracts exceeds the old 10s limit (matches the gas specs)
 
     let blockchain: Blockchain;
     let admin: SandboxContract<TreasuryContract>;
@@ -429,7 +429,7 @@ describe('Marketplace', () => {
         marketplace = blockchain.openContract(Marketplace.createFromAddress(marketplaceDeployer.address));
         // marketplaceConfig = await marketplace.getStorageData();
         // expect(marketplaceConfig.ownerAddress.toString()).toBe(admin.address.toString());
-    }, 10000);
+    }, 180000);
 
     /* OFFERS */
 
@@ -653,14 +653,14 @@ describe('Marketplace', () => {
 
         // Deploy
         transactionRes = await domains[0].sendTransfer(
-            seller.getSender(), marketplace.address, seller.address, 
+            seller.getSender(), marketplace.address, seller.address,
             Marketplace.deployDealWithNftTransferPayload(
-                seller.address, 
-                Marketplace.DeployOpCodes.TON_SIMPLE_SALE, 
+                seller.address,
+                Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
                 DOMAIN_NAMES[0],
                 TonSimpleSale.deployPayload(price, validUntil),
             ),
-            toNano('0.2')  // 0.059 returns
+            toNano('0.3')  // classic-priced deploy now funds a full year of domain storage (domainRefillFee); excess returns
         );
         expect(transactionRes.transactions.length).toEqual(7);
         expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
@@ -1481,6 +1481,25 @@ describe('Marketplace', () => {
         expect(marketplaceConfig.userSubscriptions!.get(seller.address)!.endTime).toEqual(blockchain.now! + ONE_DAY * 60);
     });
 
+    it('should change subscriptions info', async () => {
+        const newSubscriptionLevel1 = Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.BigUint(64));
+        newSubscriptionLevel1.set(ONE_DAY * 30, toNano('77'));
+
+        const newSubscriptionLevel2 = Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.BigUint(64));
+        newSubscriptionLevel2.set(ONE_DAY * 30, toNano('111'));
+        newSubscriptionLevel2.set(ONE_DAY * 365, toNano('999'));
+
+        const newSubscriptionsInfo = Dictionary.empty(Dictionary.Keys.Uint(8), subscriptionInfoValueParser());
+        newSubscriptionsInfo.set(1, newSubscriptionLevel1);
+        newSubscriptionsInfo.set(2, newSubscriptionLevel2);
+
+        transactionRes = await marketplace.sendChangeSubscriptionsInfo(admin.getSender(), newSubscriptionsInfo);
+        expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
+        marketplaceConfig = await marketplace.getStorageData();
+        expect(marketplaceConfig.subscriptionsInfo!.get(1)!.get(ONE_DAY * 30)).toEqual(toNano('77'));
+        expect(marketplaceConfig.subscriptionsInfo!.get(2)!.get(ONE_DAY * 365)).toEqual(toNano('999'));
+    });
+
     /* OTHER TESTS */
 
     it('should apply discount to ton purchase offer', async () => {
@@ -1522,7 +1541,7 @@ describe('Marketplace', () => {
         transactionRes = await domains[0].sendTransfer(
             seller.getSender(), marketplace.address, seller.address, 
             Marketplace.deployDealWithNftTransferPayload(seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE, DOMAIN_NAMES[0], beginCell().storeCoins(price).storeUint(validUntil, 32).endCell(), secretKey, blockchain.now!, COMMISSION_DIVIDER * 0.05),
-            toNano('0.2')  // 0.059 returns
+            toNano('0.3')  // classic-priced deploy now funds a full year of domain storage (domainRefillFee); excess returns
         );
         expect(transactionRes.transactions.length).toEqual(7);
         expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
@@ -1600,7 +1619,7 @@ describe('Marketplace', () => {
         transactionRes = await domains[0].sendTransfer(
             seller.getSender(), marketplace.address, seller.address, 
             Marketplace.deployDealWithNftTransferPayload(seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE, DOMAIN_NAMES[0], beginCell().storeCoins(price).storeUint(validUntil, 32).endCell(), secretKey, blockchain.now!, COMMISSION_DIVIDER * 0.05),
-            toNano('0.2')  // 0.059 returns
+            toNano('0.3')  // classic-priced deploy now funds a full year of domain storage (domainRefillFee); excess returns
         );
         expect(transactionRes.transactions.length).toEqual(7);
         expect(transactionRes.transactions).not.toHaveTransaction({ success: false });
@@ -1664,6 +1683,98 @@ describe('Marketplace', () => {
     });
 
 
+    describe('AUDIT-deploy-nontg', () => {
+        // domains[0] = "viqex.t.me" (TG username, owned by seller)
+        // domains[1] = "test100000000.ton" (NON-TG .ton, owned by seller)
+        it('AUDIT: TON simple sale deploy - TG (control) succeeds, non-TG should also succeed', async () => {
+            const price = toNano('5000');
+            const validUntil = blockchain.now! + 300; // within [minDuration, ~1yr]
+
+            // CONTROL: TG username (.t.me) -> isTgUsername branch -> succeeds today
+            let tgRes = await domains[0].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
+                    DOMAIN_NAMES[0], TonSimpleSale.deployPayload(price, validUntil)),
+                toNano('0.3'));
+            const tgOwner = (await domains[0].getStorageData()).ownerAddress!.toString();
+            const tgWentToSale = tgOwner !== seller.address.toString();
+            console.log('AUDIT TON: TG deploy -> domain owner is sale?', tgWentToSale, 'exitCodes:',
+                tgRes.transactions.map((t: any) => t.description?.computePhase?.exitCode));
+
+            // SUBJECT: non-TG .ton, identical valid params
+            let res = await domains[1].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
+                    DOMAIN_NAMES[1], TonSimpleSale.deployPayload(price, validUntil)),
+                toNano('0.3'));
+            const owner = (await domains[1].getStorageData()).ownerAddress!.toString();
+            const wentToSale = owner !== seller.address.toString();
+            console.log('AUDIT TON: non-TG deploy -> domain owner is sale?', wentToSale, 'exitCodes:',
+                res.transactions.map((t: any) => t.description?.computePhase?.exitCode));
+            const hasIncorrectValidUntil = res.transactions.some(
+                (t: any) => t.description?.computePhase?.exitCode === Exceptions.INCORRECT_VALID_UNTIL);
+            console.log('AUDIT TON: non-TG deploy threw INCORRECT_VALID_UNTIL(49)?', hasIncorrectValidUntil);
+
+            // A valid non-TG deploy MUST activate the sale exactly like the TG control.
+            expect(tgWentToSale).toBe(true);
+            expect(wentToSale).toBe(true);
+        });
+
+        it('AUDIT: TON simple sale validUntil cap is enforced for non-TG (over-cap rejected)', async () => {
+            const price = toNano('5000');
+            // iterations=0 => cap = now + ONE_YEAR - ONE_DAY. Ask for 2 years -> must be rejected.
+            const overCap = blockchain.now! + 2 * ONE_YEAR;
+            let res = await domains[1].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
+                    DOMAIN_NAMES[1], TonSimpleSale.deployPayload(price, overCap)),
+                toNano('0.3'));
+            const owner = (await domains[1].getStorageData()).ownerAddress!.toString();
+            const wentToSale = owner !== seller.address.toString();
+            const hasIncorrectValidUntil = res.transactions.some(
+                (t: any) => t.description?.computePhase?.exitCode === Exceptions.INCORRECT_VALID_UNTIL);
+            console.log('AUDIT CAP TON: over-cap non-TG -> wentToSale?', wentToSale, 'threw 49?', hasIncorrectValidUntil);
+            expect(wentToSale).toBe(false); // domain returns to seller; sale NOT created
+        });
+
+        it('AUDIT: TON simple sale TG username is EXEMPT from cap (huge validUntil ok)', async () => {
+            const price = toNano('5000');
+            const huge = blockchain.now! + 5 * ONE_YEAR; // way past 1 year; TG exempt
+            let res = await domains[0].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.TON_SIMPLE_SALE,
+                    DOMAIN_NAMES[0], TonSimpleSale.deployPayload(price, huge)),
+                toNano('0.3'));
+            const owner = (await domains[0].getStorageData()).ownerAddress!.toString();
+            const wentToSale = owner !== seller.address.toString();
+            console.log('AUDIT CAP TON: TG huge-validUntil -> wentToSale?', wentToSale);
+            expect(wentToSale).toBe(true);
+        });
+
+        it('AUDIT: Jetton simple sale deploy - non-TG should succeed', async () => {
+            const price = 100n * 10n ** 3n;
+            const validUntil = blockchain.now! + 300;
+            const isWeb3 = true;
+            let res = await domains[1].sendTransfer(
+                seller.getSender(), marketplace.address, seller.address,
+                Marketplace.deployDealWithNftTransferPayload(
+                    seller.address, Marketplace.DeployOpCodes.JETTON_SIMPLE_SALE,
+                    DOMAIN_NAMES[1], JettonSimpleSale.deployPayload(isWeb3, price, validUntil)),
+                toNano('0.3'));
+            const owner = (await domains[1].getStorageData()).ownerAddress!.toString();
+            const wentToSale = owner !== seller.address.toString();
+            const hasIncorrectValidUntil = res.transactions.some(
+                (t: any) => t.description?.computePhase?.exitCode === Exceptions.INCORRECT_VALID_UNTIL);
+            console.log('AUDIT JETTON: non-TG deploy -> domain owner is sale?', wentToSale,
+                'threw INCORRECT_VALID_UNTIL(49)?', hasIncorrectValidUntil);
+            expect(wentToSale).toBe(true);
+        });
+    });
+
     it ('should deploy multiple domains swap', async () => {
         let deployData = marketplaceConfig.deployInfos.get(Marketplace.DeployOpCodes.DOMAIN_SWAP)!.otherData as DomainSwapDeployData;
         let leftPaymentTotal = toNano('1000');
@@ -1675,7 +1786,7 @@ describe('Marketplace', () => {
         transactionRes = await marketplace.sendDeployDeal(
             buyer.getSender(), 
             deployData.completionCommission + toNano('0.05') + toNano("0.17"),  // 0.162 + completionCommission + deployFee required
-            Marketplace.DeployOpCodes.DOMAIN_SWAP, 
+            Marketplace.DeployOpCodes.DOMAIN_SWAP,
             DomainSwap.deployPayload(domains.slice(0, 2).map(d => d.address), leftPaymentTotal, rightParticipantAddress, domains.slice(2).map(d => d.address), rightPaymentTotal, validUntil, needsAlert)
         );
 

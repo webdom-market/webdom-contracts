@@ -36,6 +36,11 @@ function updateDeployFunctionsFileWithPath(contractName: string): void {
     const template = `import "${contractPath}/deploy_function.tolk";
 
 fun onInternalMessage(): void {
+}
+
+get fun keepDeployFunction(): int {
+    val keep = deploy${contractName};
+    return 0;
 }`;
 
     writeFileSync('contracts/get_deploy_functions.tolk', template);

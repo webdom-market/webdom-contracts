@@ -38,20 +38,20 @@ fun onInternalMessage(in: InMessage): void {
                         bounce: false,
                         value: 0,
                         dest: storage.buyerAddress,
-                        body: CommentMessage { comment: "Offer has already been created" }
+                        body: CommentMessage { comment: "Offer has already been created".literalSlice() }
                     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
                     return;
                 }
                 
                 // Reserve TON for offer execution
-                val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE;
+                val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE();
                 if (contractBalance > balanceToReserve + ton("0.01")) {
                     reserveToncoinsOnBalance(balanceToReserve, RESERVE_MODE_EXACT_AMOUNT);
                     createMessage({
                         bounce: false,
                         value: 0,
                         dest: storage.buyerAddress,
-                        body: CommentMessage { comment: "offer deployed" }
+                        body: CommentMessage { comment: "offer deployed".literalSlice() }
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
 
@@ -92,20 +92,20 @@ fun onInternalMessage(in: InMessage): void {
                             bounce: false,
                             value: TONS_OFFER_NOTIFICATION,
                             dest: storage.buyerAddress,
-                            body: CommentMessage { comment: "You have received a counterproposal for your offer on webdom.market" }
+                            body: CommentMessage { comment: "You have received a counterproposal for your offer on webdom.market".literalSlice() }
                         }).send(SEND_MODE_PAY_FEES_SEPARATELY);
                         contractBalance -= TONS_OFFER_NOTIFICATION;
                     }
                     
                     // Send excess
-                    val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE;
+                    val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE();
                     assert(contractBalance > balanceToReserve + TONS_MIN_EXCESS) throw EXC_OUT_OF_GAS;
                     reserveToncoinsOnBalance(balanceToReserve, RESERVE_MODE_EXACT_AMOUNT);
                     createMessage({
                         bounce: false,
                         value: 0,
                         dest: msg.fromAddress,
-                        body: CommentMessage { comment: "Counterproposal sent" }
+                        body: CommentMessage { comment: "Counterproposal sent".literalSlice() }
                     }).send(SEND_MODE_CARRY_ALL_BALANCE);
                 }
 
@@ -136,7 +136,7 @@ fun onInternalMessage(in: InMessage): void {
                         bounce: false,
                         value: TONS_OFFER_NOTIFICATION,
                         dest: storage.buyerAddress,
-                        body: CommentMessage { comment: "You have received a counterproposal for your offer on webdom.market" }
+                        body: CommentMessage { comment: "You have received a counterproposal for your offer on webdom.market".literalSlice() }
                     }).sendAndEstimateFee(SEND_MODE_PAY_FEES_SEPARATELY);
                     contractBalance -= (notificationPrice + TONS_OFFER_NOTIFICATION);
                 }
@@ -146,18 +146,18 @@ fun onInternalMessage(in: InMessage): void {
                     bounce: false,
                     value: TONS_COUNTERPROPOSE_PRICE,
                     dest: MARKETPLACE_ADDRESS,
-                    body: CommentMessage { comment: "Marketplace commission" }
+                    body: CommentMessage { comment: "Marketplace commission".literalSlice() }
                 }).send(SEND_MODE_REGULAR);
                 
                 // Send excess
-                val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE;
-                assert(contractBalance > balanceToReserve + TONS_COUNTERPROPOSE_PRICE + TONS_COUNTERPROPOSE_GAS) throw EXC_OUT_OF_GAS;
+                val balanceToReserve: coins = storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE();
+                assert(contractBalance > balanceToReserve + TONS_COUNTERPROPOSE_PRICE + TONS_COUNTERPROPOSE_GAS()) throw EXC_OUT_OF_GAS;
                 reserveToncoinsOnBalance(balanceToReserve, RESERVE_MODE_EXACT_AMOUNT);
                 createMessage({
                     bounce: false,
                     value: 0,
                     dest: in.senderAddress,
-                    body: CommentMessage { comment: "Counterproposal sent" }
+                    body: CommentMessage { comment: "Counterproposal sent".literalSlice() }
                 }).send(SEND_MODE_CARRY_ALL_BALANCE);
             }
 
@@ -174,7 +174,7 @@ fun onInternalMessage(in: InMessage): void {
             val newCommission: coins = mulDivFloor(msg.newPrice, storage.commission, storage.price);
             
             // Calculate maximum value for new price considering fees and check submitted price
-            val msgValue: coins = in.valueCoins - (TONS_CHANGE_PRICE_GAS + (msg.notifySeller ? TONS_OFFER_NOTIFICATION : (0 as coins)) + (storage.sellerPrice != 0 ? TONS_COUNTERPROPOSE_PRICE : (0 as coins)));
+            val msgValue: coins = in.valueCoins - (TONS_CHANGE_PRICE_GAS() + (msg.notifySeller ? TONS_OFFER_NOTIFICATION : (0 as coins)) + ((storage.sellerPrice != 0 && msg.newPrice < storage.sellerPrice) ? TONS_COUNTERPROPOSE_PRICE : (0 as coins)));
             val maxNewPrice: coins = storage.price + msgValue + storage.commission - newCommission;
             assert(msg.newPrice <= maxNewPrice) throw EXC_OUT_OF_GAS;
             
@@ -203,9 +203,9 @@ fun onInternalMessage(in: InMessage): void {
                         dest: sellerAddress,
                         body: beginCell()
                                 .storeUint(0, 32)
-                                .storeSlice("New offer on webdom.market! ")
+                                .storeSlice("New offer on webdom.market! ".literalSlice())
                                 .storeStrFloat(msg.newPrice, ton("1"))
-                                .storeSlice(" TON for ")
+                                .storeSlice(" TON for ".literalSlice())
                                 .storeRef(storage.domainName)
                             .endCell()
                     }).send(SEND_MODE_PAY_FEES_SEPARATELY);
@@ -217,19 +217,19 @@ fun onInternalMessage(in: InMessage): void {
                         bounce: false,
                         value: TONS_COUNTERPROPOSE_PRICE,
                         dest: MARKETPLACE_ADDRESS,
-                        body: CommentMessage { comment: "Marketplace commission" }
+                        body: CommentMessage { comment: "Marketplace commission".literalSlice() }
                     }).send(SEND_MODE_REGULAR);
                 }
                 
                 // Reserve TON for offer execution and notify buyer about successful price change
-                reserveToncoinsOnBalance(storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+                reserveToncoinsOnBalance(storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE(), RESERVE_MODE_EXACT_AMOUNT);
                 createMessage({
                     bounce: false,
                     value: 0,
                     dest: storage.buyerAddress,
                     body: beginCell()
                             .storeUint(0, 32)
-                            .storeSlice("Price changed to ")
+                            .storeSlice("Price changed to ".literalSlice())
                             .storeStrFloat(storage.price, ton("1"))
                         .endCell()
                 }).send(SEND_MODE_CARRY_ALL_BALANCE);
@@ -256,12 +256,12 @@ fun onInternalMessage(in: InMessage): void {
             storage.save();
             
             // Reserve balance for offer execution (don't use mode 64 to save TON for storage fees)
-            reserveToncoinsOnBalance(storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+            reserveToncoinsOnBalance(storage.price + storage.commission + TONS_TON_SIMPLE_OFFER_RESERVE(), RESERVE_MODE_EXACT_AMOUNT);
             createMessage({
                 bounce: false,
                 value: 0,
                 dest: storage.buyerAddress,
-                body: CommentMessage { comment: "Valid until time updated" }
+                body: CommentMessage { comment: "Valid until time updated".literalSlice() }
             }).send(SEND_MODE_CARRY_ALL_BALANCE);
             
             return;
@@ -286,7 +286,7 @@ fun onInternalMessage(in: InMessage): void {
 
             if (msg.cancellationComment.isEmpty()) {
                 // Set default comment if it wasn't provided
-                msg.cancellationComment = "Your offer on webdom.market was cancelled";
+                msg.cancellationComment = "Your offer on webdom.market was cancelled".literalSlice();
             }
             
             cancelOffer(mutate storage, sellerMsgValue, msg.cancellationComment, msg.queryId);
@@ -294,11 +294,11 @@ fun onInternalMessage(in: InMessage): void {
         }
 
         CommentMessage => {
-            if (msg.comment.bitsEqual("cancel")) {
+            if (msg.comment.bitsEqual("cancel".literalSlice())) {
                 assert(storage.buyerAddress == in.senderAddress || in.senderAddress == ADMIN_ADDRESS) throw EXC_INCORRECT_SENDER;  // Only buyer can cancel offer via comment message
                 assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;  // Check that offer is active
 
-                cancelOffer(mutate storage, 0, "Your offer on webdom.market was cancelled", 0);
+                cancelOffer(mutate storage, 0, "Your offer on webdom.market was cancelled".literalSlice(), 0);
                 return;
             }
         }
@@ -310,27 +310,27 @@ fun onInternalMessage(in: InMessage): void {
 }
 
 
-fun onExternalMessage(in: InMessage): void {
+fun onExternalMessage(inMsg: slice): void {
     var storage: Storage = lazy Storage.load();
     assert(storage.state == STATE_ACTIVE) throw EXC_DEAL_NOT_ACTIVE;
-    val opCode: uint32 = in.body.loadUint(32);
-    val queryId: uint64 = in.body.loadUint(64);
+    val opCode: uint32 = inMsg.loadUint(32);
+    val queryId: uint64 = inMsg.loadUint(64);
     assert(opCode == OP_CANCEL_DEAL) throw EXC_UNSUPPORTED_OP;
         
     if (blockchain.now() >= storage.validUntil) {
         // If offer has expired, anyone can send external message to cancel it
         acceptExternalMessage();
-        cancelOffer(mutate storage, 0, "Offer expired", queryId);
+        cancelOffer(mutate storage, 0, "Offer expired".literalSlice(), queryId);
         return;
     } else {
         // If offer is active, only marketplace can send signed message to cancel it (used when domain is no longer owned by seller)
         assert(storage.publicKeyCell != null) throw EXC_INVALID_SIGNATURE;
         val publicKey: uint256 = storage.publicKeyCell!.load();
-        val signature: slice = in.body.loadBits(512);
-        assert(isSignatureValid(in.body.hash(), signature as slice, publicKey)) throw EXC_INVALID_SIGNATURE;
-        assert(in.body.loadAddress() == contract.getAddress()) throw EXC_INVALID_SIGNATURE;
+        val signature: slice = inMsg.loadBits(512);
+        assert(isSignatureValid(inMsg.hash(), signature as slice, publicKey)) throw EXC_INVALID_SIGNATURE;
+        assert(inMsg.loadAddress() == contract.getAddress()) throw EXC_INVALID_SIGNATURE;
         
-        var comment: slice = in.body.loadRef().beginParse();
+        var comment: slice = inMsg.loadRef().beginParse();
         comment.skipBits(32);
         
         acceptExternalMessage();
@@ -348,7 +348,7 @@ get fun get_storage_data() {
     var domainsDict: dict = createEmptyDict();
     domainsDict.sDictSet(267, storage.domainAddress as slice, BIT_TRUE_SLICE());
     
-    var sellerAddress: address = storage.sellerAddress == null ? createAddressNone() : storage.sellerAddress!.load();
+    var sellerAddress: address = storage.sellerAddress == null ? (createAddressNone() as address) : storage.sellerAddress!.load();
     return (
         sellerAddress,
         domainsDict,

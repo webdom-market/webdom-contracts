@@ -1,14 +1,14 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core';
-import { JettonMultipleSale, JettonMultipleSaleConfig } from '../wrappers/JettonMultipleSale';
+import { JettonMultipleSale, JettonMultipleSaleConfig } from '../../wrappers/JettonMultipleSale';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { DnsCollection, DnsCollectionConfig } from '../wrappers/DnsCollection';
-import { Domain, DomainConfig } from '../wrappers/Domain';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes } from '../wrappers/helpers/constants';
-import { jettonsToString } from '../wrappers/helpers/functions';
-import { JettonMinter } from '../wrappers/JettonMinter';
-import { JettonWallet } from '../wrappers/JettonWallet';
+import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
+import { Domain, DomainConfig } from '../../wrappers/Domain';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes } from '../../wrappers/helpers/constants';
+import { jettonsToString } from '../../wrappers/helpers/functions';
+import { JettonMinter } from '../../wrappers/JettonMinter';
+import { JettonWallet } from '../../wrappers/JettonWallet';
 
 
 describe('MultipleJettonSale', () => {
@@ -167,9 +167,11 @@ describe('MultipleJettonSale', () => {
             exitCode: Exceptions.DEAL_NOT_ACTIVE
         })
 
-        // accept 
+        // accept
         transactionRes = await jettonMultipleSale.sendChangePrice(seller.getSender(), jettonMultipleSaleConfig.price, blockchain.now! + 600);
-        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonMultipleSaleConfig.price, jettonMultipleSale.address, buyer.address, toNano("0.555"));
+        // F1: TONS_PURCHASE_PER_DOMAIN now embeds domainRefillFee, so the 4-domain jetton minimum rose
+        // from ~0.333 to ~0.592 TON; bump the forwarded TON above it (was 0.555).
+        transactionRes = await usdtBuyerWallet.sendTransfer(buyer.getSender(), jettonMultipleSaleConfig.price, jettonMultipleSale.address, buyer.address, toNano("0.65"));
 
         expect(transactionRes.transactions).toHaveTransaction({
             from: usdtSellerWallet.address,
