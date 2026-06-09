@@ -152,6 +152,9 @@ fun handleJettonsTransferNotification(
 
     try {
         var payload: slice = inMsgBody.loadBool() ? inMsgBody.loadRef().beginParse() : inMsgBody;
+        if (payload.remainingBitsCount() < 32) {
+            return;
+        }
         val innerOp: int = payload.loadUint(32);
         
         if (payload.bitsEqual("Marketplace commission".literalSlice())) {  
@@ -323,7 +326,7 @@ fun handleRenewalFee(storage: MarketplaceStorage, msgBody: slice, msgValue: coin
         val ownerAddress: address = msgBody.loadAddress();
         createMessage({
             bounce: false,
-            value: 0,
+            value: excess,
             dest: ownerAddress,
             body: ExcessesMessage {queryId: queryId}
         }).send(SEND_MODE_REGULAR);
@@ -361,8 +364,8 @@ fun handleAutoRenewPrepay(storage: MarketplaceStorage, msgBody: slice, msgValue:
 }
 
 fun handleTonMarketplaceCommission(storage: MarketplaceStorage, msgBody: slice, msgValue: coins): void {
-    // Just accept TONs if comment is "Marketplace commission". Other comments are not allowed. 
-    assert(msgBody.bitsEqual("Marketplace commission".literalSlice())) throw EXC_UNSUPPORTED_OP;
+    // // Just accept TONs if comment is "Marketplace commission". Other comments are not allowed. 
+    // assert(msgBody.bitsEqual("Marketplace commission".literalSlice())) throw EXC_UNSUPPORTED_OP;
     assert(msgValue > ton("0.003")) throw 0;
     storage.collectedFeesTon += msgValue - ton("0.003");
     storage.save();
