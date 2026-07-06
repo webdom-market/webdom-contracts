@@ -78,7 +78,7 @@ fun deployDomainSwap(args: SimpleDeployArgs): int {
         state: STATE_CANCELLED,
         createdAt: blockchain.now(),
         validUntil: payload.validUntil,
-        lastActionTime: 0,
+        lastActionTime: blockchain.now(),
         completionCommission: deployInfo.completionCommission,
         needsAlert: payload.needsAlert,
         cancelledByLeft: false,

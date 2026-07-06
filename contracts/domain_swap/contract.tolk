@@ -190,7 +190,7 @@ fun onInternalMessage(in: InMessage) {
                     // Left may cancel if right has not joined yet, or was inactive for > 1 hour, or deal expired
                     assert(
                         storage.state == STATE_WAITING_FOR_LEFT || 
-                        storage.lastActionTime + ONE_HOUR < blockchain.now() ||
+                        storage.lastActionTime + ONE_HOUR / 4 < blockchain.now() ||
                         storage.validUntil < blockchain.now()
                     ) throw EXC_CANT_CANCEL_DEAL;
 
