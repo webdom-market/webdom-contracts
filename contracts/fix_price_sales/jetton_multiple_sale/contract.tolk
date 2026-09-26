@@ -277,8 +277,9 @@ fun onInternalMessage(in: InMessage): void {
             assert((msg.newValidUntil >= max(blockchain.now() + 600, storage.validUntil)) && 
                    (msg.newValidUntil <= maxValidUntil)) throw EXC_INCORRECT_VALID_UNTIL;
             
-            assert(msg.newPrice > 0) throw EXC_INCORRECT_PRICE;
-            var newCommission = mulDivFloor(msg.newPrice, storage.commission, storage.price);
+            assert(msg.newPrice > 1000) throw EXC_INCORRECT_PRICE;
+            // Round up: with floor, repeated price round trips shave a unit off each time until commission hits 0
+            var newCommission = mulDivCeil(msg.newPrice, storage.commission, storage.price);
 
             storage.validUntil = msg.newValidUntil;
             storage.price = msg.newPrice;

@@ -8,6 +8,7 @@ import { Domain, DomainConfig } from '../../wrappers/Domain';
 import { getIndexByDomainName } from '../../wrappers/helpers/dnsUtils';
 import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../../wrappers/helpers/constants';
 import { jettonsToString } from '../../wrappers/helpers/functions';
+import { readSalePricing, writeSalePricing } from '../helpers/saleStorage';
 
 describe('TonSimpleSale', () => {
     let fixPriceSaleCode: Cell;
@@ -166,6 +167,13 @@ describe('TonSimpleSale', () => {
                     exitCode: Exceptions.INCORRECT_VALID_UNTIL
                 })
             }
+            else if (newPrice <= Tons.MIN_SALE_PRICE) {
+                expect(transactionRes.transactions).toHaveTransaction({
+                    from: seller.address,
+                    to: tonSimpleSale.address,
+                    exitCode: Exceptions.INCORRECT_PRICE
+                })
+            }
             else {
                 tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
                 expect(tonSimpleSaleConfig.price).toEqual(newPrice);
@@ -291,5 +299,64 @@ describe('TonSimpleSale', () => {
         tonSimpleSaleConfig = await tonSimpleSale.getStorageData();
         expect(tonSimpleSaleConfig.hotUntil).toEqual(blockchain.now! + ONE_DAY * 3 / 2);
         expect(tonSimpleSaleConfig.coloredUntil).toEqual(blockchain.now! + ONE_DAY * 2);
+    });
+
+    // A commission this small can't pay its own forward fee. Sending it fails the action phase (exit 40/37)
+    // without a bounce, so the buyer's TON stays on the sale and the seller's cancel sweeps it.
+    it.each([0n, Tons.MIN_SALE_COMMISSION - 1n])('should complete purchase with a %s nanoTON commission', async (commission) => {
+        await writeSalePricing(blockchain, tonSimpleSale.address, 'tonSimple', tonSimpleSaleConfig.price, commission);
+
+        transactionRes = await tonSimpleSale.sendPurchase(buyer.getSender(), tonSimpleSaleConfig.price);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: buyer.address,
+            to: tonSimpleSale.address,
+            success: true,
+            actionResultCode: 0,
+        });
+        expect(transactionRes.transactions).not.toHaveTransaction({
+            from: tonSimpleSale.address,
+            to: marketplace.address,
+        });
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: tonSimpleSale.address,
+            to: seller.address,
+            value: (x) => x! >= tonSimpleSaleConfig.price,
+            success: true,
+        });
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
+    });
+
+    it('should not let a price change make the sale unbuyable', async () => {
+        // Dust prices are rejected outright (the mainnet exploit went through 24 nanoTON)
+        transactionRes = await tonSimpleSale.sendChangePrice(seller.getSender(), 24n, tonSimpleSaleConfig.validUntil);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: seller.address,
+            to: tonSimpleSale.address,
+            exitCode: Exceptions.INCORRECT_PRICE,
+        });
+
+        // Commission at a capped-listing ratio (200 TON on 1e11 TON): scaled to 1 TON it floors to 2 nanoTON
+        await writeSalePricing(blockchain, tonSimpleSale.address, 'tonSimple', 10n ** 20n, toNano('200'));
+        transactionRes = await tonSimpleSale.sendChangePrice(seller.getSender(), toNano('1'), tonSimpleSaleConfig.validUntil);
+        expect(await readSalePricing(blockchain, tonSimpleSale.address, 'tonSimple')).toEqual({
+            price: toNano('1'),
+            commission: Tons.MIN_SALE_COMMISSION,
+        });
+
+        transactionRes = await tonSimpleSale.sendPurchase(buyer.getSender(), toNano('1'));
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: buyer.address,
+            to: tonSimpleSale.address,
+            success: true,
+            actionResultCode: 0,
+        });
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: tonSimpleSale.address,
+            to: marketplace.address,
+            success: true,
+        });
+        domainConfig = await domain.getStorageData();
+        expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
     });
 });

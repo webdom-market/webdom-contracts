@@ -99,12 +99,12 @@ fun onInternalMessage(in: InMessage): void {
                 assert(msg.newValidUntil <= maxValidUntil) throw EXC_INCORRECT_VALID_UNTIL;
             }
 
-            assert(msg.newPrice > 0) throw EXC_INCORRECT_PRICE;
+            assert(msg.newPrice > TONS_MIN_PRICE) throw EXC_INCORRECT_PRICE;
 
             // Update data and recalculate commission
             var oldPrice = storage.price;
             storage.price = msg.newPrice;
-            storage.commission = mulDivFloor(msg.newPrice, storage.commission, oldPrice);
+            storage.commission = max(mulDivFloor(msg.newPrice, storage.commission, oldPrice), TONS_MIN_EXCESS);
             storage.validUntil = msg.newValidUntil;
             storage.save();
                         
@@ -271,18 +271,22 @@ fun onInternalMessage(in: InMessage): void {
                     assert(storage.isTgUsername || storage.lastRenewalTime > nowTs - (ONE_YEAR - ONE_DAY)) throw EXC_DOMAIN_EXPIRED;
                     assert(in.valueCoins >= storage.price + tonSimplePurchaseFee()) throw EXC_OUT_OF_GAS;  // check msg value is enough to pay for the sale
 
-                    // Send marketplace commission
-                    createMessage<CommentMessage>({
-                        bounce: false,
-                        value: storage.commission,
-                        dest: MARKETPLACE_ADDRESS,
-                        body: CommentMessage { comment: "Marketplace commission".literalSlice() }
-                    }).send(SEND_MODE_REGULAR);
-                    
+                    // Send marketplace commission. A commission below TONS_MIN_EXCESS can't pay its own forward fee:
+                    // the action phase would fail (no bounce), leaving the buyer's TON on the sale. Seller keeps it instead.
+                    val commission: coins = storage.commission >= TONS_MIN_EXCESS ? storage.commission : (0 as coins);
+                    if (commission > 0) {
+                        createMessage<CommentMessage>({
+                            bounce: false,
+                            value: commission,
+                            dest: MARKETPLACE_ADDRESS,
+                            body: CommentMessage { comment: "Marketplace commission".literalSlice() }
+                        }).send(SEND_MODE_REGULAR);
+                    }
+
                     // Send payment to seller
                     createMessage<cell>({
                         bounce: false,
-                        value: storage.price - storage.commission + contract.getOriginalBalance() - in.valueCoins,
+                        value: storage.price - commission + contract.getOriginalBalance() - in.valueCoins,
                         dest: storage.sellerAddress,
                         body: getPayoutNotificationBody(storage.domainNameCell)
                     }).send(SEND_MODE_PAY_FEES_SEPARATELY);

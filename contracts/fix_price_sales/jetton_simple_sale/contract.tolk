@@ -214,7 +214,7 @@ fun onInternalMessage(in: InMessage): void {
                 assert(msg.newValidUntil <= maxValidUntil) throw EXC_INCORRECT_VALID_UNTIL;
             }
         
-            assert(msg.newPrice > 0) throw EXC_INCORRECT_PRICE;
+            assert(msg.newPrice > 1000) throw EXC_INCORRECT_PRICE;
 
             // Determine jetton display parameters
             var (oneJetton, symbol) = storage2.jettonMinterAddress == WEB3_ADDRESS ? (1000, "WEB3".literalSlice()) : (1000000, "USDT".literalSlice());
@@ -232,7 +232,8 @@ fun onInternalMessage(in: InMessage): void {
             }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
             // Update price and recalculate commission
-            storage.commission = mulDivFloor(msg.newPrice, storage.commission, storage.price);
+            // Round up: with floor, repeated price round trips shave a unit off each time until commission hits 0
+            storage.commission = mulDivCeil(msg.newPrice, storage.commission, storage.price);
             storage.price = msg.newPrice;
             storage.validUntil = msg.newValidUntil;
             storage.save();

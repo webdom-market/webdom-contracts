@@ -9,6 +9,7 @@ import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes } from '..
 import { jettonsToString } from '../../wrappers/helpers/functions';
 import { JettonMinter } from '../../wrappers/JettonMinter';
 import { JettonWallet } from '../../wrappers/JettonWallet';
+import { readSalePricing } from '../helpers/saleStorage';
 
 
 describe('MultipleJettonSale', () => {
@@ -295,5 +296,20 @@ describe('MultipleJettonSale', () => {
             let domainConfig = await domain.getStorageData();
             expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
         }
+    });
+
+    // With floor rounding, every "drop to a dust price and back" trip shaved a unit off the commission,
+    // so a seller could walk it to 0 in a few dozen ChangePrice calls
+    it('should not let price round trips shave the commission', async () => {
+        const { validUntil } = await jettonMultipleSale.getStorageData();
+        const before = await readSalePricing(blockchain, jettonMultipleSale.address, 'multiple');
+        for (let i = 0; i < 5; ++i) {
+            await jettonMultipleSale.sendChangePrice(seller.getSender(), 1001n, validUntil);
+            expect((await readSalePricing(blockchain, jettonMultipleSale.address, 'multiple')).price).toEqual(1001n);
+            await jettonMultipleSale.sendChangePrice(seller.getSender(), before.price, validUntil);
+        }
+        const after = await readSalePricing(blockchain, jettonMultipleSale.address, 'multiple');
+        expect(after.price).toEqual(before.price);
+        expect(after.commission).toBeGreaterThanOrEqual(before.commission);
     });
 });

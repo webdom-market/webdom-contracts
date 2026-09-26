@@ -59,7 +59,7 @@ fun deployJettonMultipleSale(args: SimpleDeployArgs): int {
     assert((payload.autoRenewCooldown >= ONE_DAY) && (payload.autoRenewCooldown <= ONE_YEAR - ONE_DAY)) throw EXC_INCORRECT_VALID_UNTIL;
 
     var commission = mulDivFloor(
-        min(mulDivFloor(payload.price, deployInfo.commissionFactor, COMMISSION_DIVIDER), deployInfo.maxCommission),
+        mulDivFloor(payload.price, deployInfo.commissionFactor, COMMISSION_DIVIDER),
         COMMISSION_DIVIDER - args.commissionDiscount,
         COMMISSION_DIVIDER
     );

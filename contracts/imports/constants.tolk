@@ -140,3 +140,6 @@ const STATE_UNINIT: int = 0;
 const STATE_ACTIVE: int = 1;
 const STATE_COMPLETED: int = 2;
 const STATE_CANCELLED: int = 3;
+
+
+const TONS_MIN_PRICE: coins = ton("0.1");

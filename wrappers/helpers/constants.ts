@@ -70,6 +70,10 @@ export const OpCodes = {
 export const Tons = {
     MIN_RESERVE: 15000000n,
     MIN_EXCESS: 10000000n,
+    // Sale ChangePrice floor (TONS_MIN_PRICE) and the smallest TON commission a sale actually sends
+    // (TONS_MIN_EXCESS in contracts/imports/constants.tolk; smaller ones stay with the seller)
+    MIN_SALE_PRICE: 100000000n,
+    MIN_SALE_COMMISSION: 5000000n,
     NFT_TRANSFER: 30000000n,
     JETTON_TRANSFER: 50000000n,
     RENEW_DOMAIN: 20000000n,
@@ -110,6 +114,7 @@ export const Exceptions = {
     INCORRECT_VALID_UNTIL: 49,
     INCORRECT_SENDER: 50,
     NOT_ENOUGH_JETTONS: 52,
+    INCORRECT_PRICE: 56,
 
     NFT_ALREADY_SOLD: 57,
     INCORRECT_EXOTIC_CELL: 58,

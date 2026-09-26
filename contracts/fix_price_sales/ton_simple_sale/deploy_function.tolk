@@ -54,10 +54,10 @@ fun deployTonSimpleSale(args: DeployWithNftTransferArgs): int {
     }
     assert((payload.autoRenewCooldown >= ONE_DAY) && (payload.autoRenewCooldown <= ONE_YEAR - ONE_DAY)) throw(EXC_INCORRECT_VALID_UNTIL);
 
-    val commission: int = mulDivFloor(min(
+    val commission: int = mulDivFloor(
         mulDivFloor(payload.price, deployInfo.commissionFactor, COMMISSION_DIVIDER),
-        deployInfo.maxCommission
-    ), COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER);
+        COMMISSION_DIVIDER - args.commonArgs.commissionDiscount, COMMISSION_DIVIDER
+    );
     val autoRenewReserve: coins = autoRenewLockPerIter(payload.autoRenewCooldown) * payload.autoRenewIterations;
     val autoRenewPrepay: coins = TONS_AUTORENEW_MARKETPLACE_FEE * payload.autoRenewIterations;
 

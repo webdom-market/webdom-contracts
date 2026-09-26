@@ -5,8 +5,9 @@ import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
 import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
 import { Domain, DomainConfig } from '../../wrappers/Domain';
-import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes } from '../../wrappers/helpers/constants';
+import { Exceptions, MIN_PRICE_START_TIME, ONE_DAY, ONE_YEAR, OpCodes, Tons } from '../../wrappers/helpers/constants';
 import { jettonsToString } from '../../wrappers/helpers/functions';
+import { readSalePricing, writeSalePricing } from '../helpers/saleStorage';
 
 
 describe('MultipleTonSale', () => {
@@ -271,6 +272,69 @@ describe('MultipleTonSale', () => {
         for (let domain of domains) {
             let domainConfig = await domain.getStorageData();
             expect(domainConfig.lastRenewalTime).toEqual(blockchain.now!);
+        }
+    });
+
+    // A commission this small can't pay its own forward fee. Sending it fails the action phase (exit 40/37)
+    // without a bounce, so the buyer's TON stays on the sale and the seller's cancel sweeps it.
+    it.each([0n, Tons.MIN_SALE_COMMISSION - 1n])('should complete purchase with a %s nanoTON commission', async (commission) => {
+        await writeSalePricing(blockchain, tonMultipleSale.address, 'multiple', tonMultipleSaleConfig.price, commission);
+
+        transactionRes = await tonMultipleSale.sendPurchase(buyer.getSender(), tonMultipleSaleConfig.price, domains.length);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: buyer.address,
+            to: tonMultipleSale.address,
+            success: true,
+            actionResultCode: 0,
+        });
+        expect(transactionRes.transactions).not.toHaveTransaction({
+            from: tonMultipleSale.address,
+            to: marketplace.address,
+        });
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: tonMultipleSale.address,
+            to: seller.address,
+            value: (x) => x! > tonMultipleSaleConfig.price - toNano('0.01'),
+            success: true,
+        });
+        for (let domain of domains) {
+            let domainConfig = await domain.getStorageData();
+            expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
+        }
+    });
+
+    it('should not let a price change make the sale unbuyable', async () => {
+        // Dust prices are rejected outright (the mainnet exploit went through 24 nanoTON)
+        transactionRes = await tonMultipleSale.sendChangePrice(seller.getSender(), 24n, tonMultipleSaleConfig.validUntil);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: seller.address,
+            to: tonMultipleSale.address,
+            exitCode: Exceptions.INCORRECT_PRICE,
+        });
+
+        // Commission at a capped-listing ratio (200 TON on 1e11 TON): scaled to 1 TON it floors to 2 nanoTON
+        await writeSalePricing(blockchain, tonMultipleSale.address, 'multiple', 10n ** 20n, toNano('200'));
+        transactionRes = await tonMultipleSale.sendChangePrice(seller.getSender(), toNano('1'), tonMultipleSaleConfig.validUntil);
+        expect(await readSalePricing(blockchain, tonMultipleSale.address, 'multiple')).toEqual({
+            price: toNano('1'),
+            commission: Tons.MIN_SALE_COMMISSION,
+        });
+
+        transactionRes = await tonMultipleSale.sendPurchase(buyer.getSender(), toNano('1'), domains.length);
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: buyer.address,
+            to: tonMultipleSale.address,
+            success: true,
+            actionResultCode: 0,
+        });
+        expect(transactionRes.transactions).toHaveTransaction({
+            from: tonMultipleSale.address,
+            to: marketplace.address,
+            success: true,
+        });
+        for (let domain of domains) {
+            let domainConfig = await domain.getStorageData();
+            expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
         }
     });
 

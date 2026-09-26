@@ -153,9 +153,9 @@ fun onInternalMessage(in: InMessage): void {
             assert((msg.newValidUntil >= max(blockchain.now() + 600, storage.validUntil)) && 
                    (msg.newValidUntil <= maxValidUntil)) throw EXC_INCORRECT_VALID_UNTIL;
 
-            assert(msg.newPrice > 0) throw EXC_INCORRECT_PRICE;
+            assert(msg.newPrice > TONS_MIN_PRICE) throw EXC_INCORRECT_PRICE;
 
-            var newCommission = mulDivFloor(msg.newPrice, storage.commission, storage.price);
+            var newCommission = max(mulDivFloor(msg.newPrice, storage.commission, storage.price), TONS_MIN_EXCESS);
             storage.validUntil = msg.newValidUntil;
             storage.price = msg.newPrice;
             storage.commission = newCommission;
@@ -320,13 +320,17 @@ fun onInternalMessage(in: InMessage): void {
                     assert(storage.lastRenewalTime > nowTs - (ONE_YEAR - ONE_DAY)) throw EXC_DOMAIN_EXPIRED;
                     assert(in.valueCoins >= storage.price + TONS_PURCHASE_PER_DOMAIN() * storage.domainsTotal + gasFee(GAS_TON_MULTIPLE_PURCHASE_BASE)) throw EXC_OUT_OF_GAS;
 
-                    // Send marketplace commission
-                    createMessage({
-                        bounce: false,
-                        value: storage.commission,
-                        dest: MARKETPLACE_ADDRESS,
-                        body: CommentMessage { comment: "Marketplace commission".literalSlice() }
-                    }).send(SEND_MODE_REGULAR);
+                    // Send marketplace commission. A commission below TONS_MIN_EXCESS can't pay its own forward fee:
+                    // the action phase would fail (no bounce), leaving the buyer's TON on the sale. Seller keeps it instead.
+                    val commission: coins = storage.commission >= TONS_MIN_EXCESS ? storage.commission : (0 as coins);
+                    if (commission > 0) {
+                        createMessage({
+                            bounce: false,
+                            value: commission,
+                            dest: MARKETPLACE_ADDRESS,
+                            body: CommentMessage { comment: "Marketplace commission".literalSlice() }
+                        }).send(SEND_MODE_REGULAR);
+                    }
 
                     // Send all domains to buyer
                     var (domainAddress, _, found) = storage.domainsDict.sDictGetFirst(267);
@@ -349,7 +353,7 @@ fun onInternalMessage(in: InMessage): void {
                     // Send unused TONs to seller
                     createMessage({
                         bounce: false,
-                        value: (contract.getOriginalBalance() - in.valueCoins) + storage.price - storage.commission,
+                        value: (contract.getOriginalBalance() - in.valueCoins) + storage.price - commission,
                         dest: storage.sellerAddress,
                         body: CommentMessage { comment: "Payout for multiple domains sale on webdom.market".literalSlice() }
                     }).send(SEND_MODE_REGULAR);
