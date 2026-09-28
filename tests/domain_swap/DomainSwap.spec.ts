@@ -1,6 +1,6 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core';
-import { DomainSwap, DomainSwapConfig } from '../../wrappers/DomainSwap';
+import { DomainSwap, DomainSwapConfig, domainSwapConfigToCell } from '../../wrappers/DomainSwap';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
 import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
@@ -328,10 +328,33 @@ describe('DomainSwap', () => {
         // printTransactionFees(transactionRes.transactions);
         await checkSwapCancelled("The offer was cancelled by its creator");
 
+        // A repeated marketplace activation in the same second or later must not reopen escrow.
+        const cancelled = await multipleDomainSwap.getStorageData();
+        for (const delay of [0, 1]) {
+            blockchain.now! += delay;
+            await multipleDomainSwap.sendDeploy(admin.getSender(), toNano('0.3'));
+            expect(domainSwapConfigToCell(await multipleDomainSwap.getStorageData()))
+                .toEqualCell(domainSwapConfigToCell(cancelled));
+        }
+
         // Transfer after deal is cancelled should be rejected
         transactionRes = await leftDomains[0].sendTransfer(leftParticipant.getSender(), multipleDomainSwap.address, null, null, DomainSwap.ADD_DOMAIN_TONS + toNano('0.01'));
         expect((await leftDomains[0].getStorageData()).ownerAddress?.toString()).toEqual(leftParticipant.address.toString());
 
+    });
+
+    it('should keep a cancellation before activation terminal', async () => {
+        multipleDomainSwap = blockchain.openContract(DomainSwap.createFromConfig(multipleDomainSwapConfig, multipleDomainSwapCode));
+        await multipleDomainSwap.sendCancelDeal(leftParticipant.getSender());
+        const cancelled = await multipleDomainSwap.getStorageData();
+        expect(cancelled.state).toBe(DomainSwap.STATE_CANCELLED);
+        expect(cancelled.lastActionTime).toBe(blockchain.now);
+        for (const delay of [0, 1]) {
+            blockchain.now! += delay;
+            await multipleDomainSwap.sendDeploy(admin.getSender(), toNano('0.3'));
+            expect(domainSwapConfigToCell(await multipleDomainSwap.getStorageData()))
+                .toEqualCell(domainSwapConfigToCell(cancelled));
+        }
     });
 
     it('should cancel deal after the right participant joined', async () => {
@@ -345,8 +368,8 @@ describe('DomainSwap', () => {
         multipleDomainSwapConfig = await multipleDomainSwap.getStorageData();
         expect(multipleDomainSwapConfig.state).toBe(DomainSwap.STATE_WAITING_FOR_RIGHT);
 
-        // One hour didn't pass so cancellation by left owner is not possible
-        blockchain.now! += 60 * 60 - 1;
+        // The 15-minute inactivity period has not passed, so cancellation by the left owner is not possible
+        blockchain.now! += 15 * 60 - 1;
         transactionRes = await multipleDomainSwap.sendCancelDeal(leftParticipant.getSender());
         expect(transactionRes.transactions).toHaveTransaction({
             from: leftParticipant.address,
@@ -359,8 +382,8 @@ describe('DomainSwap', () => {
         multipleDomainSwapConfig = await multipleDomainSwap.getStorageData();
         expect(multipleDomainSwapConfig.rightDomainsReceived).toBe(1);
         
-        // One hour passed, accept cancellation by left owner
-        blockchain.now! += 60 * 60;
+        // The 15-minute inactivity period has passed, so accept cancellation by the left owner
+        blockchain.now! += 15 * 60 + 1;
         transactionRes = await multipleDomainSwap.sendCancelDeal(leftParticipant.getSender());
         await checkSwapCancelled("The offer was cancelled by its creator");
     });

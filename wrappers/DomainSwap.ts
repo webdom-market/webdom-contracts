@@ -37,7 +37,7 @@ export type DomainSwapConfig = {
     state: number;
     createdAt: number;
     validUntil: number;
-    lastActionTime: number;
+    lastActionTime: number; // 0 for a fresh, never-activated swap; nonzero after activation/cancellation
     commission: bigint;
     needsAlert: boolean;
     cancelledByLeft?: boolean;

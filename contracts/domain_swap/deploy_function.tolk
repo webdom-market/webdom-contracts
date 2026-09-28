@@ -78,7 +78,7 @@ fun deployDomainSwap(args: SimpleDeployArgs): int {
         state: STATE_CANCELLED,
         createdAt: blockchain.now(),
         validUntil: payload.validUntil,
-        lastActionTime: blockchain.now(),
+        lastActionTime: 0,  // never activated; the first activation consumes this marker
         completionCommission: deployInfo.completionCommission,
         needsAlert: payload.needsAlert,
         cancelledByLeft: false,

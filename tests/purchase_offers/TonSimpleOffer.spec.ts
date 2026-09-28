@@ -114,6 +114,20 @@ describe('TonSimpleOffer', () => {
         expect(domainConfig.ownerAddress!.toString()).toEqual(buyer.address.toString());
     });
 
+    it('should pay the current NFT owner when the original seller has transferred the domain', async () => {
+        const currentOwner = await blockchain.treasury('current-owner');
+        await domain.sendTransfer(seller.getSender(), currentOwner.address, currentOwner.address);
+        const settled = await domain.sendTransfer(currentOwner.getSender(), offer.address,
+            currentOwner.address, null, toNano('0.02'));
+        expect(settled.transactions).toHaveTransaction({
+            from: offer.address, to: currentOwner.address, success: true,
+            value: value => value !== undefined && value > offerConfig.price,
+        });
+        expect(settled.transactions).not.toHaveTransaction({ from: offer.address, to: seller.address });
+        expect((await offer.getStorageData()).sellerAddress).toEqualAddress(currentOwner.address);
+        expect((await domain.getStorageData()).ownerAddress).toEqualAddress(buyer.address);
+    });
+
     it('should change price', async () => {
         // with notification
         transactionRes = await offer.sendChangePrice(buyer.getSender(), offerConfig.price, offerConfig.commission, toNano('3'), blockchain.now! + ONE_DAY * 4, true);

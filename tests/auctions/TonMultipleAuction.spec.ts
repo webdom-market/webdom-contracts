@@ -1,6 +1,6 @@
 import { Blockchain, printTransactionFees, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox';
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core';
-import { TonMultipleAuction, TonMultipleAuctionConfig } from '../../wrappers/TonMultipleAuction';
+import { multipleTonSaleConfigToCell, TonMultipleAuction, TonMultipleAuctionConfig } from '../../wrappers/TonMultipleAuction';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
 import { DnsCollection, DnsCollectionConfig } from '../../wrappers/DnsCollection';
@@ -53,6 +53,18 @@ describe('TonMultipleAuction', () => {
     async function sendDomainsToAuction() {
         for (let domain of domains) {
             transactionRes = await domain.sendTransfer(seller.getSender(), tonMultipleAuction.address, seller.address, null, toNano('0.1'));
+            if (domain === domains[0]) {
+                const receipt = transactionRes.transactions.find(tx =>
+                    tx.inMessage?.info.type === 'internal'
+                    && tx.inMessage.info.src.equals(domain.address)
+                    && tx.inMessage.info.dest.equals(tonMultipleAuction.address))!.inMessage!;
+                const duplicate = await blockchain.sendMessage(receipt);
+                expect(duplicate.transactions).not.toHaveTransaction({
+                    from: tonMultipleAuction.address, to: domain.address, op: OpCodes.TRANSFER_NFT,
+                });
+                expect((await tonMultipleAuction.getStorageData()).domainsReceived).toBe(1);
+                expect((await domain.getStorageData()).ownerAddress).toEqualAddress(tonMultipleAuction.address);
+            }
             domainConfigs.push(await domain.getStorageData());
         }
     }
@@ -307,6 +319,51 @@ describe('TonMultipleAuction', () => {
             expect(config.ownerAddress?.toString()).toEqual(seller.address.toString());
         }
     });
+
+    it.each(['minBidValue', 'maxBidValue'] as const)(
+        'should refund a %s bid after deferred auction cancellation', async (bidField) => {
+            tonMultipleAuctionConfig.isDeferred = true;
+            await deployAuction();
+            await sendDomainsToAuction();
+            expect(blockchain.now!).toBeLessThan(tonMultipleAuctionConfig.startTime);
+
+            await tonMultipleAuction.sendStopAuction(seller.getSender());
+            const cancelledState = await tonMultipleAuction.getStorageData();
+            expect(cancelledState.state).toBe(TonMultipleAuction.STATE_CANCELLED);
+            expect(cancelledState.isDeferred).toBe(true);
+            expect(cancelledState.domainsReceived).toBe(domains.length);
+            const sellerBefore = await seller.getBalance();
+            const marketplaceBefore = await marketplace.getBalance();
+            const buyerBefore = await buyer.getBalance();
+            const bidValue = cancelledState[bidField];
+
+            const rejected = await tonMultipleAuction.sendPlaceBid(buyer.getSender(), bidValue, domains.length);
+            expect(rejected.transactions).toHaveTransaction({
+                from: buyer.address,
+                to: tonMultipleAuction.address,
+                exitCode: Exceptions.DEAL_NOT_ACTIVE,
+            });
+            expect(rejected.transactions).toHaveTransaction({
+                from: tonMultipleAuction.address,
+                to: buyer.address,
+                body: beginCell().storeUint(0, 32)
+                    .storeStringTail(`Error. Code ${Exceptions.DEAL_NOT_ACTIVE}`).endCell(),
+                value: (value) => value !== undefined && value >= bidValue,
+                success: true,
+            });
+            expect(buyerBefore - await buyer.getBalance()).toBeLessThan(toNano('0.05'));
+            expect(await seller.getBalance()).toBe(sellerBefore);
+            expect(await marketplace.getBalance()).toBe(marketplaceBefore);
+            expect(multipleTonSaleConfigToCell(await tonMultipleAuction.getStorageData()))
+                .toEqualCell(multipleTonSaleConfigToCell(cancelledState));
+            for (const domain of domains) {
+                expect(rejected.transactions).not.toHaveTransaction({
+                    from: tonMultipleAuction.address, to: domain.address,
+                });
+                expect((await domain.getStorageData()).ownerAddress!.equals(seller.address)).toBe(true);
+            }
+        },
+    );
 
     it('should handle domain renewal', async () => {
         await sendDomainsToAuction();

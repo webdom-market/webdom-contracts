@@ -137,6 +137,20 @@ describe('MultipleJettonSale', () => {
 
         for (let domain of domains) {
             transactionRes = await domain.sendTransfer(seller.getSender(), jettonMultipleSale.address, null, null, toNano('0.1'));
+            if (domain === domains[0]) {
+                const receipt = transactionRes.transactions.find(tx =>
+                    tx.inMessage?.info.type === 'internal'
+                    && tx.inMessage.info.src.equals(domain.address)
+                    && tx.inMessage.info.dest.equals(jettonMultipleSale.address))!.inMessage!;
+                const duplicate = await blockchain.sendMessage(receipt);
+                expect(duplicate.transactions).not.toHaveTransaction({
+                    from: jettonMultipleSale.address, to: domain.address, op: OpCodes.TRANSFER_NFT,
+                });
+                const partial = await jettonMultipleSale.getStorageData();
+                expect(partial.domainsReceived).toBe(1);
+                expect(partial.domainsReceived).toBeLessThan(partial.domainsTotal);
+                expect((await domain.getStorageData()).ownerAddress).toEqualAddress(jettonMultipleSale.address);
+            }
             domainConfigs.push(await domain.getStorageData());
         }
 

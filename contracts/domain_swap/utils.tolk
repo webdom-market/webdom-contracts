@@ -193,6 +193,7 @@ fun returnDomains(storage: Storage, rightInfo: OneSideInfo, queryId: int, cancel
 
     // Save data
     storage.state = STATE_CANCELLED;
+    storage.lastActionTime = blockchain.now();  // also consumes activation if cancelled before startup
     storage.save();
     return;
 }

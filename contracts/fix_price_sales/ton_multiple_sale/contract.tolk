@@ -119,8 +119,13 @@ fun onInternalMessage(in: InMessage): void {
         NftOwnershipAssignedMessage<SerializableSlice> => {
             try {
                 // Check that domain present in the storage
-                var (_, found) = storage.domainsDict.sDictGet(267, in.senderAddress as slice);
+                var (received, found) = storage.domainsDict.sDictGet(267, in.senderAddress as slice);
                 assert(found) throw EXC_INCORRECT_DOMAIN;
+
+                // Ignore duplicate notifications without returning an already received NFT
+                if (received!.bitsEqual(BIT_TRUE_SLICE())) {
+                    return;
+                }
 
                 // Mark domain as received
                 storage.domainsDict.sDictSet(267, in.senderAddress as slice, BIT_TRUE_SLICE());

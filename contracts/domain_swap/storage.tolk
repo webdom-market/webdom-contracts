@@ -16,7 +16,7 @@ struct Storage {
     state: uint2;                     // State of the contract (UNINIT, WAITING_FOR_LEFT, WAITING_FOR_RIGHT, COMPLETED, CANCELLED)
     createdAt: uint32;                // Timestamp of the contract creation
     validUntil: uint32;               // Timestamp of the contract expiration
-    lastActionTime: uint32;           // Timestamp of the last action with the contract
+    lastActionTime: uint32;           // 0 only before first activation; otherwise last activity/cancellation time
     completionCommission: coins;      // Commission for the completion of the contract
     needsAlert: bool;                 // Flag to check if the contract has to send onchain notifications to the participants
     cancelledByLeft: bool;            // Flag to check if the contract was cancelled by the left participant

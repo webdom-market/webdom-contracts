@@ -13,7 +13,8 @@
 - `deployInfos: dict<uint32, DeployInfo>`: описание всех доступных сделок
 - `contractCodes: Cell<ContractCodes>`: коды для вычисления адресов доменов/кошельков
 - `ds2: Cell<MarketplaceStorageDs2>`:
-  - `web3WalletAddress: address`: адрес WEB3-кошелька для маркетплейса 
+  - `web3WalletAddress: address`: адрес WEB3-кошелька для маркетплейса
+  - `usdtWalletAddress: address`: адрес USDT-кошелька для маркетплейса
   - `promotionPrices: dict<uint32, {hotPrice(uint64), coloredPrice(uint64)}>`: стоимость продвижения продаж 
   - `userSubscriptions: dict<address, {level(uint8), endTime(uint32)}>`: информация о подписках пользователей
   - `subscriptionsInfo: dict<uint8, dict<uint32, uint64>>`: 
@@ -41,6 +42,8 @@ Marketplace принимает два связанных с продлением
 
 При успешном исполнении сделок они отправляют комиссию маркетплейса (в TON или в Jettons). Маркетплейс сохраняет информацию о размере полученных средств в переменной collectedFeesTon или collectedFeesDict.
 
+Деплой с оплатой jetton принимает уведомления только от сохранённых WEB3- и USDT-кошельков. Уведомления о комиссии также требуют один из этих кошельков и минимум 100000 единиц WEB3 или 1000000 единиц USDT.
+
 ### Покупка подписок
 
 Маркетплейс поддерживает покупку и продление подписок, которые могут давать различные преимущества при использовании приложения. Допустимы тарифные планы разных уровней и разной продолжительности.
@@ -49,14 +52,16 @@ Marketplace принимает два связанных с продлением
 
 Так как deployInfosDict содержит очень большой массив данных (в нем хранятся коды всех контрактов), то маркетплейс поддерживает частичное обновление этого словаря и добавление новых элементов в него. Кроме этого, доступна админская функция присваивания юзеру подписки (может пригодиться для розыгрышей).
 
+Текущий формат storage требует `usdtWalletAddress` после `web3WalletAddress` в `ds2`. При обновлении старого storage вставьте адрес через `marketplaceDataWithUsdtWallet` и установите полученные данные вместе с новым кодом через `SET_CODE`. Обновление только кода несовместимо со старым storage.
+
 ## Get-методы
 - `get_deploy_info(op: int) → (deployType, deployFee, dealCode, deployFunctionCode, specificInfo)` — возвращает запись из `deployInfos` по идентификатору сделки
 - `get_storage_data() → (...)` — сводка по всем данным хранилища (см. порядок в `contract.tolk`)
 
 ## Тестирование
 
+Тесты собирают deploy-функции сделок из текущих исходников с адресами sandbox.
+
 ```shell
-npm run contracts:get_deploy_functions -- --all --test && npm run contracts:test -- Marketplace
+npm run contracts:test -- Marketplace -- --runInBand
 ```
-
-

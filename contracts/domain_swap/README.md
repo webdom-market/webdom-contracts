@@ -16,7 +16,9 @@ Once the left side fully delivers, the deal switches to waiting for the right si
 ```
 Marketplace → FillUpBalanceMessage → Contract
 ```
-- Marketplace activates the contract (set state from CANCELLED to WAITING_FOR_LEFT)
+- Marketplace activates the contract once: `CANCELLED` with `lastActionTime = 0` becomes `WAITING_FOR_LEFT`, and `lastActionTime` is set to the current time.
+- Cancellation also sets `lastActionTime`, including cancellation before first activation. A cancelled swap cannot be reopened by another deployment or a delayed activation message.
+- Factory updates must install the new swap code together with its deploy continuation, which initializes `lastActionTime` to zero. The storage layout is unchanged.
 
 ### 2. Left Side Delivery
 ```
