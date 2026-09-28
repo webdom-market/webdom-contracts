@@ -19,7 +19,7 @@ import { MultipleOfferDeployData } from '../../wrappers/MultipleOffer';
 
 
 export async function run(provider: NetworkProvider) {
-    const contractCode = Cell.fromBoc(fs.readFileSync('/Users/arkadiystena/Desktop/webdom/webdom-contracts/contracts/marketplace/vanity-address.cell'))[0];
+    const contractCode = Cell.fromBoc(fs.readFileSync('contracts/marketplace/vanity-address.boc'))[0];
     const salt = Buffer.from('9cbafdbf209ae1174b696544314d27f0d1fe7916c64ca9099c21cbb3cad1a7b0', 'hex');
     const owner = Address.parseFriendly('UQCovSj8c8Ik1I-RZt7dbIOEulYe-MfJ2SN5eMhxwfACvp7x').address
     const contractData = beginCell().storeUint(0, 5).storeAddress(owner).storeBuffer(salt).endCell(); 
@@ -229,6 +229,11 @@ export async function run(provider: NetworkProvider) {
         currentTopSale: Address.parse("EQAxIjlIAtkNTKQ9dU7GTkf17aFrXaUMrhE6cvxDDpGOEr9l"),
 
         web3WalletAddress: Address.parse("EQDSSsVhJGk6BtTMeHwlyxcCrpYySCkEVJQ3OwDYBBgns5ja"),
+        usdtWalletAddress: await provider.open(JettonMinter.createFromAddress(Address.parse(
+            provider.network() === 'mainnet'
+                ? 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs'
+                : 'kQAke45nLBq-0fO-Vaxl8NwNwKibNtr7SheU0xqB4JTKexSm'
+        ))).getWalletAddress(marketplaceDeployer.address),
         
         collectedFeesTon: 0n,
         collectedFeesDict: Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.BigVarUint(4)),

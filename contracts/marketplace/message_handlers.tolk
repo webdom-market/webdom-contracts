@@ -157,7 +157,16 @@ fun handleJettonsTransferNotification(
         }
         val innerOp: int = payload.loadUint(32);
         
-        if (payload.bitsEqual("Marketplace commission".literalSlice())) {  
+        if (payload.bitsEqual("Marketplace commission".literalSlice())) {
+            val ds2: MarketplaceStorageDs2 = lazy storage.ds2.load();
+            if (jettonWalletAddress == ds2.web3WalletAddress) {
+                if (transferredJettons < MIN_WEB3_COMMISSION) { return };
+            } else if (jettonWalletAddress == ds2.usdtWalletAddress) {
+                if (transferredJettons < MIN_USDT_COMMISSION) { return };
+            } else {
+                return;
+            }
+
             // Accept collected fees
             storage.collectedFeesDict = addCollectedFees(storage.collectedFeesDict, jettonWalletAddress, transferredJettons);
             storage.save();
@@ -225,6 +234,7 @@ fun handleJettonsTransferNotification(
         // Deploy with jetton transfer
         if (innerOp < 0x0fffffff) {  // innerOp is a deal identificator
             val ds2: MarketplaceStorageDs2 = lazy storage.ds2.load();
+            assert(jettonWalletAddress == ds2.web3WalletAddress || jettonWalletAddress == ds2.usdtWalletAddress) throw EXC_INCORRECT_SENDER;
             var deployInfo: DeployInfo<SerializableSlice> = parseDeployInfo(storage, innerOp, DEPLOY_WITH_JETTON_TRANSFER);
             var commissionDiscount: uint16 = getCommissionDiscount(payload.loadMaybeRef(), fromAddress, storage.publicKey);
            

@@ -111,6 +111,20 @@ describe('MultipleTonSale', () => {
 
         for (let domain of domains) {
             transactionRes = await domain.sendTransfer(seller.getSender(), tonMultipleSale.address, null, null, toNano('0.1'));
+            if (domain === domains[0]) {
+                const receipt = transactionRes.transactions.find(tx =>
+                    tx.inMessage?.info.type === 'internal'
+                    && tx.inMessage.info.src.equals(domain.address)
+                    && tx.inMessage.info.dest.equals(tonMultipleSale.address))!.inMessage!;
+                const duplicate = await blockchain.sendMessage(receipt);
+                expect(duplicate.transactions).not.toHaveTransaction({
+                    from: tonMultipleSale.address, to: domain.address, op: OpCodes.TRANSFER_NFT,
+                });
+                const partial = await tonMultipleSale.getStorageData();
+                expect(partial.domainsReceived).toBe(1);
+                expect(partial.domainsReceived).toBeLessThan(partial.domainsTotal);
+                expect((await domain.getStorageData()).ownerAddress).toEqualAddress(tonMultipleSale.address);
+            }
             domainConfigs.push(await domain.getStorageData());
         }
         // printTransactionFees(transactionRes.transactions);

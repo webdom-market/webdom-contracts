@@ -71,9 +71,7 @@ fun onInternalMessage(in: InMessage): void {
                 assert(in.senderAddress == storage.domainAddress) throw EXC_INCORRECT_DOMAIN;
                 
                 // Set seller address if it wasn't set during offer creation
-                if (storage.sellerAddress == null) {
-                    storage.sellerAddress = msg.fromAddress.toCell();
-                }
+                storage.sellerAddress = msg.fromAddress.toCell();
 
                 msg.forwardPayload = (msg.forwardPayload is Cell<SerializableSlice>) ? msg.forwardPayload.load() : msg.forwardPayload;
 

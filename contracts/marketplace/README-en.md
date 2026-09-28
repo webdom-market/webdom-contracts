@@ -14,6 +14,7 @@ See `contracts/marketplace/storage.tolk`:
 - `contractCodes: Cell<ContractCodes>`: codes used to compute domain/wallet addresses
 - `ds2: Cell<MarketplaceStorageDs2>`:
   - `web3WalletAddress: address`: marketplace WEB3 wallet address
+  - `usdtWalletAddress: address`: marketplace USDT wallet address
   - `promotionPrices: dict<uint32, {hotPrice(uint64), coloredPrice(uint64)}>`: promotion prices
   - `userSubscriptions: dict<address, {level(uint8), endTime(uint32)}>`: user subscription info
   - `subscriptionsInfo: dict<uint8, dict<uint32, uint64>>`
@@ -41,6 +42,8 @@ Marketplace accepts two renewal-related TON fee flows from deal contracts:
 
 Upon successful completion, deals send the marketplace commission (in TON or jettons). The marketplace records the received amounts in `collectedFeesTon` or `collectedFeesDict`.
 
+Jetton-funded deployments accept notifications only from the stored WEB3 or USDT wallet. Commission notifications also require one of these wallets and at least 100000 WEB3 units or 1000000 USDT units.
+
 ### Subscription purchases
 
 The marketplace supports purchasing and extending subscriptions that may grant various benefits in the application. Multiple levels and durations are supported.
@@ -49,6 +52,8 @@ The marketplace supports purchasing and extending subscriptions that may grant v
 
 Since `deployInfos` contains a large amount of data (it stores codes of all deal contracts), the marketplace supports partial updates of this dictionary and adding new items to it. There is also an admin function to assign subscriptions to users (useful for giveaways).
 
+The current storage layout requires `usdtWalletAddress` after `web3WalletAddress` in `ds2`. When upgrading legacy storage, insert this address with `marketplaceDataWithUsdtWallet` and install the resulting data together with the new code using `SET_CODE`. A code-only upgrade of legacy storage is incompatible.
+
 ## Get methods
 - `get_deploy_info(op: int) → (deployType, deployFee, dealCode, deployFunctionCode, specificInfo)` — returns a record from `deployInfos` by deal identifier
 - `get_storage_data() → (...)` — a summary of all storage fields (see layout in `contract.tolk`)
@@ -56,6 +61,8 @@ Since `deployInfos` contains a large amount of data (it stores codes of all deal
 
 ## Testing
 
+The suite compiles deal continuations from current sources with sandbox constants.
+
 ```shell
-npm run contracts:get_deploy_functions -- --all --test && npm run contracts:test -- Marketplace
+npm run contracts:test -- Marketplace -- --runInBand
 ```

@@ -27,10 +27,11 @@ fun onInternalMessage(in: InMessage) {
 
     val msg = lazy AllowedMessage.fromSlice(in.body);
     match (msg) {
-        // Activate the contract (it is initially in the CANCELLED state)
+        // Activate only the fresh bootstrap state. Cancellation permanently consumes activation.
         FillUpBalanceMessage => {
-            if (in.senderAddress == MARKETPLACE_ADDRESS && storage.state == STATE_CANCELLED) {
+            if (in.senderAddress == MARKETPLACE_ADDRESS && storage.state == STATE_CANCELLED && storage.lastActionTime == 0) {
                 storage.state = STATE_WAITING_FOR_LEFT;
+                storage.lastActionTime = blockchain.now();
                 storage.save();
                 return;
             }
